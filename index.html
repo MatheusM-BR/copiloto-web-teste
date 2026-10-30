@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Copiloto">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#14181f">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Copiloto Caminhoneiro</title>
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<style>
+  /* Layout: mapa em tela cheia, faixa de aviso fixa no topo, velocidade no canto, navegação embaixo. */
+  :root {
+    --bg: #14181f;
+    --painel: #1d232d;
+    --linha: #2c3542;
+    --texto: #eef1f5;
+    --suave: #9aa6b6;
+    --acento: #f2a43a;
+    --acento-texto: #1a1204;
+    --perigo: #c8322b;
+    --perigo-texto: #fff;
+    --ok: #3fb67a;
+    --campo: #12161c;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--texto);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; -webkit-text-size-adjust: 100%;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+
+  .aviso {
+    background: var(--perigo); color: var(--perigo-texto); text-align: center;
+    font-weight: 700; font-size: 14px; letter-spacing: .01em;
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px; z-index: 5;
+  }
+
+  main { position: relative; flex: 1; min-height: 0; }
+  #mapa { position: absolute; inset: 0; background: #0e1217; }
+
+  .painel-mapa { position: absolute; z-index: 3; pointer-events: none; inset: 0; }
+  .painel-mapa > * { pointer-events: auto; }
+
+  .velocidade {
+    position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); bottom: 14px;
+    background: var(--painel); border: 1px solid var(--linha); border-radius: 14px;
+    padding: 8px 14px 10px; min-width: 104px; text-align: center;
+  }
+  .velocidade b { display: block; font-size: 44px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .velocidade span { font-size: 12px; color: var(--suave); letter-spacing: .08em; text-transform: uppercase; }
+
+  .acoes {
+    position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); bottom: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .btn-redondo {
+    width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--linha);
+    background: var(--painel); display: grid; place-items: center; font-size: 22px;
+  }
+  .btn-redondo[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
+
+  .chip-veiculo {
+    position: absolute; top: 10px; left: max(12px, env(safe-area-inset-left, 0px));
+    background: var(--painel); border: 1px solid var(--linha); border-radius: 999px;
+    padding: 6px 12px; font-size: 14px; max-width: calc(100% - 24px);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .cartao-gps {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(88%, 360px); background: var(--painel); border: 1px solid var(--linha);
+    border-radius: 16px; padding: 18px; text-align: center;
+  }
+  .cartao-gps h2 { margin: 0 0 6px; font-size: 18px; }
+  .cartao-gps p { margin: 0 0 14px; color: var(--suave); font-size: 15px; }
+  .cartao-gps[hidden] { display: none; }
+
+  .btn {
+    min-height: 48px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--linha);
+    background: var(--painel); font-weight: 600;
+  }
+  .btn-principal { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
+  .btn-perigo { color: #ff8b84; }
+  .btn-pequeno { min-height: 40px; padding: 0 12px; font-size: 14px; }
+
+  .msg-mapa {
+    position: absolute; top: 52px; left: 50%; transform: translateX(-50%);
+    background: var(--painel); border: 1px solid var(--acento); color: var(--texto);
+    border-radius: 10px; padding: 8px 12px; font-size: 14px; width: max-content; max-width: 90%;
+  }
+
+  /* Tela do veículo */
+  #tela-veiculo {
+    position: absolute; inset: 0; z-index: 6; background: var(--bg); overflow-y: auto;
+    padding: 14px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
+  }
+  #tela-veiculo[hidden] { display: none; }
+  h1 { font-size: 22px; margin: 4px 0 12px; }
+  .lista-perfis { display: grid; gap: 10px; margin: 0 0 16px; padding: 0; list-style: none; }
+  .perfil {
+    background: var(--painel); border: 1px solid var(--linha); border-radius: 12px; padding: 12px;
+    display: grid; gap: 6px; min-width: 0;
+  }
+  .perfil.ativo { border-color: var(--acento); }
+  .perfil h3 { margin: 0; font-size: 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .selo { font-size: 11px; background: var(--acento); color: var(--acento-texto); border-radius: 999px; padding: 2px 8px; font-weight: 700; }
+  .dados { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--suave); font-size: 14px; }
+  .dados span { white-space: nowrap; }
+  .nao-informado { opacity: .75; font-style: italic; }
+  .linha-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  form { display: grid; gap: 12px; background: var(--painel); border: 1px solid var(--linha); border-radius: 14px; padding: 14px; }
+  .grade { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  label { display: grid; gap: 4px; font-size: 14px; color: var(--suave); min-width: 0; }
+  input, select {
+    width: 100%; min-height: 46px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--linha);
+    background: var(--campo); color: var(--texto);
+  }
+  input[aria-invalid="true"] { border-color: #ff8b84; }
+  .erro { color: #ff8b84; font-size: 13px; min-height: 0; }
+  .dica { color: var(--suave); font-size: 13px; margin: 0; }
+
+  nav {
+    display: grid; grid-template-columns: 1fr 1fr; background: var(--painel); border-top: 1px solid var(--linha);
+    padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); z-index: 7;
+  }
+  nav button {
+    border: 0; background: transparent; min-height: 56px; color: var(--suave); font-weight: 600; font-size: 15px;
+    display: grid; place-items: center; gap: 0;
+  }
+  nav button[aria-current="page"] { color: var(--acento); }
+
+  .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { z-index: 2; }
+  .maplibregl-ctrl-bottom-right { bottom: 0; }
+  .ponto-gps {
+    width: 18px; height: 18px; background: #3b82f6; border: 3px solid #fff; border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(59,130,246,.35);
+  }
+  @media (prefers-reduced-motion: no-preference) { .ponto-gps { transition: transform .2s; } }
+  @media (max-width: 380px) { .grade { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="aviso" role="alert">Dados de teste — não use para navegação real</div>
+
+  <main>
+    <div id="mapa" aria-label="Mapa"></div>
+
+    <div class="painel-mapa" id="painel-mapa">
+      <div class="chip-veiculo" id="chip-veiculo">Nenhum veículo ativo</div>
+      <div class="msg-mapa" id="msg-mapa" hidden></div>
+
+      <div class="velocidade" aria-live="off">
+        <b id="vel">--</b><span>km/h</span>
+      </div>
+
+      <div class="acoes">
+        <button class="btn-redondo" id="btn-tela" aria-pressed="false" aria-label="Manter a tela ligada" title="Manter a tela ligada">☀</button>
+        <button class="btn-redondo" id="btn-seguir" aria-pressed="false" aria-label="Seguir minha posição" title="Seguir minha posição">◎</button>
+      </div>
+
+      <div class="cartao-gps" id="cartao-gps">
+        <h2>Ativar o GPS</h2>
+        <p>O Copiloto usa a sua localização para mostrar onde você está e a sua velocidade. Ela fica só neste aparelho.</p>
+        <button class="btn btn-principal" id="btn-gps">Ativar GPS</button>
+      </div>
+    </div>
+
+    <section id="tela-veiculo" hidden aria-label="Veículos">
+      <h1>Veículos</h1>
+      <ul class="lista-perfis" id="lista-perfis"></ul>
+
+      <form id="form-perfil" novalidate>
+        <h2 style="margin:0;font-size:17px" id="titulo-form">Novo veículo</h2>
+        <label for="f-nome">Nome
+          <input id="f-nome" maxlength="80" autocomplete="off" placeholder="Ex.: Scania 113 carreta">
+          <span class="erro" id="e-nome"></span>
+        </label>
+        <div class="grade">
+          <label for="f-tipo">Tipo
+            <select id="f-tipo"></select>
+            <span class="erro" id="e-tipo"></span>
+          </label>
+          <label for="f-carga">Carga agora
+            <select id="f-carga"></select>
+            <span class="erro"></span>
+          </label>
+        </div>
+        <div class="grade">
+          <label for="f-altura">Altura (m)
+            <input id="f-altura" inputmode="decimal" autocomplete="off" placeholder="4,40">
+            <span class="erro" id="e-altura"></span>
+          </label>
+          <label for="f-largura">Largura (m)
+            <input id="f-largura" inputmode="decimal" autocomplete="off" placeholder="2,60">
+            <span class="erro" id="e-largura"></span>
+          </label>
+          <label for="f-comprimento">Comprimento (m)
+            <input id="f-comprimento" inputmode="decimal" autocomplete="off" placeholder="18,60">
+            <span class="erro" id="e-comprimento"></span>
+          </label>
+          <label for="f-pbtc">PBTC (t)
+            <input id="f-pbtc" inputmode="decimal" autocomplete="off" placeholder="45">
+            <span class="erro" id="e-pbtc"></span>
+          </label>
+          <label for="f-eixos">Eixos
+            <input id="f-eixos" inputmode="numeric" autocomplete="off" placeholder="6">
+            <span class="erro" id="e-eixos"></span>
+          </label>
+        </div>
+        <p class="dica">Deixe em branco o que você não sabe. O Copiloto não inventa medida: campo vazio fica como "não informado".</p>
+        <div class="linha-botoes">
+          <button type="submit" class="btn btn-principal" id="btn-salvar">Salvar veículo</button>
+          <button type="button" class="btn" id="btn-cancelar" hidden>Cancelar edição</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <nav aria-label="Navegação">
+    <button id="nav-mapa" aria-current="page">Mapa</button>
+    <button id="nav-veiculo">Veículo</button>
+  </nav>
+</div>
+
+<script src="vendor/maplibre-gl.js"></script>
+<script src="validacao.js"></script>
+<script>
+(function () {
+  "use strict";
+  const V = window.CopilotoValidacao;
+  const $ = (id) => document.getElementById(id);
+
+  // ------------------------------------------------------------ armazenamento (só neste aparelho)
+  const CHAVE = "copiloto.perfis.v1";
+  let estado = { perfis: [], ativoId: null };
+  function carregar() {
+    try {
+      const bruto = localStorage.getItem(CHAVE);
+      if (bruto) {
+        const o = JSON.parse(bruto);
+        if (o && Array.isArray(o.perfis)) estado = { perfis: o.perfis, ativoId: o.ativoId || null };
+      }
+    } catch (e) { /* sem armazenamento: segue em memória */ }
+  }
+  function gravar() {
+    try { localStorage.setItem(CHAVE, JSON.stringify(estado)); } catch (e) { /* ignora */ }
+  }
+  function novoId() { return "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function ativo() { return estado.perfis.find((p) => p.id === estado.ativoId) || null; }
+
+  // ------------------------------------------------------------ mapa
+  const ESTILO = "https://tiles.openfreemap.org/styles/liberty"; // gratuito, sem chave
+  let mapa, marcador, seguindo = false, ultimaPos = null, avisouErroMapa = false;
+
+  function iniciarMapa() {
+    mapa = new maplibregl.Map({
+      container: "mapa", style: ESTILO, center: [-49.25, -16.68], zoom: 6, attributionControl: { compact: true },
+    });
+    mapa.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: false }), "top-right");
+    mapa.on("dragstart", () => definirSeguir(false));
+    mapa.on("error", () => {
+      if (avisouErroMapa) return;
+      avisouErroMapa = true;
+      mensagem("O mapa não carregou. Confira a internet e recarregue a página.", 8000);
+    });
+  }
+
+  let timerMsg;
+  function mensagem(texto, ms) {
+    const el = $("msg-mapa");
+    el.textContent = texto; el.hidden = false;
+    clearTimeout(timerMsg);
+    timerMsg = setTimeout(() => { el.hidden = true; }, ms || 5000);
+  }
+
+  function definirSeguir(v) {
+    seguindo = v;
+    $("btn-seguir").setAttribute("aria-pressed", String(v));
+    if (v && ultimaPos) mapa.easeTo({ center: ultimaPos, zoom: Math.max(mapa.getZoom(), 15), duration: 600 });
+  }
+
+  // ------------------------------------------------------------ GPS
+  let watchId = null;
+  function iniciarGps() {
+    if (!("geolocation" in navigator)) { mensagem("Este navegador não tem GPS.", 8000); return; }
+    $("cartao-gps").hidden = true;
+    watchId = navigator.geolocation.watchPosition(aoReceberPosicao, aoErroGps, {
+      enableHighAccuracy: true, maximumAge: 1000, timeout: 20000,
+    });
+    pedirTelaLigada();
+  }
+
+  function aoReceberPosicao(p) {
+    const c = p.coords;
+    const lngLat = [c.longitude, c.latitude];
+    ultimaPos = lngLat;
+    if (!marcador) {
+      const el = document.createElement("div"); el.className = "ponto-gps";
+      marcador = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(mapa);
+      definirSeguir(true);
+    } else {
+      marcador.setLngLat(lngLat);
+      if (seguindo) mapa.easeTo({ center: lngLat, duration: 800 });
+    }
+    // Velocidade só se o aparelho informar. Senão mostra "--" (nunca calcular/inventar).
+    if (typeof c.speed === "number" && isFinite(c.speed) && c.speed >= 0) {
+      $("vel").textContent = String(Math.round(c.speed * 3.6));
+    } else {
+      $("vel").textContent = "--";
+    }
+  }
+
+  function aoErroGps(e) {
+    $("vel").textContent = "--";
+    if (e.code === 1) {
+      $("cartao-gps").hidden = false;
+      $("cartao-gps").querySelector("p").textContent =
+        "A localização está bloqueada. No iPhone: Ajustes > Privacidade > Serviços de Localização > Safari, e permita. Depois toque em Ativar GPS.";
+    } else if (e.code === 2) mensagem("Sem sinal de GPS agora.", 6000);
+    else if (e.code === 3) mensagem("O GPS demorou para responder.", 6000);
+  }
+
+  // ------------------------------------------------------------ tela ligada (iPhone só dá GPS com a tela ligada)
+  let travaTela = null;
+  async function pedirTelaLigada() {
+    if (!("wakeLock" in navigator)) return;
+    try {
+      travaTela = await navigator.wakeLock.request("screen");
+      $("btn-tela").setAttribute("aria-pressed", "true");
+      travaTela.addEventListener("release", () => $("btn-tela").setAttribute("aria-pressed", "false"));
+    } catch (e) { /* recusado: tudo bem */ }
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && $("btn-tela").getAttribute("aria-pressed") === "true" && !travaTela) pedirTelaLigada();
+    if (document.visibilityState === "visible" && travaTela && travaTela.released) { travaTela = null; pedirTelaLigada(); }
+  });
+
+  // ------------------------------------------------------------ veículos
+  let editandoId = null;
+
+  function fmt(v, un) { return v == null ? null : String(v).replace(".", ",") + (un ? " " + un : ""); }
+  function dado(rotulo, v, un) {
+    const s = document.createElement("span");
+    const t = fmt(v, un);
+    if (t == null) { s.className = "nao-informado"; s.textContent = rotulo + ": não informado"; }
+    else s.textContent = rotulo + ": " + t;
+    return s;
+  }
+
+  function desenharLista() {
+    const ul = $("lista-perfis"); ul.textContent = "";
+    if (!estado.perfis.length) {
+      const li = document.createElement("li"); li.className = "dica";
+      li.textContent = "Nenhum veículo cadastrado ainda. Cadastre o primeiro abaixo.";
+      ul.appendChild(li);
+    }
+    for (const p of estado.perfis) {
+      const li = document.createElement("li"); li.className = "perfil" + (p.id === estado.ativoId ? " ativo" : "");
+      const h = document.createElement("h3"); h.textContent = p.nome + " · " + p.tipo;
+      if (p.id === estado.ativoId) { const s = document.createElement("span"); s.className = "selo"; s.textContent = "ATIVO"; h.appendChild(s); }
+      const d = document.createElement("div"); d.className = "dados";
+      d.append(dado("Altura", p.altura, "m"), dado("Largura", p.largura, "m"), dado("Comprimento", p.comprimento, "m"),
+               dado("PBTC", p.pbtc, "t"), dado("Eixos", p.eixos, ""));
+      const c = document.createElement("span"); c.textContent = "Carga: " + p.carga; d.appendChild(c);
+      const b = document.createElement("div"); b.className = "linha-botoes";
+      if (p.id !== estado.ativoId) b.appendChild(botao("Usar este", "btn btn-pequeno btn-principal", () => { estado.ativoId = p.id; gravar(); atualizarTudo(); }));
+      b.appendChild(botao("Editar", "btn btn-pequeno", () => editar(p.id)));
+      b.appendChild(botao("Excluir", "btn btn-pequeno btn-perigo", () => excluir(p.id)));
+      li.append(h, d, b); ul.appendChild(li);
+    }
+  }
+  function botao(texto, cls, fn) { const b = document.createElement("button"); b.type = "button"; b.className = cls; b.textContent = texto; b.addEventListener("click", fn); return b; }
+
+  function excluir(id) {
+    estado.perfis = estado.perfis.filter((p) => p.id !== id);
+    if (estado.ativoId === id) estado.ativoId = estado.perfis.length ? estado.perfis[0].id : null;
+    if (editandoId === id) limparForm();
+    gravar(); atualizarTudo();
+  }
+
+  const CAMPOS_NUM = ["altura", "largura", "comprimento", "pbtc", "eixos"];
+  function lerForm() {
+    const o = { nome: $("f-nome").value, tipo: $("f-tipo").value, carga: $("f-carga").value };
+    for (const c of CAMPOS_NUM) o[c] = $("f-" + c).value;
+    return o;
+  }
+  function mostrarErros(erros) {
+    for (const c of ["nome", "tipo"].concat(CAMPOS_NUM)) {
+      const e = $("e-" + c); if (e) e.textContent = erros[c] || "";
+      const i = $("f-" + c); if (i) i.setAttribute("aria-invalid", erros[c] ? "true" : "false");
+    }
+  }
+  function limparForm() {
+    editandoId = null; $("form-perfil").reset(); $("f-tipo").value = "Carreta"; mostrarErros({});
+    $("titulo-form").textContent = "Novo veículo"; $("btn-cancelar").hidden = true; $("btn-salvar").textContent = "Salvar veículo";
+  }
+  function editar(id) {
+    const p = estado.perfis.find((x) => x.id === id); if (!p) return;
+    editandoId = id; mostrarErros({});
+    $("f-nome").value = p.nome; $("f-tipo").value = p.tipo; $("f-carga").value = p.carga;
+    for (const c of CAMPOS_NUM) $("f-" + c).value = p[c] == null ? "" : String(p[c]).replace(".", ",");
+    $("titulo-form").textContent = "Editar veículo"; $("btn-cancelar").hidden = false; $("btn-salvar").textContent = "Salvar alterações";
+    $("f-nome").focus();
+  }
+
+  function aoSalvar(ev) {
+    ev.preventDefault();
+    const r = V.validarPerfil(lerForm());
+    mostrarErros(r.erros);
+    if (!r.ok) { const primeiro = Object.keys(r.erros)[0]; const el = $("f-" + primeiro); if (el) el.focus(); return; }
+    if (editandoId) {
+      const i = estado.perfis.findIndex((p) => p.id === editandoId);
+      if (i >= 0) estado.perfis[i] = Object.assign({ id: editandoId }, r.perfil);
+    } else {
+      const novo = Object.assign({ id: novoId() }, r.perfil);
+      estado.perfis.push(novo);
+      if (!estado.ativoId) estado.ativoId = novo.id; // o primeiro vira o ativo
+    }
+    gravar(); limparForm(); atualizarTudo();
+  }
+
+  function atualizarTudo() {
+    desenharLista();
+    const a = ativo();
+    $("chip-veiculo").textContent = a ? a.nome + " · " + a.tipo : "Nenhum veículo ativo";
+  }
+
+  // ------------------------------------------------------------ navegação
+  function irPara(tela) {
+    const veiculo = tela === "veiculo";
+    $("tela-veiculo").hidden = !veiculo;
+    $("nav-mapa").setAttribute("aria-current", veiculo ? "false" : "page");
+    $("nav-veiculo").setAttribute("aria-current", veiculo ? "page" : "false");
+    if (!veiculo && mapa) setTimeout(() => mapa.resize(), 50);
+  }
+
+  // ------------------------------------------------------------ início
+  carregar();
+  for (const t of V.TIPOS) $("f-tipo").add(new Option(t, t));
+  for (const c of V.CARGAS) $("f-carga").add(new Option(c, c));
+  $("f-tipo").value = "Carreta";
+  $("form-perfil").addEventListener("submit", aoSalvar);
+  $("btn-cancelar").addEventListener("click", limparForm);
+  $("nav-mapa").addEventListener("click", () => irPara("mapa"));
+  $("nav-veiculo").addEventListener("click", () => irPara("veiculo"));
+  $("btn-gps").addEventListener("click", iniciarGps);
+  $("btn-seguir").addEventListener("click", () => definirSeguir(!seguindo));
+  $("btn-tela").addEventListener("click", async () => {
+    if ($("btn-tela").getAttribute("aria-pressed") === "true" && travaTela) { await travaTela.release(); travaTela = null; }
+    else pedirTelaLigada();
+  });
+  atualizarTudo();
+  iniciarMapa();
+})();
+</script>
+</body>
+</html>
