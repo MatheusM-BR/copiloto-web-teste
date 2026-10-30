@@ -237,10 +237,12 @@
 
 <script src="vendor/maplibre-gl.js"></script>
 <script src="validacao.js"></script>
+<script src="velocidade.js"></script>
 <script>
 (function () {
   "use strict";
   const V = window.CopilotoValidacao;
+  const filtroVel = window.CopilotoVelocidade.criarFiltro();
   const $ = (id) => document.getElementById(id);
 
   // ------------------------------------------------------------ armazenamento (só neste aparelho)
@@ -315,12 +317,12 @@
       marcador.setLngLat(lngLat);
       if (seguindo) mapa.easeTo({ center: lngLat, duration: 800 });
     }
-    // Velocidade só se o aparelho informar. Senão mostra "--" (nunca calcular/inventar).
-    if (typeof c.speed === "number" && isFinite(c.speed) && c.speed >= 0) {
-      $("vel").textContent = String(Math.round(c.speed * 3.6));
-    } else {
-      $("vel").textContent = "--";
-    }
+    // Velocidade filtrada: zona morta contra a oscilação do GPS parado; "--" só quando não dá para saber.
+    const kmh = filtroVel.atualizar({
+      lat: c.latitude, lon: c.longitude, precisao: c.accuracy,
+      velocidade: typeof c.speed === "number" ? c.speed : null, t: p.timestamp,
+    });
+    $("vel").textContent = kmh === null ? "--" : String(kmh);
   }
 
   function aoErroGps(e) {
