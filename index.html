@@ -145,9 +145,31 @@
   .maplibregl-ctrl-bottom-right { bottom: 0; }
   .ponto-gps {
     width: 18px; height: 18px; background: #3b82f6; border: 3px solid #fff; border-radius: 50%;
-    box-shadow: 0 0 0 4px rgba(59,130,246,.35);
+    box-shadow: 0 0 0 4px rgba(59,130,246,.35); pointer-events: none;
   }
   @media (prefers-reduced-motion: no-preference) { .ponto-gps { transition: transform .2s; } }
+  .folha {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--painel);
+    border-top: 1px solid var(--linha); border-radius: 16px 16px 0 0; max-height: 70%; overflow-y: auto;
+    padding: 14px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px));
+    display: grid; gap: 10px;
+  }
+  .folha[hidden] { display: none; }
+  .folha h2 { margin: 0; font-size: 18px; }
+  .folha p { margin: 0; color: var(--suave); font-size: 14px; }
+  .folha .grande { color: var(--texto); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .folha .aviso-rota { color: #ffd9a1; font-size: 13px; border-left: 3px solid var(--acento); padding-left: 10px; }
+  .btn-redondo.destino[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); }
+  .pino-destino { width: 22px; height: 22px; background: var(--perigo); border: 3px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+  .relato-marca {
+    background: var(--acento); color: var(--acento-texto); font-weight: 800; font-size: 11px; letter-spacing: .02em;
+    border: 2px solid #fff; border-radius: 8px; padding: 2px 6px; white-space: nowrap; cursor: pointer;
+  }
+  .relato-marca.transitorio { background: #e5484d; color: #fff; }
+  .popup-relato { color: #14181f; font-size: 14px; display: grid; gap: 6px; min-width: 190px; }
+  .popup-relato b { font-size: 15px; }
+  .popup-relato small { color: #4a5565; }
+  .popup-relato button { min-height: 36px; border-radius: 8px; border: 1px solid #c8322b; background: #fff; color: #c8322b; font-weight: 600; }
   @media (max-width: 380px) { .grade { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -167,6 +189,8 @@
       </div>
 
       <div class="acoes">
+        <button class="btn-redondo" id="btn-reportar" aria-label="Reportar um problema ou restrição aqui" title="Reportar aqui"><b>!</b></button>
+        <button class="btn-redondo destino" id="btn-destino" aria-pressed="false" aria-label="Escolher destino no mapa" title="Escolher destino">⚑</button>
         <button class="btn-redondo" id="btn-tela" aria-pressed="false" aria-label="Manter a tela ligada" title="Manter a tela ligada">☀</button>
         <button class="btn-redondo" id="btn-seguir" aria-pressed="false" aria-label="Seguir minha posição" title="Seguir minha posição">◎</button>
       </div>
@@ -177,6 +201,8 @@
         <button class="btn btn-principal" id="btn-gps">Ativar GPS</button>
       </div>
     </div>
+
+    <div class="folha" id="folha" hidden></div>
 
     <section id="tela-veiculo" hidden aria-label="Veículos">
       <h1>Veículos</h1>
@@ -238,6 +264,8 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="validacao.js"></script>
 <script src="velocidade.js"></script>
+<script src="rota.js"></script>
+<script src="relatos.js"></script>
 <script>
 (function () {
   "use strict";
@@ -271,6 +299,7 @@
     mapa = new maplibregl.Map({
       container: "mapa", style: ESTILO, center: [-49.25, -16.68], zoom: 6, attributionControl: { compact: true },
     });
+    window.copiloto = { mapa: mapa };
     mapa.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: false }), "top-right");
     mapa.on("dragstart", () => definirSeguir(false));
     mapa.on("error", () => {
@@ -449,6 +478,133 @@
     if (!veiculo && mapa) setTimeout(() => mapa.resize(), 50);
   }
 
+  // ------------------------------------------------------------ folha inferior (destino, rota, relato)
+  function el(tag, cls, texto) { const e = document.createElement(tag); if (cls) e.className = cls; if (texto != null) e.textContent = texto; return e; }
+  function abrirFolha(filhos) { const f = $("folha"); f.textContent = ""; filhos.forEach((x) => f.appendChild(x)); f.hidden = false; }
+  function fecharFolha() { $("folha").hidden = true; $("folha").textContent = ""; }
+  function quandoPronto(fn) { if (mapa.isStyleLoaded()) fn(); else mapa.once("load", fn); }
+
+  // ------------------------------------------------------------ destino e rota
+  const Rota = window.CopilotoRota, Relatos = window.CopilotoRelatos;
+  let modoDestino = false, marcadorDestino = null, destino = null;
+
+  function pedirDestino(v) {
+    modoDestino = v;
+    $("btn-destino").setAttribute("aria-pressed", String(v));
+    if (v) { fecharFolha(); mensagem("Toque no mapa para escolher o destino.", 6000); }
+  }
+
+  function definirDestino(lngLat) {
+    destino = { lat: lngLat.lat, lon: lngLat.lng };
+    if (marcadorDestino) marcadorDestino.remove();
+    const pino = el("div", "pino-destino");
+    marcadorDestino = new maplibregl.Marker({ element: pino }).setLngLat([destino.lon, destino.lat]).addTo(mapa);
+    pedirDestino(false);
+    const botoes = el("div", "linha-botoes");
+    botoes.append(
+      botao("Traçar rota", "btn btn-principal", tracarRota),
+      botao("Cancelar", "btn", limparRota));
+    abrirFolha([el("h2", null, "Destino escolhido"), el("p", null, destino.lat.toFixed(5).replace(".", ",") + ", " + destino.lon.toFixed(5).replace(".", ",")), botoes]);
+  }
+
+  function limparRota() {
+    destino = null; pedirDestino(false);
+    if (marcadorDestino) { marcadorDestino.remove(); marcadorDestino = null; }
+    if (mapa.getLayer("rota")) mapa.removeLayer("rota");
+    if (mapa.getSource("rota")) mapa.removeSource("rota");
+    fecharFolha();
+  }
+
+  function desenharRota(coords) {
+    quandoPronto(() => {
+      const dados = { type: "Feature", geometry: { type: "LineString", coordinates: coords } };
+      if (mapa.getSource("rota")) mapa.getSource("rota").setData(dados);
+      else {
+        mapa.addSource("rota", { type: "geojson", data: dados });
+        mapa.addLayer({ id: "rota", type: "line", source: "rota", layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#f2a43a", "line-width": 6, "line-opacity": 0.92 } });
+      }
+      const b = coords.reduce((acc, c) => acc.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
+      mapa.fitBounds(b, { padding: { top: 60, bottom: 260, left: 40, right: 40 }, duration: 700 });
+    });
+  }
+
+  async function tracarRota() {
+    if (!destino) return;
+    if (!ultimaPos) { mensagem("Ative o GPS para saber de onde você sai.", 6000); return; }
+    const origem = { lat: ultimaPos[1], lon: ultimaPos[0] };
+    const perfil = ativo();
+    const { pedido, faltando } = Rota.criarPedido(perfil, origem, destino);
+    abrirFolha([el("h2", null, "Traçando a rota…"), el("p", null, "Calculando para " + (perfil ? perfil.nome : "carro") + ".")]);
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 25000);
+    try {
+      const resp = await fetch(window.COPILOTO_URL_ROTA || Rota.URL_PADRAO, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(pedido), signal: ctl.signal,
+      });
+      const json = await resp.json().catch(() => null);
+      const r = Rota.resumirResposta(json);
+      desenharRota(r.coords);
+      const botoes = el("div", "linha-botoes");
+      botoes.append(botao("Limpar rota", "btn", limparRota));
+      const itens = [el("h2", null, "Rota para " + (perfil && Rota.ehCaminhao(perfil) ? perfil.nome : "carro")),
+        el("div", "grande", Rota.formatarKm(r.km) + " · " + Rota.formatarTempo(r.minutos))];
+      for (const a of Rota.avisos(perfil, faltando)) itens.push(el("p", "aviso-rota", a));
+      itens.push(botoes);
+      abrirFolha(itens);
+    } catch (e) {
+      const motivo = e.name === "AbortError" ? "O servidor de rotas demorou demais." :
+        (e instanceof TypeError ? "Sem conexão com o servidor de rotas." : e.message);
+      const botoes = el("div", "linha-botoes");
+      botoes.append(botao("Tentar de novo", "btn btn-principal", tracarRota), botao("Cancelar", "btn", limparRota));
+      abrirFolha([el("h2", null, "Não foi possível traçar"), el("p", null, motivo), botoes]);
+    } finally { clearTimeout(t); }
+  }
+
+  // ------------------------------------------------------------ relatos dos motoristas (só neste aparelho por enquanto)
+  const CHAVE_REL = "copiloto.relatos.v1";
+  let relatos = [];
+  const marcasRelato = new Map();
+  function carregarRelatos() { try { const o = JSON.parse(localStorage.getItem(CHAVE_REL) || "[]"); if (Array.isArray(o)) relatos = o; } catch (e) { relatos = []; } }
+  function gravarRelatos() { try { localStorage.setItem(CHAVE_REL, JSON.stringify(relatos)); } catch (e) { /* ignora */ } }
+
+  function desenharRelatos() {
+    const agora = Date.now();
+    relatos = Relatos.ativos(relatos, agora);
+    const vivos = new Set(relatos.map((r) => r.id));
+    for (const [id, m] of marcasRelato) if (!vivos.has(id)) { m.remove(); marcasRelato.delete(id); }
+    for (const r of relatos) {
+      if (marcasRelato.has(r.id)) continue;
+      const cfg = Relatos.TIPOS[r.tipo];
+      const marca = el("div", "relato-marca" + (cfg.valor ? "" : " transitorio"), cfg.sigla + (r.valor == null ? "" : " " + String(r.valor).replace(".", ",")));
+      const pop = el("div", "popup-relato");
+      pop.append(el("b", null, Relatos.titulo(r)), el("small", null, Relatos.descricao(r, agora)),
+        botao("Excluir relato", "", () => { relatos = relatos.filter((x) => x.id !== r.id); gravarRelatos(); desenharRelatos(); }));
+      const m = new maplibregl.Marker({ element: marca }).setLngLat([r.lon, r.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(pop)).addTo(mapa);
+      marcasRelato.set(r.id, m);
+    }
+  }
+
+  function abrirRelato() {
+    if (!ultimaPos) { mensagem("Ative o GPS para reportar neste ponto.", 6000); return; }
+    pedirDestino(false);
+    const sel = el("select"); sel.id = "r-tipo";
+    for (const [id, cfg] of Object.entries(Relatos.TIPOS)) sel.add(new Option(cfg.rotulo, id));
+    const inp = el("input"); inp.id = "r-valor"; inp.setAttribute("inputmode", "decimal"); inp.autocomplete = "off";
+    const rotValor = el("label", null, ""); const spanRot = el("span", null, ""); const erro = el("span", "erro");
+    rotValor.append(spanRot, inp, erro);
+    const rotTipo = el("label", null, "O que você viu?"); rotTipo.append(sel);
+    function ajustar() { const cfg = Relatos.TIPOS[sel.value]; rotValor.hidden = !cfg.valor; if (cfg.valor) { spanRot.textContent = cfg.valor.rotulo; inp.placeholder = cfg.valor.unidade === "m" ? "4,30" : "30"; } erro.textContent = ""; }
+    sel.addEventListener("change", ajustar); ajustar();
+    const botoes = el("div", "linha-botoes");
+    botoes.append(botao("Salvar relato", "btn btn-principal", () => {
+      const r = Relatos.criarRelato(sel.value, { lat: ultimaPos[1], lon: ultimaPos[0] }, inp.value, Date.now(), novoId());
+      if (!r.ok) { erro.textContent = r.erro; inp.setAttribute("aria-invalid", "true"); return; }
+      relatos.push(r.relato); gravarRelatos(); desenharRelatos(); fecharFolha(); mensagem("Relato salvo neste ponto.", 4000);
+    }), botao("Cancelar", "btn", fecharFolha));
+    abrirFolha([el("h2", null, "Reportar neste ponto"), rotTipo, rotValor,
+      el("p", null, "Fica salvo só neste aparelho e vence sozinho. Não é uma informação confirmada."), botoes]);
+  }
+
   // ------------------------------------------------------------ início
   carregar();
   for (const t of V.TIPOS) $("f-tipo").add(new Option(t, t));
@@ -464,8 +620,19 @@
     if ($("btn-tela").getAttribute("aria-pressed") === "true" && travaTela) { await travaTela.release(); travaTela = null; }
     else pedirTelaLigada();
   });
+  $("btn-destino").addEventListener("click", () => pedirDestino(!modoDestino));
+  $("btn-reportar").addEventListener("click", abrirRelato);
   atualizarTudo();
   iniciarMapa();
+  mapa.on("click", (e) => { if (modoDestino) definirDestino(e.lngLat); });
+  carregarRelatos(); desenharRelatos();
+  setInterval(desenharRelatos, 60000);
+  // Se a permissão de localização já foi dada, liga o GPS sozinho (senão o cartão tapa o mapa a cada abertura).
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: "geolocation" }).then((r) => { if (r.state === "granted") iniciarGps(); }, () => {});
+    }
+  } catch (e) { /* sem suporte: o botão Ativar GPS continua valendo */ }
 })();
 </script>
 </body>
