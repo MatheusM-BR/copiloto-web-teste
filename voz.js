@@ -123,7 +123,14 @@
       if (!disponivel()) return false;
       try { const u = new Enunciado(""); u.volume = 0; u.lang = "pt-BR"; sintese.speak(u); return true; } catch (e) { return false; }
     }
-    return { disponivel, falar, destravar };
+    // Cala o que estiver falando (antes de abrir o microfone: o reconhecimento não pode ouvir a própria fala).
+    function cancelar() {
+      if (!sintese || typeof sintese.cancel !== "function") return false;
+      try { sintese.cancel(); return true; } catch (e) { return false; }
+    }
+    // speechSynthesis.speaking (false se o aparelho não diz)
+    function falando() { try { return !!(sintese && sintese.speaking); } catch (e) { return false; } }
+    return { disponivel, falar, destravar, cancelar, falando };
   }
 
   // ------------------------------------------------------------ bipe de rádio (VOZ-02)

@@ -6,7 +6,9 @@
 // - quando falar cada manobra conforme a velocidade, sem repetir;
 // - formatação (distância, duração, hora de chegada "sem trânsito");
 // - peso para a rota (carregado/vazio) sem inventar: o que não foi informado vai sem peso e com aviso;
-// - registro da viagem pelo GPS (resumo pós-viagem, PRD 17.1), viagens e destinos recentes.
+// - registro da viagem pelo GPS (resumo pós-viagem, PRD 17.1), viagens e destinos recentes;
+// - rota offline: volta pela mesma rota (desenho invertido, sem inventar manobras), ponto de reentrada à frente,
+//   conferência com a internet (quando e se a rota nova difere) e a faixa "Rota offline · conferida …".
 (function (raiz) {
   "use strict";
 
@@ -448,7 +450,187 @@
     return [destino].concat(resto).slice(0, max || 5);
   }
 
+  // ------------------------------------------------------------ rota offline: volta, reentrada e conferência
+  // Volta pela mesma rota: o desenho guardado no sentido inverso. As manobras do Valhalla são do sentido da ida e não
+  // valem na volta (a direita vira esquerda, retornos e mãos únicas mudam): a volta vai SEM manobras, nunca inventadas.
+  function inverterRota(rota) {
+    if (!rota || !Array.isArray(rota.coords) || rota.coords.length < 2) return null;
+    const coords = rota.coords.slice().reverse().map((c) => [c[0], c[1]]);
+    const ini = coords[0], fim = coords[coords.length - 1];
+    return { origem: { lat: ini[1], lon: ini[0] }, destino: { lat: fim[1], lon: fim[0] }, coords,
+      km: rota.km, minutos: rota.minutos, avisos: [], resposta: null, invertida: true };
+  }
+
+  // Orientação mínima e honesta para uma linha sem manobras: "siga pela rota destacada" até o fim, que é a única
+  // "manobra" (com os anúncios de chegada de 2 km / 500 m / 300 m). rotuloFim: "ponto de origem", "destino"…
+  function manobrasSemCurvas(geo, rotuloFim, falaInicio) {
+    const fim = rotuloFim || "destino";
+    const chegada = "Você chegará ao " + fim + ".";
+    const ultimo = Math.max(0, geo.coords.length - 1);
+    return [
+      { tipo: 1, instrucao: "Siga pela rota destacada", pre: falaInicio || "Siga pela rota destacada.", alerta: "Siga pela rota destacada.",
+        ruas: [], indice_forma: 0, inicio_m: 0, fim_m: geo.total, tempo_s: null, destino: false, semCurvas: true },
+      { tipo: 4, instrucao: "Siga pela rota destacada", pre: chegada, alerta: chegada, ruas: ["até o " + fim],
+        indice_forma: ultimo, inicio_m: geo.total, fim_m: geo.total, tempo_s: null, destino: true, semCurvas: true },
+    ];
+  }
+
+  // Avisos de distância restante numa rota sem manobras: devolve o marco (m) que acabou de ser cruzado ou null.
+  const MARCOS_RESTANTE_M = [200000, 100000, 50000, 20000, 10000, 5000];
+  // inicioM (opcional): o que faltava no começo; marco a menos de 300 m dele não é falado (acabou de ouvir a distância).
+  function marcoRestante(antesM, agoraM, inicioM) {
+    if (typeof antesM !== "number" || typeof agoraM !== "number" || !isFinite(antesM) || !isFinite(agoraM)) return null;
+    let cruzado = null;
+    for (const m of MARCOS_RESTANTE_M) if (antesM > m && agoraM <= m && !(typeof inicioM === "number" && m > inicioM - 300)) cruzado = m;
+    return cruzado;
+  }
+  function textoMarco(m) { return "Faltam " + VozLib.distanciaFalada(m) + " pela rota destacada."; }
+
+  // Ponto da linha mais perto de pos, só no trecho [desdeM, ateM] (metros ao longo da linha).
+  function maisProximo(geo, pos, desdeM, ateM) {
+    const n = geo.coords.length;
+    if (n < 2) return null;
+    const ini = desdeM == null || desdeM <= 0 ? 0 : segmentoDoProgresso(geo, desdeM);
+    const kx = Math.cos(pos.lat * RAD) * M_POR_GRAU, ky = M_POR_GRAU;
+    let melhor = null;
+    for (let i = ini; i < n - 1; i++) {
+      if (ateM != null && geo.acum[i] > ateM) break;
+      const a = geo.coords[i], b = geo.coords[i + 1];
+      const ax = (a[0] - pos.lon) * kx, ay = (a[1] - pos.lat) * ky;
+      const dx = (b[0] - a[0]) * kx, dy = (b[1] - a[1]) * ky;
+      const l2 = dx * dx + dy * dy;
+      let t = l2 > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+      // não volta para antes de desdeM dentro do primeiro segmento
+      const s0 = geo.acum[i], s1 = geo.acum[i + 1];
+      if (desdeM != null && s1 > s0 && s0 + t * (s1 - s0) < desdeM) t = Math.min(1, (desdeM - s0) / (s1 - s0));
+      const px = ax + t * dx, py = ay + t * dy;
+      const d = Math.hypot(px, py);
+      if (!melhor || d < melhor.distancia_m) {
+        melhor = { distancia_m: d, ao_longo_m: s0 + t * (s1 - s0), ponto: { lon: pos.lon + px / kx, lat: pos.lat + py / ky } };
+      }
+    }
+    return melhor;
+  }
+
+  // Rumo (graus a partir do norte, sentido horário) de a para b.
+  function rumoEntre(a, b) {
+    const y = Math.sin((b.lon - a.lon) * RAD) * Math.cos(b.lat * RAD);
+    const x = Math.cos(a.lat * RAD) * Math.sin(b.lat * RAD) - Math.sin(a.lat * RAD) * Math.cos(b.lat * RAD) * Math.cos((b.lon - a.lon) * RAD);
+    return (Math.atan2(y, x) / RAD + 360) % 360;
+  }
+  const RUMOS = ["norte", "nordeste", "leste", "sudeste", "sul", "sudoeste", "oeste", "noroeste"];
+  function textoRumo(graus) { return RUMOS[Math.round((((graus % 360) + 360) % 360) / 45) % 8]; }
+  // Lado do alvo em relação ao rumo do veículo ("em frente", "à direita", "à esquerda", "atrás"); sem rumo, null.
+  function direcaoRelativa(alvo, rumoVeiculo) {
+    if (typeof rumoVeiculo !== "number" || !isFinite(rumoVeiculo)) return null;
+    const d = ((alvo - rumoVeiculo + 540) % 360) - 180;
+    if (Math.abs(d) <= 30) return "em frente";
+    if (Math.abs(d) >= 150) return "atrás";
+    return d > 0 ? "à direita" : "à esquerda";
+  }
+
+  // Ponto de reentrada sem internet: o ponto da linha mais perto, À FRENTE do progresso (sentido da viagem; uma folga de
+  // 50 m atrás). Saindo de uma fazenda a alguns km da linha, é para lá que o motorista vai, não para um trecho já feito.
+  // Devolve { ponto: { lat, lon }, distancia_m, ao_longo_m, rumo } ou null.
+  function pontoReentrada(geo, pos, progresso) {
+    const desde = typeof progresso === "number" && isFinite(progresso) ? Math.max(0, progresso - 50) : 0;
+    const m = maisProximo(geo, pos, desde) || maisProximo(geo, pos, 0);
+    if (!m) return null;
+    return Object.assign(m, { rumo: rumoEntre(pos, m.ponto) });
+  }
+
+  // Textos do estado "fora da linha sem internet". motivo: "internet" (padrão) ou "servidor" (não respondeu).
+  // Devolve { status (faixa do painel), detalhe ("Linha a 350 m · nordeste · à direita"), fala }.
+  function textoReentrada(r, rumoVeiculo, motivo) {
+    const causaTela = motivo === "servidor" ? "o servidor de rotas não respondeu" : "sem internet para recalcular";
+    const status = "Rota offline — " + causaTela + ". Volte para a linha destacada";
+    if (!r) return { status, detalhe: "", fala: "Rota offline, " + causaTela + ". Volte para a linha destacada." };
+    const lado = direcaoRelativa(r.rumo, rumoVeiculo);
+    const rumo = textoRumo(r.rumo);
+    const detalhe = "Linha a " + formatarDistancia(r.distancia_m) + " · " + rumo + (lado ? " · " + lado : "");
+    const fala = "Rota offline, " + causaTela + ". Volte para a linha destacada, a " + VozLib.distanciaFalada(r.distancia_m) + ", " +
+      (lado && lado !== "atrás" ? lado : "ao " + rumo) + ".";
+    return { status, detalhe, fala };
+  }
+  const REENTRADA_FALA_MS = 60000; // voz do "volte para a linha" no máximo a cada ~60 s
+  function podeFalarReentrada(tAgora, tUltima) { return tUltima == null || !isFinite(tUltima) || tAgora - tUltima >= REENTRADA_FALA_MS; }
+
+  // Ponto a s metros ao longo da linha.
+  function pontoNaDistancia(geo, s) {
+    const i = segmentoDoProgresso(geo, s);
+    const a = geo.coords[i], b = geo.coords[Math.min(i + 1, geo.coords.length - 1)];
+    const len = geo.acum[Math.min(i + 1, geo.acum.length - 1)] - geo.acum[i];
+    const t = len > 0 ? Math.max(0, Math.min(1, (s - geo.acum[i]) / len)) : 0;
+    return { lon: a[0] + t * (b[0] - a[0]), lat: a[1] + t * (b[1] - a[1]) };
+  }
+
+  // Conferência da rota guardada quando a internet volta: a rota nova (posição atual → destino) difere da guardada?
+  // Difere se a distância muda mais de 10 % (contra o que falta da guardada) ou se algum ponto da nova passa a mais de
+  // 300 m da linha guardada. geo: geometria guardada; progresso: metros já feitos nela; coordsNova: [[lon, lat], …].
+  // Devolve { difere, difDistPct, desvioMaxM }.
+  const DIFERE_DIST = 0.10, DIFERE_DESVIO_M = 300;
+  function compararRotas(geo, progresso, coordsNova, op) {
+    const o = Object.assign({ distPct: DIFERE_DIST, desvioM: DIFERE_DESVIO_M, passoM: 100 }, op);
+    if (!Array.isArray(coordsNova) || coordsNova.length < 2 || !geo || geo.coords.length < 2) return { difere: true, difDistPct: null, desvioMaxM: null };
+    const nova = prepararGeometria(coordsNova);
+    const prog = typeof progresso === "number" && isFinite(progresso) ? Math.max(0, progresso) : 0;
+    const restante = Math.max(0, geo.total - prog);
+    const difDist = restante > 0 ? Math.abs(nova.total - restante) / restante : nova.total > 50 ? Infinity : 0;
+    // desvio: amostras a cada passoM na nova; cada uma procura perto de onde a anterior casou (as duas andam no mesmo
+    // sentido) e, se ficar longe, na linha toda à frente (do progresso, com folga) antes de contar como desvio
+    let desvio = 0, onde = prog;
+    const passo = Math.max(10, o.passoM);
+    const amostras = [];
+    for (let s = 0; s < nova.total; s += passo) amostras.push(s);
+    amostras.push(nova.total);
+    for (const s of amostras) {
+      const p = pontoNaDistancia(nova, s);
+      let m = maisProximo(geo, p, Math.max(0, onde - 500), onde + 2 * passo + 1500);
+      if (!m || m.distancia_m > o.desvioM) m = maisProximo(geo, p, Math.max(0, prog - 200));
+      if (!m) continue;
+      if (m.distancia_m <= o.desvioM) onde = Math.max(onde, m.ao_longo_m);
+      if (m.distancia_m > desvio) desvio = m.distancia_m;
+      if (desvio > o.desvioM) break;
+    }
+    return { difere: difDist > o.distPct || desvio > o.desvioM,
+      difDistPct: isFinite(difDist) ? Math.round(difDist * 1000) / 10 : null, desvioMaxM: Math.round(desvio) };
+  }
+
+  // Quando conferir: uma vez por retorno da internet (ou no início, com rota guardada), nunca em laço. Falha (sem rede,
+  // servidor calado) espera 60 s, 120 s, 240 s… até 5 min antes de tentar de novo.
+  function criarConferidor(op) {
+    const base = (op && op.esperaMs) || 60000, max = (op && op.esperaMaxMs) || 300000;
+    let pendente = false, emCurso = false, proximaEm = 0, falhas = 0;
+    function falhou(agora) { pendente = true; falhas++; proximaEm = agora + Math.min(max, base * Math.pow(2, falhas - 1)); }
+    return {
+      pedir() { pendente = true; },
+      internetVoltou() { pendente = true; falhas = 0; proximaEm = 0; },
+      falhou,
+      deveConferir(agora, online) { return !!online && pendente && !emCurso && agora >= proximaEm; },
+      iniciou() { emCurso = true; },
+      terminou(ok, agora) { emCurso = false; if (ok) { pendente = false; falhas = 0; proximaEm = 0; } else falhou(agora); },
+      estado: () => ({ pendente, emCurso, proximaEm, falhas }),
+    };
+  }
+
+  // Faixa da navegação com rota guardada/offline: "Rota offline · conferida às 14:10" (hoje), "… em 30/10 às 14:10",
+  // "… conferida agora", "… não conferida" ou "… conferindo com a internet…".
+  function textoFaixaOffline(e) {
+    const agora = e.agora == null ? Date.now() : e.agora;
+    if (e.conferindo) return "Rota offline · conferindo com a internet…";
+    const c = e.conferidaEm;
+    if (typeof c !== "number" || !isFinite(c)) return "Rota offline · não conferida";
+    if (agora - c >= 0 && agora - c < 60000) return "Rota offline · conferida agora";
+    const d = new Date(c), h = new Date(agora);
+    const mesmoDia = d.getFullYear() === h.getFullYear() && d.getMonth() === h.getMonth() && d.getDate() === h.getDate();
+    const dd = (x) => String(x).padStart(2, "0");
+    return "Rota offline · conferida " + (mesmoDia ? "às " : "em " + dd(d.getDate()) + "/" + dd(d.getMonth() + 1) + " às ") + formatarHora(d);
+  }
+
   const api = {
+    inverterRota, manobrasSemCurvas, marcoRestante, textoMarco, MARCOS_RESTANTE_M, maisProximo, rumoEntre, textoRumo, direcaoRelativa,
+    pontoReentrada, textoReentrada, REENTRADA_FALA_MS, podeFalarReentrada, pontoNaDistancia, compararRotas, DIFERE_DIST, DIFERE_DESVIO_M,
+    criarConferidor, textoFaixaOffline,
     CHAVE, INTERVALO_RECALCULO_MS, VEL_MAX_MS, PRECISAO_MAX_M, RECUO_MAX_M, ANDAMENTO_MAX_MS, criarRastreador, andamentoValido, viagemInterrompida, TEXTO_DESTINO, FALA_DESTINO, distanciaM, prepararGeometria, segmentoDoProgresso, projetar, alcancePossivelM,
     icone, extrairManobras, situacaoManobras, tempoRestanteS,
     criarDetectorDesvio, podeRecalcular, chegou,

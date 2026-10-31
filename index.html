@@ -39,8 +39,10 @@
         <button class="btn-redondo" id="btn-reportar" aria-label="Reportar um problema ou restrição aqui" title="Reportar aqui"><b>!</b></button>
         <button class="btn-redondo destino" id="btn-destino" aria-pressed="false" aria-label="Escolher destino no mapa" title="Escolher destino">⚑</button>
         <button class="btn-redondo" id="btn-tela" aria-pressed="false" aria-label="Manter a tela ligada" title="Manter a tela ligada">☀</button>
-        <button class="btn-redondo" id="btn-seguir" aria-pressed="false" aria-label="Seguir minha posição" title="Seguir minha posição">◎</button>
+        <button class="btn-redondo btn-orientacao" id="btn-orientacao" aria-pressed="false" aria-label="Norte para cima. Tocar para rumo para cima" title="Norte para cima / rumo para cima"><span class="orient-icone" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 1 L17.5 13 L12 10.5 L6.5 13 Z"/><text x="12" y="23" text-anchor="middle" font-size="9" font-weight="800" fill="currentColor">N</text></svg></span><span class="orient-rotulo">Norte</span></button>
       </div>
+
+      <button class="btn-recentralizar" id="btn-recentralizar" hidden aria-label="Recentralizar no caminhão"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.8"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg><span>Recentralizar</span></button>
 
       <div class="cartao-gps" id="cartao-gps">
         <h2>Ativar o GPS</h2>
@@ -177,6 +179,7 @@
 <script src="config.js"></script>
 <script src="nuvem.js"></script>
 <script src="proximidade.js"></script>
+<script src="rumo.js"></script>
 <script src="voz.js"></script>
 <script src="navegacao.js"></script>
 <script src="postos.js"></script><script src="autonomia.js"></script>

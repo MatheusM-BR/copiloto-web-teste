@@ -36,3 +36,24 @@
 @media (prefers-reduced-motion: reduce) {
   .cmd-falar[data-estado="ouvindo"] { animation: none; outline: 4px solid var(--perigo-texto); outline-offset: -8px; }
 }
+
+/* Microfone pedido, ainda não aberto (iPhone: até ~2 s): sem bipe e sem "Ouvindo" até o onaudiostart. */
+.cmd-falar[data-estado="abrindo"] { background: var(--painel); color: var(--texto); border: 3px dashed var(--perigo); }
+.cmd-falar { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+
+/* Folha "Comando sem voz": botões grandes (≥ 64 px) e campo de texto. */
+.cmd-alt-erro { margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: var(--campo); border: 1px solid var(--perigo); font-size: 15px; }
+.cmd-alt-safari { margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--acento); font-size: 15px; }
+.cmd-alt-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.cmd-alt-grade .btn { min-height: 64px; font-size: 17px; width: 100%; padding: 0 8px; }
+.cmd-alt-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 0; border: 0; background: none; margin-bottom: 10px; }
+.cmd-alt-form input { min-height: 64px; font-size: 17px; }
+.cmd-alt-form .btn { min-height: 64px; width: auto; }
+
+/* Diagnóstico do microfone (aba Conta) */
+.cmd-diag { margin-top: 14px; }
+.cmd-diag-log {
+  max-height: 260px; overflow: auto; margin: 8px 0; padding: 8px; border-radius: 8px; background: var(--campo);
+  border: 1px solid var(--linha); font-size: 12px; line-height: 1.35; white-space: pre-wrap; word-break: break-word;
+}
+.cmd-diag .btn { min-height: 64px; }

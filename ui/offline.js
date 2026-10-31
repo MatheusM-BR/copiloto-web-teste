@@ -1,7 +1,11 @@
 // Offline e dados (pacote E3): service worker, faixa de estado (online/sem internet e idade dos dados),
 // rota e relatos guardados para abrir sem internet, "Baixar mapa da rota" (corredor) e avisos do que
 // depende de internet (PER-02). Lógica pura em offline.js (window.CopilotoOffline).
-// Expõe Copiloto.offline: online(), rotaGuardada(), relatosGuardados(), mapaBaixado(), baixando(), esquecerRota().
+// Expõe Copiloto.offline: online(), rotaGuardada(), relatosGuardados(), mapaBaixado(), baixando(), esquecerRota(),
+// marcarUltima(info), ultimaRota(), marcarConferida(ts), abrirRotaGuardada().
+// Chegada (pedido do dono do produto): a rota guardada e o mapa do corredor NÃO são apagados; a rota vira "última rota"
+// por 30 dias (O.ULTIMA_VALIDADE_MS), com a linha tracejada marcada "Última rota" no mapa, "Voltar pela mesma rota" e
+// "Limpar rota" na folha da tela inicial.
 // Emite "offline:estado" ({ online, texto }) quando a faixa muda.
 (function (C) {
   "use strict";
@@ -115,11 +119,13 @@
       for (const t of O.SEM_INTERNET) ul.appendChild(el("li", null, t));
       itens.push(ul);
     }
-    if (rotaGuardada) itens.push(el("p", null, "Rota guardada: traçada " + O.formatarIdade(Date.now() - rotaGuardada.salvoEm) + " (" + O.formatarHora(rotaGuardada.salvoEm) + ")."));
+    if (rotaGuardada) itens.push(el("p", null, (ultimaRota() ? "Última rota (chegada " + O.formatarHora(rotaGuardada.ultima.chegouEm) + "): traçada " : "Rota guardada: traçada ") +
+      O.formatarIdade(Date.now() - rotaGuardada.salvoEm) + " (" + O.formatarHora(rotaGuardada.salvoEm) + ")."));
     if (swErro) itens.push(el("p", "e3-alerta", swErro));
     if (falhaGravar) itens.push(el("p", "e3-alerta", falhaGravar));
     const b = el("div", "linha-botoes");
     if (rotaGuardada) b.append(botao("Baixar mapa da rota", "btn", abrirBaixar));
+    if (ultimaRota()) b.append(botao("Última rota", "btn", folhaRotaGuardada));
     b.append(botao("Fechar", "btn", C.folha.fechar));
     itens.push(b);
     C.folha.abrir(itens);
@@ -135,10 +141,13 @@
       avisos: r.avisos || [], perfilNome: r.perfil ? r.perfil.nome : null, resposta: r.resposta,
     };
     const igual = O.mesmaRota(rotaGuardada, nova) && !gravadaSemManobras;
+    const eraUltima = !!(rotaGuardada && rotaGuardada.ultima);
     rotaDestaSessao = true;
     if (igual) {
-      // mesmo desenho: mantém a gravada (e o salvoEm, que liga o mapa baixado a esta rota); só atualiza a memória
+      // mesmo desenho: mantém a gravada (e o salvoEm, que liga o mapa baixado a esta rota); só atualiza a memória.
+      // Rota em uso de novo deixa de ser "última rota" (regrava sem a marca).
       rotaGuardada = Object.assign({}, nova, { salvoEm: rotaGuardada.salvoEm });
+      if (eraUltima) gravar(CHAVE_ROTA, O.rotaParaGuardar(rotaGuardada));
     } else {
       rotaGuardada = nova;
       falhaGravar = null; gravadaSemManobras = false;
@@ -169,10 +178,49 @@
     gravar(CHAVE_ROTA, null);
     apagarDesenhoRota(); atualizarBotao(); atualizarFaixa();
   }
+  // Grava a rota guardada como está (com a marca de última rota / conferência). Sem espaço: sem as manobras.
+  function regravar() {
+    if (!rotaGuardada) return false;
+    if (gravar(CHAVE_ROTA, O.rotaParaGuardar(rotaGuardada, gravadaSemManobras ? "leve" : undefined))) return true;
+    return gravar(CHAVE_ROTA, O.rotaParaGuardar(rotaGuardada, "leve"));
+  }
+  // Chegada (ui/navegacao.js): a rota guardada vira "última rota" (não é apagada, nem o mapa do corredor).
+  // info: { chegouEm, sentido: "ida" | "volta" (sentido percorrido em relação ao desenho guardado), voltarPara: { lat, lon },
+  //   rotulo, perfilId, carga, peso }. Depois disso a rota não é mais "desta sessão": limpar a rota do mapa não a apaga.
+  function marcarUltima(info) {
+    if (!rotaGuardada || !info) return false;
+    rotaGuardada = Object.assign({}, rotaGuardada, { ultima: Object.assign({ chegouEm: Date.now(), sentido: "ida" }, info) });
+    rotaDestaSessao = false;
+    regravar();
+    desenharRotaGuardada(); atualizarBotao(); atualizarFaixa();
+    return true;
+  }
+  function ultimaRota() { return rotaGuardada && O.ultimaValida(rotaGuardada, Date.now()) ? rotaGuardada.ultima : null; }
+  // A navegação conferiu a rota guardada com a internet e ela continua a mesma
+  function marcarConferida(ts) {
+    if (!rotaGuardada) return;
+    rotaGuardada = Object.assign({}, rotaGuardada, { conferidaEm: ts || Date.now() });
+    regravar();
+  }
+  let rotuloUltima = null;
   function apagarDesenhoRota() {
-    const m = C.mapa; if (!m || !m.isStyleLoaded()) return;
-    if (m.getLayer("e3-rota-guardada")) m.removeLayer("e3-rota-guardada");
-    if (m.getSource("e3-rota-guardada")) m.removeSource("e3-rota-guardada");
+    if (rotuloUltima) { rotuloUltima.remove(); rotuloUltima = null; }
+    // mapaPronto, não isStyleLoaded(): este fica false enquanto uma fonte carrega blocos (câmera andando/inclinada na
+    // navegação) e a linha ficava no mapa depois da chegada
+    const m = C.mapa; if (!m) return;
+    C.mapaPronto(() => {
+      if (m.getLayer("e3-rota-guardada")) m.removeLayer("e3-rota-guardada");
+      if (m.getSource("e3-rota-guardada")) m.removeSource("e3-rota-guardada");
+    });
+  }
+  // "Última rota" escrito no meio da linha tracejada (marcador de HTML: não depende das fontes do mapa, sem internet)
+  function marcarRotuloUltima(r) {
+    if (rotuloUltima) { rotuloUltima.remove(); rotuloUltima = null; }
+    if (!r || !r.ultima || !O.ultimaValida(r, Date.now())) return;
+    const meio = r.coords[Math.floor(r.coords.length / 2)];
+    const e = botao("Última rota", "e3-rotulo-ultima", folhaRotaGuardada);
+    e.id = "e3-rotulo-ultima"; e.setAttribute("aria-label", "Última rota: voltar pela mesma rota ou limpar");
+    rotuloUltima = new maplibregl.Marker({ element: e }).setLngLat(meio).addTo(C.mapa);
   }
   function desenharRotaGuardada() {
     const r = rotaGuardada; if (!r || !Array.isArray(r.coords) || r.coords.length < 2) return;
@@ -186,6 +234,7 @@
         m.addLayer({ id: "e3-rota-guardada", type: "line", source: "e3-rota-guardada", layout: { "line-cap": "round", "line-join": "round" },
           paint: { "line-color": "#f2a43a", "line-width": 6, "line-opacity": 0.75, "line-dasharray": [2, 1.2] } });
       }
+      marcarRotuloUltima(rotaGuardada);
       if (!C.seguindo()) {
         const b = r.coords.reduce((acc, c) => acc.extend(c), new maplibregl.LngLatBounds(r.coords[0], r.coords[0]));
         m.fitBounds(b, { padding: { top: 60, bottom: 260, left: 40, right: 40 }, duration: 0 });
@@ -194,6 +243,7 @@
   }
   function folhaRotaGuardada() {
     const r = rotaGuardada; if (!r) return;
+    if (ultimaRota()) { folhaUltima(r); return; }
     const resumo = (isFinite(r.km) ? window.CopilotoRota.formatarKm(r.km) : "distância desconhecida") + " · " +
       (isFinite(r.minutos) ? window.CopilotoRota.formatarTempo(r.minutos) : "tempo desconhecido");
     const b = el("div", "linha-botoes");
@@ -214,6 +264,31 @@
       nav.id = "e3-iniciar-nav";
       itens.push(nav);
     }
+    itens.push(b);
+    C.folha.abrir(itens);
+  }
+
+  // Última rota (chegou): "Voltar pela mesma rota" (≥ 64 px) e "Limpar rota", enquanto valer (30 dias)
+  function folhaUltima(r) {
+    const u = r.ultima;
+    const ate = O.ultimaValidaAte(r);
+    const itens = [el("h2", "e3-titulo-rota", "Última rota" + (r.perfilNome ? " · " + r.perfilNome : "")),
+      el("p", null, "Chegou " + (u.rotulo ? "em " + u.rotulo + " " : "") + O.formatarIdade(Date.now() - u.chegouEm) + " (" + O.formatarHora(u.chegouEm) + "). " +
+        "Fica guardada até " + O.formatarHora(ate) + " para voltar pelo mesmo caminho, mesmo sem internet."),
+    ];
+    const m = mapaDaRotaAtual();
+    if (m && m.completo) itens.push(el("p", null, "Mapa do caminho baixado às " + O.formatarHora(m.em) + "."));
+    if (C.navegacao && C.navegacao.voltar && !C.navegacao.ativa()) {
+      const v = botao("Voltar pela mesma rota", "btn btn-principal btn-iniciar-nav e3-voltar", () => C.navegacao.voltar());
+      v.id = "e3-voltar";
+      itens.push(v);
+      itens.push(el("p", "e3-estimativa", online() ? "Com internet, a rota de volta é calculada de verdade a partir de onde você estiver."
+        : "Sem internet: segue a linha destacada no sentido contrário, sem as curvas faladas; quando a internet voltar, ela é conferida."));
+    }
+    const b = el("div", "linha-botoes");
+    const limpar = botao("Limpar rota", "btn", () => { esquecerRota(); C.folha.fechar(); C.mensagem("Rota limpa.", 4000); });
+    limpar.id = "e3-limpar-ultima";
+    b.append(limpar, botao("Fechar", "btn", C.folha.fechar));
     itens.push(b);
     C.folha.abrir(itens);
   }
@@ -446,9 +521,10 @@
     usandoGuardados: () => !relatosFrescos && !!relatosGuardados,
     mapaBaixado: () => mapaDaRotaAtual(), baixando: () => (download ? { feitos: download.feitos, total: download.total } : null),
     abrirBaixar,
-    // B2 (QA 3): a navegação esquece a rota guardada na chegada (navegando só com ela, sem rota da sessão, o
-    // "rota-limpa" não sai e a linha e a rota guardada ficavam)
+    // "Limpar rota" da última rota e do resumo de chegada
     esquecerRota,
+    // chegada: a rota vira "última rota" (30 dias) em vez de ser esquecida; a navegação confere a rota com a internet
+    marcarUltima, ultimaRota, marcarConferida, abrirRotaGuardada: folhaRotaGuardada,
   };
 
   C.aoIniciar(() => {
@@ -466,6 +542,8 @@
     // M5: a gravada vem sem as coordenadas (só a polyline): decodifica aqui (aceita também o formato antigo, com coords)
     rotaGuardada = O.rotaDeGuardada(ler(CHAVE_ROTA), window.CopilotoRota && window.CopilotoRota.decodificarPolyline6);
     gravadaSemManobras = !!(rotaGuardada && rotaGuardada.semManobras);
+    // última rota vencida (mais de 30 dias da chegada): esquecida
+    if (rotaGuardada && rotaGuardada.ultima && !O.ultimaValida(rotaGuardada, Date.now())) { rotaGuardada = null; gravar(CHAVE_ROTA, null); }
     relatosGuardados = ler(CHAVE_RELATOS);
     atualizarBotao();
     if (rotaGuardada) {

@@ -19,7 +19,13 @@
 // QA rodada 3: chegada nunca na leitura em que o progresso acabou de saltar (A1); "cancela a rota" pela voz pede
 // confirmação na tela e não apaga a rota (M2); com o microfone ouvindo (C.comandos.ouvindo()) a manobra espera, e a
 // manobra cortada (pela escuta ou por outra fala) é repetida (M3); trocar o destino tem tempo-limite de 10 s e as
-// manobras da rota antiga continuam enquanto isso (B1); na chegada a rota guardada (E3) é esquecida (B2).
+// manobras da rota antiga continuam enquanto isso (B1).
+// Rota offline (pedido do dono do produto: fazenda sem sinal): na chegada a rota guardada (E3) NÃO é apagada, vira
+// "última rota" (7 dias) com "Voltar pela mesma rota" (desenho invertido, sem inventar curvas; com internet, a rota de
+// volta de verdade). Sem internet e fora da linha: nada de laço de "Recalculando" — "Rota offline — sem internet para
+// recalcular. Volte para a linha destacada" com distância e seta até o ponto da linha à frente (voz no máximo a cada
+// ~60 s). Usando rota guardada/offline, a faixa "Rota offline · conferida …" fica no painel; com a internet de volta, a
+// rota é conferida uma vez (Nav.criarConferidor) e trocada se a nova diferir (Nav.compararRotas).
 (function (C) {
   "use strict";
   const { $, el, botao } = C.util;
@@ -35,6 +41,8 @@
   const VOLTOU_M = 40;               // A6: de volta à rota antiga (cancela o recálculo)
   const ANUNCIA_RECALCULANDO_M = 150; // A6: perto da rota antiga, as manobras dela continuam durante o recálculo
   const GRAVAR_MS = 3000;            // M4: gravação do andamento no máximo a cada 3 s
+  const LONGE_DA_LINHA_M = 200;      // sem internet: tão longe da linha (saindo de fazenda) já orienta a reentrada
+  const online = () => navigator.onLine !== false;
 
   function dados() { return Nav.lerDados(C.util.storage()); }
   function gravar(d) { Nav.gravarDados(C.util.storage(), d); }
@@ -63,7 +71,8 @@
     if (!g || !g.destino || !Array.isArray(g.coords) || g.coords.length < 2) return null;
     const ativo = C.veiculos && C.veiculos.ativo ? C.veiculos.ativo() : null;
     return { origem: g.origem, destino: g.destino, perfil: ativo, avisos: g.avisos || [], km: g.km, minutos: g.minutos,
-      coords: g.coords, resposta: g.resposta || null, guardada: true, salvoEm: g.salvoEm, perfilNome: g.perfilNome || null };
+      coords: g.coords, resposta: g.resposta || null, guardada: true, salvoEm: g.salvoEm, conferidaEm: g.conferidaEm || null,
+      perfilNome: g.perfilNome || null };
   }
   function avisoGuardada(rota) {
     const quando = rota.salvoEm ? " (traçada às " + new Date(rota.salvoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + ")" : "";
@@ -123,6 +132,8 @@
         rota = anterior;
         escolha.aviso = anterior.guardada ? avisoGuardada(anterior)
           : "Sem internet: seguindo a rota já traçada, calculada com o cadastro do veículo (sem a escolha de carga).";
+        ativar(rota, perfil, escolha, { semRede: e.demorou ? "servidor" : "internet" });
+        return;
       } else {
         const botoes = el("div", "linha-botoes");
         botoes.append(botao("Tentar de novo", "btn btn-principal", () => comecar(perfil, carga, tara)), botao("Cancelar", "btn", C.folha.fechar));
@@ -137,7 +148,13 @@
   function carregarRota(n, rota) {
     n.rota = rota;
     n.geo = Nav.prepararGeometria(rota.coords);
-    n.manobras = Nav.extrairManobras(rota.resposta, n.geo);
+    // volta pela mesma rota (desenho invertido): as manobras da ida não valem; orientação mínima, sem curvas inventadas
+    n.semCurvas = !!rota.invertida;
+    n.manobras = n.semCurvas ? Nav.manobrasSemCurvas(n.geo, "ponto de origem", "Voltando pela mesma rota, sem as curvas. Siga pela rota destacada.")
+      : Nav.extrairManobras(rota.resposta, n.geo);
+    // quando esta rota foi conferida com o servidor de rotas (a invertida nunca foi)
+    n.rotaEm = rota.invertida ? null : rota.conferidaEm || rota.calculadaEm || rota.salvoEm || null;
+    n.marcoAntes = null; n.marcoInicio = null; n.fora = false;
     n.tempoTotalS = rota.minutos * 60;
     n.progresso = null;
     n.rastreador = Nav.criarRastreador(n.geo);
@@ -148,10 +165,18 @@
 
   function ativar(rota, perfil, escolha, extra) {
     geracao++;
-    nav = { id: geracao, perfil, escolha, destino: rota.destino, detector: Nav.criarDetectorDesvio(), registro: Nav.criarRegistro(),
-      ultimoRecalculo: null, recalculando: false, recalculo: null, semInternet: false, ultimaFala: null, falouInicio: false,
-      inicio: Date.now(), rotulo: (extra && extra.rotulo) || null, gravadoEm: 0 };
+    const g0 = C.estado.gps || null, p0 = C.estado.ultimaPos;
+    nav = { id: geracao, perfil, escolha, destino: (extra && extra.destino) || rota.destino, detector: Nav.criarDetectorDesvio(), registro: Nav.criarRegistro(),
+      ultimoRecalculo: null, recalculando: false, recalculo: null, ultimaFala: null, falouInicio: false,
+      inicio: Date.now(), rotulo: (extra && extra.rotulo) || null, gravadoEm: 0, volta: !!(extra && extra.volta),
+      inicioPos: g0 ? { lat: g0.lat, lon: g0.lon } : p0 ? { lat: p0[1], lon: p0[0] } : null,
+      // rota offline: faixa, falta de rede, conferência com a internet e reentrada na linha
+      conferidor: Nav.criarConferidor(), rotaOffline: false, conferidaEm: null, semRede: false, motivoSemRede: null,
+      conferencia: null, fora: false, ultimaFalaReentrada: null };
     carregarRota(nav, rota);
+    if (rota.guardada || rota.invertida) { nav.rotaOffline = true; nav.conferidaEm = nav.rotaEm; nav.conferidor.pedir(); }
+    if (extra && extra.semRede) { marcarSemRede(nav, extra.semRede); nav.conferidor.falhou(Date.now()); }
+    if (!online()) marcarSemRede(nav, "internet");
     // destino recente
     const d = dados();
     d.recentes = Nav.adicionarRecente(d.recentes, { lat: rota.destino.lat, lon: rota.destino.lon, rotulo: rotuloDestino(nav), t: Date.now() });
@@ -163,9 +188,12 @@
     nav.aviso = escolha.aviso || "";
     mostrarAviso(true);
     status("");
+    $("nav-reentrada").hidden = true;
+    faixa(nav);
     C.seguir(true);
     if (C.estado.gps && !gpsVelho()) aoPosicao(C.estado.gps);
     else { desenharPainel(null); if (C.estado.gps) semSinal(nav); }
+    conferirSePreciso(nav);
   }
 
   // B6: o aviso de carga fica ~8 s no painel e depois só aparece ao tocar em "Aviso da rota" (ocupa espaço da manobra).
@@ -202,8 +230,9 @@
     const n = nav;
     if (n.semSinal) { // GPS voltou: retoma (sem contar a volta como saída da rota)
       n.semSinal = false; n.detector.zerar();
-      status(n.semInternet ? "Sem internet: volte para a rota destacada" : "");
+      status("");
     }
+    if (!online() && !n.semRede) marcarSemRede(n, "internet");
     const velMs = velMsDe(gps);
     const pos = { lat: gps.lat, lon: gps.lon };
     n.registro.adicionar({ lat: gps.lat, lon: gps.lon, t: gps.t, velMs, precisao: gps.precisao });
@@ -217,30 +246,51 @@
       const naRota = proj.distancia_m <= VOLTOU_M;
       // A6: de volta à rota antiga durante o recálculo: desiste dele e segue a antiga
       if (n.recalculo && naRota) cancelarRecalculo(n);
-      if (n.falhaRecalculo && naRota) { n.falhaRecalculo = false; status(n.semInternet ? "Sem internet: volte para a rota destacada" : ""); }
+      if (n.falhaRecalculo && naRota) { n.falhaRecalculo = false; status(""); }
       const fora = n.detector.atualizar({ distancia_m: proj.distancia_m, precisao: gps.precisao, velMs });
-      if (fora && !n.recalculando) recalcular(n, gps);
-      else if (n.semInternet && proj.distancia_m <= Math.max(40, 2 * (gps.precisao || 0))) { n.semInternet = false; status(""); }
+      if (n.semRede) {
+        // sem internet: não tenta recalcular em laço; orienta a volta para a linha (a conferência tenta sozinha, com espera)
+        if (fora || proj.distancia_m > LONGE_DA_LINHA_M) n.fora = true;
+        else if (proj.distancia_m <= Math.max(VOLTOU_M, 2 * (gps.precisao || 0))) n.fora = false;
+      } else {
+        n.fora = false;
+        if (fora && !n.recalculando && !n.conferencia) recalcular(n, gps);
+      }
     }
     const sit = Nav.situacaoManobras(n.manobras, proj.indice, n.progresso);
     n.ultimo = { sit, velMs, proj, t: gps.t };
     desenharPainel(n.ultimo);
+    orientarReentrada(n, gps);
     // A6: durante o recálculo da saída da rota, as manobras da rota antiga continuam enquanto a posição está perto dela
     if (ouvindo()) cortadaPelaEscuta(n);
-    // B1 (QA 3): trocando o destino, as manobras da rota antiga continuam até a nova chegar
-    if (!n.recalculando || n.troca || (n.recalculo && proj.distancia_m <= ANUNCIA_RECALCULANDO_M)) anunciar(n, sit, velMs);
+    // B1 (QA 3): trocando o destino, as manobras da rota antiga continuam até a nova chegar.
+    // Sem internet e longe da linha, as manobras dela não são faladas (a orientação é voltar para a linha).
+    const longeOffline = n.fora && proj.distancia_m > ANUNCIA_RECALCULANDO_M;
+    if (!longeOffline && (!n.recalculando || n.troca || (n.recalculo && proj.distancia_m <= ANUNCIA_RECALCULANDO_M))) anunciar(n, sit, velMs);
+    // rota sem manobras (volta pela mesma rota): avisos de distância restante (… 20, 10, 5 km)
+    if (n.semCurvas && proj.considerada && !n.fora) {
+      const r = restanteM(n);
+      if (n.marcoInicio == null) n.marcoInicio = r;
+      const m = Nav.marcoRestante(n.marcoAntes, r, n.marcoInicio);
+      n.marcoAntes = r;
+      if (m) falarNaoCritico(Nav.textoMarco(m));
+    }
     gravarAndamento(n, false);
     emitir(n);
+    conferirSePreciso(n);
   }
 
   function restanteM(n) { return Math.max(0, n.geo.total - (n.progresso || 0)); }
-  function emitir(n) { C.emit("navegacao", { ativa: true, progresso_m: n.progresso || 0, restante_m: restanteM(n), coords: n.geo.coords }); }
+  // manobra_m: distância até a próxima manobra (null sem manobra à frente); ui/mapa.js recentraliza o mapa a ≤ 300 m
+  function emitir(n) { C.emit("navegacao", { ativa: true, progresso_m: n.progresso || 0, restante_m: restanteM(n), coords: n.geo.coords,
+    manobra_m: n.ultimo && n.ultimo.sit.proxima >= 0 && n.ultimo.sit.distancia_m != null ? n.ultimo.sit.distancia_m : null }); }
 
   // ------------------------------------------------------------ painel
   function desenharPainel(u) {
     const n = nav; if (!n) return;
+    faixa(n);
     const m = u && u.sit.proxima >= 0 ? n.manobras[u.sit.proxima] : (n.manobras[1] || n.manobras[0] || null);
-    $("nav-icone").textContent = m ? Nav.icone(m.tipo) : "↑";
+    $("nav-icone").textContent = m && !m.semCurvas ? Nav.icone(m.tipo) : "↑";
     $("nav-dist").textContent = u && u.sit.distancia_m != null ? Nav.formatarDistancia(u.sit.distancia_m) : "--";
     $("nav-instrucao").textContent = m ? m.instrucao : "Siga a rota destacada.";
     const ruas = m && m.ruas && m.ruas.length ? m.ruas.join(" / ") : "";
@@ -254,6 +304,100 @@
   }
 
   function status(texto) { const e = $("nav-status"); e.textContent = texto; e.hidden = !texto; }
+
+  // ------------------------------------------------------------ rota offline: faixa, reentrada e conferência
+  // Faixa "Rota offline · conferida …" enquanto a navegação usa a rota guardada (ou a da sessão, sem internet)
+  function faixa(n) {
+    const f = $("nav-offline");
+    if (!n || nav !== n || !n.rotaOffline) { f.hidden = true; return; }
+    f.textContent = Nav.textoFaixaOffline({ conferidaEm: n.conferidaEm, conferindo: !!n.conferencia, agora: Date.now() }) +
+      (n.rota && n.rota.invertida ? " · volta pela mesma rota" : "");
+    f.hidden = false;
+  }
+  // Sem rede (navigator offline, ou o servidor de rotas não respondeu): a rota em uso passa a ser offline e a conferência
+  // fica pendente (tenta quando a internet voltar, ou depois da espera).
+  function marcarSemRede(n, motivo) {
+    if (!n) return;
+    n.semRede = true;
+    n.motivoSemRede = !online() ? "internet" : motivo || n.motivoSemRede || "internet";
+    if (!n.rotaOffline) { n.rotaOffline = true; n.conferidaEm = n.rotaEm; }
+    n.conferidor.pedir();
+    faixa(n);
+  }
+  // Fora da linha sem internet: estado claro, distância e seta até o ponto da linha à frente; voz no máximo a cada ~60 s
+  function orientarReentrada(n, gps) {
+    const caixa = $("nav-reentrada");
+    if (!n || nav !== n || !n.fora || !n.semRede || !gps || n.semSinal) {
+      if (!caixa.hidden) { caixa.hidden = true; if (n && !n.semSinal && !n.recalculando && !n.falhaRecalculo) status(""); }
+      return;
+    }
+    const r = Nav.pontoReentrada(n.geo, { lat: gps.lat, lon: gps.lon }, n.progresso);
+    const v = velMsDe(gps);
+    const rumoV = typeof gps.rumo === "number" && isFinite(gps.rumo) && v != null && v > 1 ? gps.rumo : null;
+    const t = Nav.textoReentrada(r, rumoV, n.motivoSemRede);
+    status(t.status);
+    $("nav-reentrada-texto").textContent = t.detalhe;
+    $("nav-seta").style.transform = r ? "rotate(" + Math.round(r.rumo) + "deg)" : "";
+    $("nav-seta").setAttribute("aria-label", r ? "Linha ao " + Nav.textoRumo(r.rumo) : "Linha");
+    caixa.hidden = false;
+    n.reentrada = r;
+    const tf = typeof gps.t === "number" && isFinite(gps.t) ? gps.t : Date.now();
+    if (Nav.podeFalarReentrada(tf, n.ultimaFalaReentrada)) { n.ultimaFalaReentrada = tf; falarNaoCritico(t.fala); }
+  }
+  function conferirSePreciso(n) {
+    if (!n || nav !== n || !(n.rotaOffline || n.semRede) || n.recalculando || n.conferencia) return;
+    if (!n.conferidor.deveConferir(Date.now(), online())) return;
+    const gps = C.estado.gps;
+    if (!gps) return;
+    conferir(n, gps);
+  }
+  // Pede a rota da posição atual ao destino (mesmo veículo e carga). Volta sem curvas, fora da linha ou rota sem
+  // manobras: troca sempre (é a rota de verdade). Senão, troca só se diferir (Nav.compararRotas); igual: "conferida agora".
+  async function conferir(n, gps) {
+    const ctl = new AbortController();
+    n.conferencia = ctl; n.conferidor.iniciou();
+    faixa(n);
+    const meu = () => nav === n && n.conferencia === ctl;
+    let ok = false;
+    try {
+      const nova = await C.rota.calcular({ origem: { lat: gps.lat, lon: gps.lon }, destino: n.destino, perfil: n.perfil, ajustar: ajustador(n.escolha),
+        enquadrar: false, sinal: ctl.signal, tempoLimiteMs: RECALCULO_LIMITE_MS, consultar: true });
+      if (!meu()) return;
+      ok = true;
+      n.semRede = false; n.motivoSemRede = null; n.falhaRecalculo = false;
+      const trocar = n.semCurvas || !n.manobras.length || n.fora || Nav.compararRotas(n.geo, n.progresso, nova.coords).difere;
+      n.conferencia = null;
+      if (trocar) {
+        C.rota.usar(nova);
+        carregarRota(n, nova);
+        n.falouInicio = true; n.rotaOffline = false; n.ultimoRecalculo = gps.t;
+        status(""); $("nav-reentrada").hidden = true;
+        gravarAndamento(n, true);
+        C.mensagem("Rota atualizada com a internet.", 6000);
+        falarNaoCritico("Rota atualizada com a internet.");
+      } else {
+        n.conferidaEm = Date.now();
+        // a da sessão, conferida, deixa de ser "offline"; a guardada continua sendo, agora "conferida agora"
+        if (!n.rota.guardada) n.rotaOffline = false;
+        else if (C.offline && C.offline.marcarConferida) C.offline.marcarConferida(n.conferidaEm);
+        C.mensagem("Rota conferida com a internet: continua a mesma.", 6000);
+      }
+      faixa(n);
+      if (C.estado.gps && !gpsVelho()) aoPosicao(C.estado.gps);
+    } catch (e) {
+      if (!meu() || e.cancelada) return;
+      if (e.rede) marcarSemRede(n, e.demorou ? "servidor" : "internet");
+    } finally {
+      if (n.conferencia === ctl) n.conferencia = null;
+      n.conferidor.terminou(ok, Date.now());
+      if (nav === n) faixa(n);
+    }
+  }
+  function pararConferencia(n) {
+    const ctl = n && n.conferencia; if (!ctl) return;
+    n.conferencia = null;
+    try { ctl.abort(); } catch (e) { /* ignora */ }
+  }
 
   // B2: leitura velha. O painel avisa e nada é anunciado com posição errada; a próxima leitura retoma.
   function semSinal(n) {
@@ -367,10 +511,11 @@
   function atender(d) { if (d && typeof d.atender === "function") d.atender(); }
 
   // ------------------------------------------------------------ recálculo
-  function semInternet(n) {
-    const texto = "Sem internet: volte para a rota destacada";
-    status(texto);
-    if (!n.semInternet) { n.semInternet = true; falarNaoCritico("Sem internet. Volte para a rota destacada."); }
+  // Sem rede (antes de pedir ou porque o pedido caiu): entra no modo offline — reentrada na linha e conferência com espera
+  function semInternet(n, motivo) {
+    marcarSemRede(n, motivo || "internet");
+    n.fora = true;
+    orientarReentrada(n, C.estado.gps);
   }
 
   // A6: o recálculo tem tempo-limite de 10 s e pode ser cancelado (motorista voltou para a rota antiga). Enquanto
@@ -391,15 +536,15 @@
       if (!meu()) return;
       carregarRota(n, rota);
       n.falouInicio = true;
-      n.semInternet = false;
-      status("");
+      n.semRede = false; n.rotaOffline = false;
+      status(""); $("nav-reentrada").hidden = true; faixa(n);
       n.recalculando = false; n.recalculo = null;
       gravarAndamento(n, true);
       if (C.estado.gps && !gpsVelho()) aoPosicao(C.estado.gps);
     } catch (e) {
       if (!meu() || e.cancelada) return;
-      if (e.rede && !e.demorou) semInternet(n);
-      else if (e.demorou) { n.falhaRecalculo = true; status("O servidor de rotas não respondeu. Siga a rota destacada."); }
+      // sem rede ou servidor calado: modo offline (sem novo "Recalculando" em laço; a conferência tenta com espera)
+      if (e.rede) { n.recalculando = false; n.recalculo = null; n.conferidor.falhou(Date.now()); semInternet(n, e.demorou ? "servidor" : "internet"); }
       else { n.falhaRecalculo = true; status("Não foi possível recalcular. Siga a rota destacada."); C.mensagem(e.motivo || e.message, 8000); }
     } finally { if (n.recalculo === ctl) { n.recalculando = false; n.recalculo = null; } }
   }
@@ -407,7 +552,7 @@
     const ctl = n.recalculo; if (!ctl) return;
     n.recalculo = null; n.recalculando = false;
     try { ctl.abort(); } catch (e) { /* ignora */ }
-    status(n.semInternet ? "Sem internet: volte para a rota destacada" : "");
+    status("");
   }
 
   // ------------------------------------------------------------ trocar o destino com a navegação andando (A2)
@@ -419,7 +564,7 @@
     const gps = C.estado.gps;
     if (!gps || gpsVelho()) { C.mensagem("Sem sinal de GPS: não dá para trocar o destino agora.", 6000); return false; }
     const nome = destino.rotulo || "o novo destino";
-    cancelarRecalculo(n);
+    cancelarRecalculo(n); pararConferencia(n);
     if (n.troca) { try { n.troca.abort(); } catch (e) { /* ignora */ } n.troca = null; }
     if (navigator.onLine === false) { C.mensagem("Sem internet: o destino continua o mesmo.", 6000); falarNaoCritico("Sem internet. O destino continua o mesmo."); return false; }
     // B1 (QA 3): mesmo tempo-limite do recálculo (10 s) e, até a rota nova chegar, as manobras da antiga continuam
@@ -439,7 +584,8 @@
       n.destino = rota.destino;
       n.rotulo = destino.rotulo || null;
       carregarRota(n, rota);
-      n.falouInicio = true; n.semInternet = false; n.ultimoRecalculo = gps.t;
+      n.falouInicio = true; n.semRede = false; n.rotaOffline = false; n.volta = false; n.ultimoRecalculo = gps.t;
+      $("nav-reentrada").hidden = true; faixa(n);
       const d = dados();
       d.recentes = Nav.adicionarRecente(d.recentes, { lat: destino.lat, lon: destino.lon, rotulo: rotuloDestino(n), t: Date.now() });
       gravar(d);
@@ -462,14 +608,17 @@
   }
 
   // ------------------------------------------------------------ fim: chegada ou encerrar
-  // opcoes.limpar: apaga a rota do mapa (e, com ela, a rota guardada do E3). Só na chegada e no "cancela a rota" pela voz;
-  // "Encerrar" (confirmado) mantém a rota no mapa e guardada (A4), com "Retomar navegação" e "Limpar rota" no resumo.
+  // opcoes.limpar: tira a rota da sessão do mapa (chegada). Na chegada a rota guardada (E3) NÃO é apagada: vira "última
+  // rota" (linha tracejada marcada, "Voltar pela mesma rota" e "Limpar rota"). "Encerrar" (confirmado) mantém a rota no
+  // mapa e guardada (A4), com "Retomar navegação" e "Limpar rota" no resumo.
   function finalizar(chegada, opcoes) {
     const n = nav; if (!n) return;
     const limpar = !!(opcoes && opcoes.limpar);
     nav = null;
     if (n.recalculo) { try { n.recalculo.abort(); } catch (e) { /* ignora */ } n.recalculo = null; }
     if (n.troca) { try { n.troca.abort(); } catch (e) { /* ignora */ } n.troca = null; }
+    if (n.conferencia) { try { n.conferencia.abort(); } catch (e) { /* ignora */ } n.conferencia = null; }
+    $("nav-offline").hidden = true; $("nav-reentrada").hidden = true;
     apagarAndamento();
     clearTimeout(timerRetomada); timerRetomada = null; clearTimeout(timerAviso); timerAviso = null;
     $("app").classList.remove("nav-ativa");
@@ -480,19 +629,47 @@
     const d = dados(); d.viagens = Nav.adicionarViagem(d.viagens, viagem, 20); gravar(d);
     C.emit("navegacao", { ativa: false, progresso_m: n.progresso || 0, restante_m: restanteM(n), coords: n.geo.coords });
     if (chegada) falarNaoCritico("Você chegou.");
+    // chegada: a rota guardada vira "última rota" ANTES de limpar a da sessão (assim o "rota-limpa" não a apaga)
+    if (chegada) marcarUltima(n);
     if (limpar) C.rota.limpar();
-    // B2 (QA 3): navegando só com a rota guardada (aberto sem internet), C.rota.limpar() não tem rota da sessão para
-    // limpar e não emite "rota-limpa": na chegada a rota guardada para este destino é esquecida aqui (linha e dados)
-    if (chegada) esquecerGuardada(n);
     const retomar = !limpar && C.rota.atual() ? { perfil: n.perfil, escolha: n.escolha, rotulo: n.rotulo } : null;
-    mostrarResumo(viagem, chegada ? "Você chegou" : "Navegação encerrada", retomar);
+    const ultima = chegada && C.offline && C.offline.ultimaRota ? C.offline.ultimaRota() : null;
+    mostrarResumo(viagem, chegada ? "Você chegou" : "Navegação encerrada", retomar, ultima);
   }
 
-  function esquecerGuardada(n) {
+  // A rota guardada desta viagem vira "última rota" (7 dias). sentido: "ida" se andou no sentido do desenho guardado,
+  // "volta" se andou no inverso (voltar de novo = sentido do desenho, com as manobras).
+  function marcarUltima(n) {
     try {
       const g = C.offline && C.offline.rotaGuardada ? C.offline.rotaGuardada() : null;
-      if (g && g.destino && C.offline.esquecerRota && Nav.distanciaM(g.destino, n.destino) < 100) C.offline.esquecerRota();
+      if (!g || !C.offline.marcarUltima) return;
+      const deste = n.rota.invertida ? n.rota.salvoEm === g.salvoEm : !!(g.destino && Nav.distanciaM(g.destino, n.destino) < 100);
+      if (!deste) return;
+      const p = n.inicioPos || (n.rota.invertida ? null : g.origem) || null;
+      C.offline.marcarUltima({ chegouEm: Date.now(), sentido: n.rota.invertida ? "volta" : "ida", voltarPara: p ? { lat: p.lat, lon: p.lon } : null,
+        rotulo: rotuloDestino(n), perfilId: n.perfil ? n.perfil.id : null, carga: n.escolha.carga || null, peso: n.escolha.peso == null ? null : n.escolha.peso });
     } catch (e) { /* ignora */ }
+  }
+
+  // "Voltar pela mesma rota" (última rota): sem internet, a linha guardada no sentido inverso, sem manobras (nunca
+  // inventadas); com internet, a conferência pede a rota de volta de verdade (mesmo veículo e carga) e troca na hora.
+  function voltar() {
+    if (nav) { C.folha.fechar(); return false; }
+    const g = rotaGuardada();
+    const u = C.offline && C.offline.ultimaRota ? C.offline.ultimaRota() : null;
+    if (!g || !u) { C.mensagem("Não há última rota guardada para voltar.", 6000); return false; }
+    if (!C.estado.ultimaPos) { C.mensagem("Ative o GPS para voltar pela mesma rota.", 6000); return false; }
+    const lista = C.veiculos && C.veiculos.lista ? C.veiculos.lista() : [];
+    const perfil = lista.find((v) => v.id === u.perfilId) || g.perfil;
+    let rota;
+    if (u.sentido === "volta") rota = Object.assign({}, g, { perfil }); // a última foi a volta: agora é o sentido do desenho
+    else rota = Object.assign(Nav.inverterRota(g), { salvoEm: g.salvoEm, perfil, perfilNome: g.perfilNome });
+    const aviso = rota.invertida
+      ? "Voltando pela mesma rota: a linha destacada no sentido contrário. Sem internet, sem as curvas faladas; com internet, a rota de volta é calculada de verdade."
+      : avisoGuardada(rota);
+    const destino = u.voltarPara && isFinite(u.voltarPara.lat) ? u.voltarPara : rota.destino;
+    ativar(rota, perfil, { carga: u.carga || null, peso: u.peso == null ? null : u.peso, aviso }, { rotulo: "Ponto de origem", destino, volta: true });
+    return true;
   }
 
   // A4: "Encerrar" no painel pede confirmação (um toque sem querer, dirigindo, não acaba a navegação).
@@ -516,9 +693,17 @@
     return caixa;
   }
 
-  function mostrarResumo(v, titulo, retomar) {
+  function mostrarResumo(v, titulo, retomar, ultima) {
     const itens = [el("h2", null, titulo), el("p", "nav-registrado", "Registrado pelo GPS do aparelho (não é estimativa)."), blocoResumo(v)];
     if (v.leituras < 3) itens.push(el("p", null, "Poucas leituras do GPS: os números podem estar incompletos."));
+    if (ultima) {
+      // chegada: a rota fica guardada como "última rota" (sair da fazenda sem sinal pelo mesmo caminho)
+      const O = window.CopilotoOffline;
+      const ate = O && O.formatarHora ? O.formatarHora(ultima.chegouEm + O.ULTIMA_VALIDADE_MS) : "daqui a 7 dias";
+      itens.push(el("p", "nav-ultima", "A rota ficou guardada como última rota até " + ate + " (linha tracejada no mapa) para voltar pelo mesmo caminho, mesmo sem internet."));
+      const vb = botao("Voltar pela mesma rota", "btn btn-principal nav-grande", () => { C.folha.fechar(); voltar(); });
+      vb.id = "nav-voltar"; itens.push(vb);
+    }
     if (retomar) {
       // encerrou sem apagar a rota: dá para voltar à navegação (mesmo veículo e carga, sem perguntar) ou limpar a rota
       const r = botao("Retomar navegação", "btn btn-principal nav-grande", () => {
@@ -531,6 +716,10 @@
     const botoes = el("div", "linha-botoes");
     botoes.append(botao("Fechar", "btn btn-principal", C.folha.fechar), botao("Viagens anteriores", "btn", mostrarViagens));
     if (retomar) { const l = botao("Limpar rota", "btn", () => C.rota.limpar()); l.id = "nav-limpar-rota"; botoes.append(l); }
+    else if (ultima) {
+      const l = botao("Limpar rota", "btn", () => { if (C.offline && C.offline.esquecerRota) C.offline.esquecerRota(); C.folha.fechar(); C.mensagem("Rota limpa.", 4000); });
+      l.id = "nav-limpar-rota"; botoes.append(l);
+    }
     itens.push(botoes);
     C.folha.abrir(itens);
   }
@@ -545,7 +734,7 @@
     d.andamento = { destino: { lat: n.destino.lat, lon: n.destino.lon }, rotulo: rotuloDestino(n), perfilId: n.perfil ? n.perfil.id : null,
       perfilNome: n.perfil ? n.perfil.nome : null, carga: n.escolha.carga || null, peso: n.escolha.peso == null ? null : n.escolha.peso,
       aviso: n.escolha.aviso || null, inicio: n.inicio, atualizado: agora, progresso_m: n.progresso || 0, total_m: n.geo.total,
-      resumo: n.registro.resumo() };
+      resumo: n.registro.resumo(), volta: !!n.volta };
     gravar(d);
   }
   function apagarAndamento() { const d = dados(); if (d.andamento) { d.andamento = null; gravar(d); } }
@@ -592,6 +781,8 @@
     const perfil = lista.find((v) => v.id === a.perfilId) || (C.veiculos && C.veiculos.ativo ? C.veiculos.ativo() : null);
     const escolha = { carga: a.carga || null, peso: a.peso == null ? null : a.peso, aviso: a.aviso || "" };
     const extra = { rotulo: a.rotulo || null };
+    // volta pela mesma rota interrompida (ainda com a última rota): volta de novo daqui
+    if (a.volta && C.offline && C.offline.ultimaRota && C.offline.ultimaRota()) { voltar(); return; }
     const guardada = () => {
       const g = rotaGuardada();
       return g && g.destino && Nav.distanciaM(g.destino, a.destino) < 100 ? g : null;
@@ -654,6 +845,11 @@
     txt.append(dist, ins, rua); linha.append(ic, txt);
     const seg = el("div", "nav-seguinte"); seg.id = "nav-seguinte";
     const st = el("div", "nav-status"); st.id = "nav-status"; st.setAttribute("role", "status"); st.hidden = true;
+    const off = el("div", "nav-offline"); off.id = "nav-offline"; off.setAttribute("role", "status"); off.hidden = true;
+    const re = el("div", "nav-reentrada"); re.id = "nav-reentrada"; re.hidden = true;
+    const seta = el("div", "nav-seta", "↑"); seta.id = "nav-seta"; seta.setAttribute("role", "img");
+    const reT = el("div", "nav-reentrada-texto"); reT.id = "nav-reentrada-texto";
+    re.append(seta, reT);
     const rod = el("div", "nav-rodape");
     const info = el("div", "nav-info");
     const rest = el("b"); rest.id = "nav-restante";
@@ -665,7 +861,7 @@
     rod.append(info, ver, fim);
     const av = el("div", "nav-aviso"); av.id = "nav-aviso"; av.hidden = true;
     av.addEventListener("click", () => mostrarAviso(false));
-    p.append(linha, seg, st, rod, av);
+    p.append(off, linha, seg, st, re, rod, av);
     document.querySelector("main").appendChild(p);
     // fim do painel (px a partir do topo do mapa): a faixa do alerta e os botões do mapa ficam abaixo dele
     const marcarFim = () => {
@@ -678,7 +874,10 @@
   }
 
   C.navegacao = {
-    iniciar, encerrar: (opcoes) => finalizar(false, opcoes), ativa: () => !!nav, trocarDestino,
+    iniciar, encerrar: (opcoes) => finalizar(false, opcoes), ativa: () => !!nav, trocarDestino, voltar,
+    // estado da rota offline (testes e outros pacotes) ou null sem navegação
+    offline: () => (nav ? { rotaOffline: nav.rotaOffline, conferidaEm: nav.conferidaEm, semRede: nav.semRede, fora: nav.fora, volta: nav.volta,
+      semCurvas: nav.semCurvas, conferindo: !!nav.conferencia } : null),
     recentes: () => dados().recentes.slice(), viagens: () => dados().viagens.slice(), mostrarViagens,
   };
 
@@ -706,5 +905,13 @@
     C.on("rota-limpa", () => { if (nav) finalizar(false); });
     // M4: página recarregada no meio da navegação (o iOS descarta a aba)
     C.on("pronto", verificarAndamento);
+    // rota offline: sem internet, a rota em uso fica marcada; com a internet de volta, uma conferência (não em laço)
+    window.addEventListener("offline", () => { if (nav) marcarSemRede(nav, "internet"); });
+    window.addEventListener("online", () => {
+      // só depois de ter ficado sem rede (um "online" repetido, com a rota já conferida, não confere de novo)
+      const n = nav; if (!n || !n.semRede) return;
+      n.conferidor.internetVoltou();
+      conferirSePreciso(n);
+    });
   });
 })(window.Copiloto);

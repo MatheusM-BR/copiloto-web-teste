@@ -376,54 +376,161 @@
   // Pedido do valor na tela
   function textoPedirValor(tipo) { return tipo === "limite_peso" ? "Digite o peso na tela." : "Digite a altura na tela."; }
 
+  // ------------------------------------------------------------ diagnóstico da escuta (iPhone)
+  // Linha do tempo dos últimos LOG_MAX eventos do reconhecimento (start, audiostart, soundstart, speechstart, result,
+  // nomatch, error, end, e o que a interface registra com "ui:"), com tempo relativo ao start() da sessão. Mostrada na
+  // aba Conta ("Diagnóstico do microfone") para o motorista copiar e mandar.
+  const LOG_MAX = 60;
+  const logEscuta = [];
+  let t0Escuta = 0;
+  function registrar(ev, extra) {
+    const agora = Date.now();
+    logEscuta.push({ t: agora, dt: t0Escuta ? agora - t0Escuta : 0, ev: String(ev), extra: extra == null ? "" : String(extra) });
+    while (logEscuta.length > LOG_MAX) logEscuta.shift();
+  }
+  // Versão do iOS pelo userAgent ("iPhone OS 18_6" → "18.6"). O Safari 26+ congela o OS em 18_6: "Version/26.1" vale mais.
+  function versaoIOS(ua) {
+    const u = String(ua || "");
+    if (!/iPhone|iPad|iPod/.test(u)) return null;
+    const v = /Version\/(\d+)(?:\.(\d+))?/.exec(u);
+    if (v && Number(v[1]) >= 26) return v[1] + (v[2] ? "." + v[2] : "");
+    const m = /OS (\d+)[_.](\d+)/.exec(u);
+    return m ? m[1] + "." + m[2] : (v ? v[1] + (v[2] ? "." + v[2] : "") : null);
+  }
+  function ambiente(janela) {
+    const g = janela || (typeof window !== "undefined" ? window : {});
+    const nav = g.navigator || {};
+    let standalone = false;
+    try { standalone = !!(nav.standalone || (g.matchMedia && g.matchMedia("(display-mode: standalone)").matches)); } catch (e) { /* ignora */ }
+    const api = typeof g.SpeechRecognition === "function" ? "SpeechRecognition"
+      : typeof g.webkitSpeechRecognition === "function" ? "webkitSpeechRecognition" : null;
+    return { ua: nav.userAgent || "", ios: versaoIOS(nav.userAgent), standalone, reconhecimento: api, fala: !!g.speechSynthesis };
+  }
+  function textoLog() {
+    return logEscuta.map((l) => "+" + (l.dt / 1000).toFixed(2) + "s " + l.ev + (l.extra ? " " + l.extra : "")).join("\n");
+  }
+  function textoAmbiente(a) {
+    return "iOS: " + (a.ios || "não é iPhone") + " · tela inicial (standalone): " + (a.standalone ? "sim" : "não")
+      + " · reconhecimento: " + (a.reconhecimento || "não existe") + " · fala: " + (a.fala ? "sim" : "não") + "\n" + a.ua;
+  }
+  const diagnostico = {
+    registrar,
+    eventos: () => logEscuta.map((l) => Object.assign({}, l)),
+    limpar: () => { logEscuta.length = 0; },
+    ambiente,
+    textoAmbiente,
+    texto: textoLog,
+    relatorio: (janela) => "Copiloto: diagnóstico do microfone\n" + textoAmbiente(ambiente(janela)) + "\n\n" + (textoLog() || "(nenhum evento ainda)"),
+  };
+
   // ------------------------------------------------------------ escuta (SpeechRecognition)
   // Uma frase por vez, sem escuta contínua. Reconhecedor injetável (testes).
-  // escutar({ maxMs, aoComecar, aoTerminar({ textos, motivo }) }) → { parar(motivo) }
-  // motivo: ok | silencio | permissao | tempo | erro | rede | indisponivel | <o motivo passado em parar()>
+  // escutar({ maxMs, aoComecar, aoOuvindo, aoTerminar({ textos, motivo, codigo }) }) → { parar(motivo) }
+  //  aoComecar: onstart (pedido aceito; no iPhone o microfone ainda pode levar ~2 s para abrir).
+  //  aoOuvindo: onaudiostart (microfone REALMENTE aberto): bipe e "Ouvindo" vão aqui. maxMs conta a partir dele.
+  // motivo: ok | silencio | naoEntendeu | surdo | naoAbriu | tempo | permissao | servico | microfone | rede | idioma | erro
+  //         | indisponivel | <o motivo passado em parar()>.   codigo: o error.error cru do navegador (ou null).
+  // iOS 26/27 (WebKit 321436): da 2ª escuta em diante a sessão pode ficar "surda" (start/audiostart e nada mais; no stop,
+  // error "aborted"). audiostart sem soundstart/speechstart/result em surdoMs (6 s) → abort e motivo "surdo".
+  // interimResults = true: guarda a melhor parcial e, se o final não vier, usa a parcial. Final (isFinal) → stop().
+  // Depois do stop() pelo tempo, espera até esperaFinalMs (2,5 s) pelo resultado tardio do servidor.
   function criarEscuta(opcoes) {
     const o = opcoes || {};
     const g = typeof window !== "undefined" ? window : {};
     const Rec = o.Reconhecedor !== undefined ? o.Reconhecedor : (g.SpeechRecognition || g.webkitSpeechRecognition || null);
+    const ESPERA_FINAL_MS = o.esperaFinalMs || 2500;
+    const SURDO_MS = o.surdoMs || 6000;
     function disponivel() { return typeof Rec === "function"; }
     function escutar(p) {
       const q = p || {};
-      let terminou = false, textos = [], erro = null, rec = null, timer = null, timerFim = null;
+      const MAX_MS = q.maxMs || 8000;
+      let terminou = false, finais = [], parcial = [], erro = null, codigo = null, rec = null;
+      let timer = null, timerFim = null, timerSurdo = null, ouviuSom = false, abriu = false, parando = false;
+      t0Escuta = Date.now(); registrar("start()", "pt-BR, máx " + MAX_MS + " ms");
       function fim(motivo) {
         if (terminou) return;
-        terminou = true; clearTimeout(timer); clearTimeout(timerFim);
-        if (rec) { rec.onresult = rec.onerror = rec.onend = rec.onstart = null; }
-        const m = motivo || (textos.length ? "ok" : erro || "silencio");
-        if (q.aoTerminar) q.aoTerminar({ textos: textos.slice(), motivo: m });
+        terminou = true; clearTimeout(timer); clearTimeout(timerFim); clearTimeout(timerSurdo);
+        const textos = finais.length ? finais : parcial;
+        if (rec) { rec.onresult = rec.onerror = rec.onend = rec.onstart = rec.onaudiostart = rec.onsoundstart = rec.onspeechstart = rec.onnomatch = null; }
+        const m = motivo || (textos.length ? "ok" : erro || (abriu ? (ouviuSom ? "naoEntendeu" : "silencio") : "naoAbriu"));
+        registrar("fim", m + (codigo ? " (" + codigo + ")" : "") + " textos=" + textos.length);
+        if (q.aoTerminar) q.aoTerminar({ textos: textos.slice(), motivo: m, codigo });
       }
-      if (!disponivel()) { setTimeout(() => fim("indisponivel"), 0); return { parar() {} }; }
+      // pede para fechar com o que ouviu e espera o resultado tardio; se não fechar, encerra assim mesmo
+      function pedirFim() {
+        if (parando || terminou) return;
+        parando = true; clearTimeout(timer);
+        try { rec.stop(); } catch (e) { /* ignora */ }
+        timerFim = setTimeout(() => {
+          registrar("sem end", "abort depois de " + ESPERA_FINAL_MS + " ms");
+          try { rec.abort(); } catch (e) { /* ignora */ }
+          fim(finais.length || parcial.length ? "ok" : (abriu ? "tempo" : "naoAbriu"));
+        }, ESPERA_FINAL_MS);
+      }
+      function armarTempo() { clearTimeout(timer); timer = setTimeout(() => { registrar("tempo", "stop()"); pedirFim(); }, MAX_MS); }
+      if (!disponivel()) { registrar("indisponivel", "sem SpeechRecognition"); setTimeout(() => fim("indisponivel"), 0); return { parar() {} }; }
       try {
         rec = new Rec();
-        rec.lang = "pt-BR"; rec.continuous = false; rec.interimResults = false; rec.maxAlternatives = 3;
-        rec.onstart = () => { if (q.aoComecar) q.aoComecar(); };
+        rec.lang = "pt-BR"; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 3;
+        rec.onstart = () => { registrar("start"); if (q.aoComecar) q.aoComecar(); };
+        rec.onaudiostart = () => {
+          if (abriu) return;
+          registrar("audiostart"); abriu = true;
+          if (!parando) armarTempo();
+          timerSurdo = setTimeout(() => {
+            if (ouviuSom || terminou) return;
+            registrar("surdo", "sem som em " + SURDO_MS + " ms");
+            try { rec.abort(); } catch (e) { /* ignora */ }
+            fim("surdo");
+          }, SURDO_MS);
+          if (q.aoOuvindo) q.aoOuvindo();
+        };
+        rec.onsoundstart = () => { ouviuSom = true; registrar("soundstart"); };
+        rec.onspeechstart = () => { ouviuSom = true; registrar("speechstart"); };
+        rec.onnomatch = () => { registrar("nomatch"); };
         rec.onresult = (e) => {
           const lista = e && e.results ? e.results : [];
           const ult = lista[lista.length - 1];
           if (!ult) return;
           const alt = [];
           for (let k = 0; k < (ult.length || 0); k++) if (ult[k] && ult[k].transcript) alt.push(String(ult[k].transcript));
-          if (alt.length) textos = alt;
+          if (!alt.length) return;
+          ouviuSom = true;
+          const final = ult.isFinal === true;
+          if (final) finais = alt; else parcial = alt;
+          registrar("result", (final ? "final" : "parcial") + " " + alt[0].length + " letras");
+          if (!final) return;
+          if (parando) { try { rec.abort(); } catch (er) { /* ignora */ } fim("ok"); return; } // final tardio, depois do stop()
+          parando = true; clearTimeout(timer);
+          try { rec.stop(); } catch (er) { /* ignora */ }
+          timerFim = setTimeout(() => fim("ok"), ESPERA_FINAL_MS); // o end pode não vir
         };
         rec.onerror = (e) => {
-          const c = e && e.error;
-          erro = c === "not-allowed" || c === "service-not-allowed" ? "permissao" : c === "no-speech" ? "silencio" : c === "network" ? "rede" : c === "aborted" ? "silencio" : "erro";
-          if (erro === "permissao") fim("permissao");
+          codigo = (e && e.error) || "desconhecido";
+          registrar("error", codigo + (e && e.message ? " \"" + e.message + "\"" : ""));
+          erro = codigo === "not-allowed" ? "permissao"
+            : codigo === "service-not-allowed" ? "servico"     // Siri/Ditado desligado (ou Tempo de Uso)
+            : codigo === "audio-capture" ? "microfone"        // microfone ocupado (ligação, outro app)
+            : codigo === "network" ? "rede"
+            : codigo === "language-not-supported" ? "idioma"
+            : codigo === "no-speech" ? "silencio"
+            : codigo === "aborted" ? (ouviuSom ? "naoEntendeu" : "silencio")
+            : "erro";
+          if (erro === "permissao" || erro === "servico" || erro === "microfone") fim(erro);
         };
-        rec.onend = () => fim();
+        rec.onend = () => { registrar("end"); fim(); };
         rec.start();
-      } catch (e) { setTimeout(() => fim("erro"), 0); return { parar() {} }; }
-      timer = setTimeout(() => {
-        // pede para fechar com o que ouviu; se não fechar, encerra assim mesmo
-        try { rec.stop(); } catch (e) { /* ignora */ }
-        timerFim = setTimeout(() => fim(textos.length ? "ok" : "tempo"), 800);
-      }, q.maxMs || 8000);
+      } catch (e) {
+        codigo = String((e && e.name) || "excecao");
+        registrar("excecao", codigo);
+        setTimeout(() => fim("erro"), 0);
+        return { parar() {} };
+      }
+      armarTempo();
       return {
         parar(motivo) {
           if (terminou) return;
+          registrar("parar", motivo || "cancelado");
           try { rec.abort(); } catch (e) { /* ignora */ }
           fim(motivo || "cancelado");
         },
@@ -432,8 +539,42 @@
     return { disponivel, escutar };
   }
 
+  // ------------------------------------------------------------ mensagens da escuta (sempre com o código, para o print)
+  const MSG_ESCUTA = {
+    naoAbriu: "O microfone não abriu. Toque em Falar de novo.",
+    silencio: "Não ouvi nada. Toque em Falar e fale depois do bipe.",
+    abortadoSemSom: "O microfone abriu, mas não chegou som. Toque em Falar e fale depois do bipe.",
+    naoEntendeu: "Ouvi, mas não entendi. Fale de novo, mais perto do celular.",
+    surdo: "O iPhone abriu o microfone mas não mandou o som. Feche o app e abra de novo",
+    tempo: "Não recebi o que você falou. Tente de novo.",
+    permissao: "Microfone bloqueado. No iPhone: Ajustes > Apps > Safari > Microfone (Permitir) e Ajustes > Privacidade e Segurança > Reconhecimento de Fala.",
+    servico: "O reconhecimento de voz do iPhone está desligado. Ative a Siri ou o Ditado: Ajustes > Siri, ou Ajustes > Geral > Teclado > Ativar Ditado.",
+    microfone: "O microfone está ocupado (ligação ou outro app). Feche o outro uso e tente de novo.",
+    rede: "Sem internet para reconhecer a fala. Use os botões da tela.",
+    idioma: "O iPhone não reconhece português aqui. Confira o idioma da Siri e do Ditado.",
+    indisponivel: "Comando de voz indisponível neste aparelho.",
+    erro: "Falha no reconhecimento de voz.",
+  };
+  // res = { motivo, codigo } de escutar(); amb = { standalone }
+  function mensagemEscuta(res, amb) {
+    const r = res || {}, m = r.motivo, c = r.codigo;
+    let t;
+    if (m === "surdo") t = MSG_ESCUTA.surdo + (amb && amb.standalone ? " ou use pelo Safari." : ".");
+    else if (c === "aborted" && m === "silencio") t = MSG_ESCUTA.abortadoSemSom;
+    else t = MSG_ESCUTA[m] || MSG_ESCUTA.erro;
+    return t + " (código: " + (c || m || "desconhecido") + ")";
+  }
+  // Aviso "abra pelo Safari" só quando o diagnóstico aponta o app da tela inicial: aberto pela tela inicial (standalone) E
+  // (sem o reconhecimento de fala, último erro service-not-allowed ou 2 sessões surdas seguidas).
+  function sugerirSafari(amb, hist) {
+    const a = amb || {}, h = hist || {};
+    if (!a.standalone) return false;
+    return !a.reconhecimento || h.ultimoCodigo === "service-not-allowed" || (h.surdosSeguidos || 0) >= 2;
+  }
+
   const api = { TIPOS_VOZ, FAIXAS_PADRAO, MSG, normalizar, lerValor, tiposNoTexto, interpretar, interpretarAlternativas, simOuNao,
-    nomeFalado, textoPergunta, fraseFinal, textoPedirValor, criarEscuta };
+    nomeFalado, textoPergunta, fraseFinal, textoPedirValor, criarEscuta, diagnostico, MSG_ESCUTA, mensagemEscuta, sugerirSafari,
+    versaoIOS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoComandos = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -32,3 +32,10 @@
 .relato-marca.e3-guardado.nivel-reported { background: #f6c27a; }
 .relato-marca.e3-guardado.nivel-confirmed { background: var(--ok); color: #06200f; }
 .relato-marca.e3-guardado.nivel-disputed { background: #2c3542; color: #ffd9a1; border-color: #ffd9a1; }
+
+/* Última rota (chegou): rótulo no meio da linha tracejada; tocar abre "Voltar pela mesma rota" / "Limpar rota" */
+.e3-rotulo-ultima {
+  border: 2px dashed var(--acento); border-radius: 999px; background: var(--painel); color: #ffd9a1;
+  font-size: 13px; font-weight: 800; padding: 6px 12px; min-height: 36px; white-space: nowrap; cursor: pointer;
+}
+.folha .e3-voltar { width: 100%; min-height: 72px; }

@@ -287,7 +287,20 @@
     return false;
   }
 
+  // ------------------------------------------------------------ última rota (chegada): fica guardada por 30 dias
+  // A chegada não apaga a rota guardada nem o mapa do corredor: ela vira "última rota" (r.ultima = { chegouEm, sentido,
+  // voltarPara, … }) para o motorista sair da fazenda e voltar pela mesma rota sem internet. Vale ULTIMA_VALIDADE_MS.
+  const ULTIMA_VALIDADE_MS = 30 * 24 * 3600 * 1000;
+  function ultimaValida(r, agora) {
+    const u = r && r.ultima;
+    if (!u || typeof u.chegouEm !== "number" || !isFinite(u.chegouEm)) return false;
+    const idade = (agora == null ? Date.now() : agora) - u.chegouEm;
+    return idade >= -60000 && idade <= ULTIMA_VALIDADE_MS;
+  }
+  function ultimaValidaAte(r) { return r && r.ultima && isFinite(r.ultima.chegouEm) ? r.ultima.chegouEm + ULTIMA_VALIDADE_MS : null; }
+
   const api = {
+    ULTIMA_VALIDADE_MS, ultimaValida, ultimaValidaAte,
     rotaParaGuardar, rotaDeGuardada, mesmaRota,
     BYTES_POR_ZOOM, PADRAO_CORREDOR, HOST_MAPA, SEM_INTERNET,
     lonParaX, latParaY, distanciaM, blocosDoCorredor, estimarBytes, planejarCorredor,

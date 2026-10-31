@@ -75,3 +75,13 @@
 .nav-sim { color: #ff8b84; border-color: #5a2a28; }
 .folha #nav-continuar, .folha #nav-retomar, .folha #nav-continuar-nao { width: 100%; min-height: 72px; }
 .btn-recente { min-height: 64px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Rota guardada/offline: faixa "Rota offline · conferida …" (tracejada como a linha guardada) e, fora da linha sem
+   internet, a orientação de reentrada: seta no rumo do ponto da linha (o mapa não gira: norte para cima). */
+.nav-offline { font-size: 14px; font-weight: 800; color: #cfe3ff; background: #182a44; border: 2px dashed #6aa6ff; border-radius: 8px; padding: 4px 10px; }
+.nav-offline::before { content: "⚠ "; }
+.nav-reentrada { display: flex; align-items: center; gap: 10px; background: #3a2a10; border-radius: 8px; padding: 6px 10px; }
+.nav-seta { flex: none; width: 48px; height: 48px; border-radius: 50%; background: var(--acento); color: var(--acento-texto);
+  display: grid; place-items: center; font-size: 30px; font-weight: 900; line-height: 1; }
+.nav-reentrada-texto { font-size: 17px; font-weight: 800; }
+.folha #nav-voltar { width: 100%; min-height: 72px; }

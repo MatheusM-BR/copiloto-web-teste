@@ -1,7 +1,12 @@
 // Comandos de voz (pacote E4): botão "Falar" no mapa, uma frase por toque (o Safari do iPhone não permite escuta
 // contínua nem palavra de ativação). Interpretação determinística em comandos.js (sem IA, sem rede própria).
 //
-// Fluxo: toque → bipe de início → escuta (até 8 s) → bipe de fim → interpreta → executa.
+// Fluxo: toque → cala a fala (TTS) → "Abrindo microfone…" → onaudiostart: bipe de início e "Ouvindo" → escuta (até 8 s
+// depois do audiostart) → bipe de fim → interpreta → executa.
+// Voz no iPhone (iOS 26/27, WebKit 321436): escuta "surda" (microfone aberto sem som) é abortada em ~6 s com a mensagem
+// "Feche o app e abra de novo"; cada falha mostra a mensagem do código (comandos.js: mensagemEscuta) e abre a folha
+// "Comando sem voz" (botões ≥ 64 px e campo de texto → executar). Toque longo em "Falar" abre a mesma folha.
+// Aba Conta: "Diagnóstico do microfone" (linha do tempo dos eventos da escuta, Copiar, Testar microfone).
 // M3 (QA2): o relato por voz vai no ponto do TOQUE em "Falar" (posição, rumo, velocidade e precisão de lá, como o "!"),
 // logado (gpsToque) ou fora da conta (formulário aberto com esse ponto) — não no fim da fala.
 //  - relato: mesmo caminho do app. Logado: Copiloto.comunidade.enviar() (candidatos "É este?" e fila offline);
@@ -26,16 +31,25 @@
   "use strict";
   const { $, el, botao, novoId } = C.util;
   const Cmd = window.CopilotoComandos, Relatos = window.CopilotoRelatos, NuvemLib = window.CopilotoNuvem, Voz = window.CopilotoVoz;
-  const ESCUTA_MS = 8000, RESPOSTA_MS = 6000, SEM_OUVINTE_MS = 300, SESSAO_RELATO_MS = 60000;
+  const ESCUTA_MS = 8000, RESPOSTA_MS = 6000, SEM_OUVINTE_MS = 300, SESSAO_RELATO_MS = 60000, LONGO_MS = 650;
   const ROTULOS = {
-    pronto: "Falar um comando de voz",
+    pronto: "Falar um comando de voz (toque longo: comandos na tela)",
+    abrindo: "Abrindo microfone…",
     ouvindo: "Ouvindo. Toque para cancelar",
     ok: "Comando registrado",
     indisponivel: Cmd.MSG.indisponivel,
   };
+  const MSG_SAFARI = "Abra o Copiloto pelo Safari (não pelo ícone da tela inicial): aberto pela tela inicial, este iPhone está bloqueando o reconhecimento de voz.";
+  // Comandos da folha alternativa (toque): rótulo → frase que vai para executar(), a mesma interpretação da voz
+  const ALTERNATIVAS = [["Buraco", "buraco na pista"], ["Acidente", "acidente"], ["Animal na pista", "animal na pista"],
+    ["Obra", "obra na pista"], ["Trânsito parado", "trânsito parado"], ["Radar móvel", "radar móvel"],
+    ["Próximo posto", "próximo posto"], ["Repetir", "repete"]];
+  const D = Cmd.diagnostico;
   const escuta = Cmd.criarEscuta();
   let btn = null, ouvindo = null, alertaNoToque = null, gpsNoToque = null, ultimaDistAlerta = null, timerOk = null, votoPorVoz = false;
   let sessao = null; // relato por voz em andamento: { tipo, perguntou, escuta, timer }
+  const hist = { surdosSeguidos: 0, ultimoCodigo: null }; // para o aviso "abra pelo Safari" (sugerirSafari)
+  let toqueLongo = false, timerLongo = null;
 
   // ---------- botão
   function estado(e) {
@@ -44,7 +58,7 @@
     btn.dataset.estado = e;
     btn.setAttribute("aria-label", ROTULOS[e]); btn.title = ROTULOS[e];
     btn.querySelector(".cmd-icone").textContent = e === "ok" ? "✓" : "🎙";
-    btn.querySelector(".cmd-rotulo").textContent = e === "ouvindo" ? "Ouvindo" : "Falar";
+    btn.querySelector(".cmd-rotulo").textContent = e === "ouvindo" ? "Ouvindo" : e === "abrindo" ? "Abrindo" : "Falar";
   }
   function avisar(texto, falar) {
     C.mensagem(texto, 5000);
@@ -53,23 +67,50 @@
   }
 
   // ---------- escuta
-  function ouvir(ms, fim) {
-    const eu = {};
-    C.voz.bipe("inicio");
-    estado("ouvindo");
-    eu.h = escuta.escutar({ maxMs: ms, aoTerminar: (res) => {
-      if (ouvindo === eu) ouvindo = null;
-      estado("pronto");
-      if (res.motivo !== "alerta" && res.motivo !== "cancelado") C.voz.bipe("fim");
-      fim(res);
-    } });
-    ouvindo = eu; // aoTerminar nunca roda antes deste ponto (é sempre assíncrono)
+  // iPhone: o microfone abre até ~2 s depois do start(). Bipe de início e "Ouvindo" só no onaudiostart (aoOuvindo);
+  // antes, "Abrindo microfone…". Nada de fala (TTS) com o microfone aberto: cala antes do start().
+  function ouvir(ms, fim, extra) {
+    const eu = { abriu: false };
+    if (C.voz.calar) { C.voz.calar(); D.registrar("ui:fala calada", "antes do start()"); }
+    estado("abrindo");
+    C.mensagem(ROTULOS.abrindo, 4000);
+    eu.h = escuta.escutar({ maxMs: ms,
+      aoOuvindo: () => {
+        if (ouvindo !== eu) return;
+        eu.abriu = true;
+        const tocou = C.voz.bipe("inicio");
+        D.registrar("ui:bipe inicio", tocou ? "" : "(sem som: bipe desligado)");
+        estado("ouvindo");
+        C.mensagem("Ouvindo… pode falar.", 3000);
+        if (extra && extra.aoOuvindo) extra.aoOuvindo();
+        desenharDiag();
+      },
+      aoTerminar: (res) => {
+        if (ouvindo === eu) ouvindo = null;
+        estado("pronto");
+        if (eu.abriu && res.motivo !== "alerta" && res.motivo !== "cancelado") C.voz.bipe("fim");
+        anotar(res);
+        fim(res);
+        desenharDiag();
+      } });
+    ouvindo = eu; // aoOuvindo/aoTerminar nunca rodam antes deste ponto (são sempre assíncronos)
     return { parar: (m) => eu.h && eu.h.parar(m) };
   }
   function pararEscuta(motivo) { if (ouvindo) { const o = ouvindo; ouvindo = null; o.h.parar(motivo); } }
+  function anotar(res) {
+    if (res.motivo === "cancelado" || res.motivo === "alerta") return;
+    hist.surdosSeguidos = res.motivo === "surdo" ? hist.surdosSeguidos + 1 : 0;
+    hist.ultimoCodigo = res.codigo || null;
+  }
 
   function tocar() {
-    if (!escuta.disponivel()) { C.mensagem(Cmd.MSG.indisponivel + ".", 5000); return; }
+    if (toqueLongo) { toqueLongo = false; return; } // o toque longo já abriu a folha de comandos
+    if (!escuta.disponivel()) {
+      C.mensagem(Cmd.MSG.indisponivel + ".", 5000);
+      D.registrar("indisponivel", "sem SpeechRecognition");
+      abrirAlternativa({ erro: Cmd.mensagemEscuta({ motivo: "indisponivel" }) });
+      return;
+    }
     if (ouvindo) { pararEscuta("cancelado"); return; }
     if (sessao && sessao.escuta) { sessao.escuta.parar("cancelado"); return; }
     // o microfone ouviria a fala do alerta: espera ela acabar
@@ -89,12 +130,45 @@
   function processar(res) {
     const toque = gpsNoToque; gpsNoToque = null;
     if (res.motivo === "alerta" || res.motivo === "cancelado") return;
-    if (res.motivo === "permissao") { avisar("Libere o microfone para este site nos ajustes do Safari para usar o comando de voz."); return; }
     if (!res.textos.length) {
-      avisar(res.motivo === "rede" ? "Sem internet para reconhecer a fala. Use os botões da tela." : "Não ouvi nada. Toque em Falar e diga o comando.");
+      // a escuta falhou: mensagem certa para o código (com o código) e os comandos por toque/teclado
+      const texto = Cmd.mensagemEscuta(res, D.ambiente());
+      C.mensagem(texto, 9000);
+      abrirAlternativa({ erro: texto });
       return;
     }
     executar(res.textos, toque);
+  }
+
+  // ---------- alternativa sem voz: botões grandes e campo de texto (o teclado do iPhone tem ditado próprio)
+  function abrirAlternativa(o) {
+    const op = o || {};
+    D.registrar("ui:folha alternativa", op.erro ? "depois de falha" : "toque longo");
+    const filhos = [el("h2", "cmd-titulo", "Comando sem voz")];
+    if (op.erro) { const p = el("p", "cmd-alt-erro", op.erro); p.id = "cmd-alt-erro"; filhos.push(p); }
+    if (Cmd.sugerirSafari(D.ambiente(), hist)) { const p = el("p", "cmd-alt-safari", MSG_SAFARI); p.id = "cmd-alt-safari"; filhos.push(p); }
+    const grade = el("div", "cmd-alt-grade");
+    const itens = (C.alerta.atual() ? [["Ainda está lá", "continua lá"], ["Não está mais", "não está mais"]] : []).concat(ALTERNATIVAS);
+    for (const [rotulo, frase] of itens) {
+      const b = botao(rotulo, "btn btn-grande cmd-alt-btn", () => { C.folha.fechar(); C.comandos.executar(frase); });
+      b.dataset.frase = frase; grade.appendChild(b);
+    }
+    filhos.push(grade);
+    const form = el("form", "cmd-alt-form");
+    form.id = "cmd-alt-form";
+    const campo = document.createElement("input");
+    campo.id = "cmd-alt-texto"; campo.type = "text"; campo.autocomplete = "off"; campo.setAttribute("enterkeyhint", "send");
+    campo.setAttribute("aria-label", "Digite o comando"); campo.placeholder = "Ou digite (ou dite no teclado): tem buraco aqui";
+    const enviar = el("button", "btn btn-principal btn-grande", "Enviar"); enviar.type = "submit"; enviar.id = "cmd-alt-enviar";
+    form.append(campo, enviar);
+    form.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const t = campo.value.trim();
+      if (!t) { campo.focus(); return; }
+      C.folha.fechar(); C.comandos.executar(t);
+    });
+    filhos.push(form, botao("Fechar", "btn btn-grande", C.folha.fechar));
+    C.folha.abrir(filhos);
   }
   // toque: leitura do GPS no toque em "Falar"; executar() direto (sem microfone) usa a posição de agora
   function executar(textos, toque) {
@@ -218,15 +292,30 @@
       return;
     }
     const texto = Cmd.textoPergunta(s.tipo, dist, Voz.distanciaFalada);
-    let comecou = false;
-    const comecar = () => {
-      if (comecou || sessao !== s || !$("btn-e-este")) return;
-      comecou = true;
-      if (C.voz.emAlerta()) { C.mensagem("Responda na tela: é este ou é outro?", 6000); return; }
+    // Só ouve DEPOIS do fim da pergunta (onend) + 300 ms e com a fala parada (speechSynthesis.speaking = false): o
+    // microfone aberto com a fala tocando fica surdo no iPhone. Se o fim não vier, não ouve: a decisão fica na tela.
+    let feito = false, tentativas = 0, timerFalha = null;
+    const naTela = (motivo) => {
+      D.registrar("ui:é o mesmo? na tela", motivo);
+      if (sessao === s && $("btn-e-este")) C.mensagem("Responda na tela: é este ou é outro?", 7000);
+    };
+    const tentar = () => {
+      if (sessao !== s || !$("btn-e-este")) return;
+      if (C.voz.emAlerta()) { naTela("alerta"); return; }
+      if (C.voz.sintetizando && C.voz.sintetizando()) {
+        if (++tentativas <= 5) { setTimeout(tentar, 300); return; }
+        naTela("fala não parou"); return;
+      }
       s.escuta = ouvir(RESPOSTA_MS, (res) => { s.escuta = null; responderMesmo(s, res); });
     };
-    C.voz.falar(texto, { aoTerminar: comecar });
-    setTimeout(comecar, 1500 + 75 * texto.length); // se o aparelho não avisar o fim da fala
+    const aposFala = () => {
+      if (feito) return;
+      feito = true; clearTimeout(timerFalha);
+      D.registrar("ui:fala terminou", "é o mesmo?");
+      setTimeout(tentar, 300);
+    };
+    if (!C.voz.falar(texto, { aoTerminar: aposFala })) { feito = true; naTela("sem fala"); return; }
+    timerFalha = setTimeout(() => { if (!feito) { feito = true; naTela("fala sem fim"); } }, 3000 + 90 * texto.length);
   }
   function responderMesmo(s, res) {
     if (sessao !== s || !$("btn-e-este")) return; // já respondeu na tela
@@ -270,15 +359,80 @@
 
   // ouvindo(): true enquanto o reconhecimento de fala está ativo (toque em "Falar" ou resposta ao "É o mesmo?"). M3 (QA3):
   // a navegação usa para adiar a fala de manobra (o microfone ouviria a própria fala e ela se perderia).
-  C.comandos = { ouvir: tocar, executar: (t) => executar([].concat(t), null), disponivel: () => escuta.disponivel(), ouvindo: () => !!ouvindo };
+  C.comandos = { ouvir: tocar, executar: (t) => executar([].concat(t), null), disponivel: () => escuta.disponivel(), ouvindo: () => !!ouvindo,
+    alternativa: () => abrirAlternativa({}) };
+
+  // ---------- diagnóstico do microfone (aba Conta): ambiente, linha do tempo da escuta, Copiar e Testar microfone
+  function criarCartaoDiag() {
+    const tela = $("tela-conta");
+    if (!tela || $("cmd-diag")) return;
+    const c = el("div", "cartao cmd-diag"); c.id = "cmd-diag";
+    const amb = el("p", "dica"); amb.id = "cmd-diag-amb";
+    const safari = el("p", "cmd-alt-safari", MSG_SAFARI); safari.id = "cmd-diag-safari"; safari.hidden = true;
+    const log = el("pre", "cmd-diag-log"); log.id = "cmd-diag-log";
+    const copiar = botao("Copiar", "btn", copiarDiag); copiar.id = "cmd-diag-copiar";
+    const testar = botao("Testar microfone", "btn btn-principal", testarMicrofone); testar.id = "cmd-diag-testar";
+    testar.dataset.semDestravar = "";
+    const linha = el("div", "linha-botoes"); linha.append(copiar, testar);
+    const msg = el("p", "dica"); msg.id = "cmd-diag-msg"; msg.setAttribute("role", "status");
+    c.append(el("h2", null, "Diagnóstico do microfone"),
+      el("p", "dica", "Se o \"Falar\" não funcionar, toque em Testar microfone, fale algo e depois em Copiar para mandar ao suporte."),
+      amb, safari, log, linha, msg);
+    const voz = $("cartao-voz");
+    if (voz && voz.parentNode === tela) voz.after(c); else tela.appendChild(c);
+    desenharDiag();
+  }
+  function desenharDiag() {
+    if (!$("cmd-diag")) return;
+    const a = D.ambiente();
+    $("cmd-diag-amb").textContent = D.textoAmbiente(a);
+    $("cmd-diag-safari").hidden = !Cmd.sugerirSafari(a, hist);
+    $("cmd-diag-log").textContent = D.texto() || "(nenhum evento ainda)";
+  }
+  function msgDiag(t) { const m = $("cmd-diag-msg"); if (m) m.textContent = t; }
+  async function copiarDiag() {
+    const txt = D.relatorio();
+    let ok = false;
+    try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(txt); ok = true; } } catch (e) { /* tenta o outro jeito */ }
+    if (!ok) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = txt; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.select(); ok = document.execCommand("copy"); ta.remove();
+      } catch (e) { ok = false; }
+    }
+    msgDiag(ok ? "Copiado. Cole na conversa com o suporte." : "Não deu para copiar. Segure o dedo no texto acima e copie.");
+  }
+  function testarMicrofone() {
+    if (!escuta.disponivel()) { D.registrar("indisponivel", "teste do microfone"); msgDiag(Cmd.mensagemEscuta({ motivo: "indisponivel" })); desenharDiag(); return; }
+    if (ouvindo) { pararEscuta("cancelado"); msgDiag("Teste cancelado."); return; }
+    if (C.voz.emAlerta()) { msgDiag("Espere o alerta terminar e toque de novo."); return; }
+    D.registrar("ui:teste do microfone");
+    msgDiag(ROTULOS.abrindo);
+    ouvir(ESCUTA_MS, (res) => {
+      if (res.motivo === "cancelado" || res.motivo === "alerta") return;
+      msgDiag(res.textos.length ? "Funcionou. Ouvi: “" + res.textos[0] + "”" : Cmd.mensagemEscuta(res, D.ambiente()));
+    }, { aoOuvindo: () => msgDiag("Ouvindo… fale alguma coisa.") });
+    desenharDiag();
+  }
 
   C.aoIniciar(() => {
     C.carregarEstilo("estilos/comandos.css");
     btn = C.botoesMapa.adicionar({ id: "cmd-falar", icone: "", rotulo: ROTULOS.pronto, aoTocar: tocar, classe: "cmd-falar", noFim: true });
     btn.textContent = "";
     btn.append(el("span", "cmd-icone", "🎙"), el("span", "cmd-rotulo", "Falar"));
+    btn.dataset.semDestravar = ""; // ui/voz.js não destrava a fala neste toque (a fala muda tocaria com o microfone abrindo)
     if (!escuta.disponivel()) btn.setAttribute("aria-disabled", "true");
     estado("pronto");
+    // toque longo em "Falar": comandos por toque/teclado, sem microfone
+    btn.addEventListener("pointerdown", () => {
+      toqueLongo = false; clearTimeout(timerLongo);
+      timerLongo = setTimeout(() => { if (ouvindo) return; toqueLongo = true; abrirAlternativa({}); }, LONGO_MS);
+    });
+    for (const t of ["pointerup", "pointercancel", "pointerleave"]) btn.addEventListener(t, () => clearTimeout(timerLongo));
+    btn.addEventListener("contextmenu", (ev) => ev.preventDefault());
+    criarCartaoDiag();
+    C.on("aba", (id) => { if (id === "conta") desenharDiag(); });
 
     C.on("alerta", (d) => {
       ultimaDistAlerta = d.distanciaM;

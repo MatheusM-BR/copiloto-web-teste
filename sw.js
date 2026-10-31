@@ -10,7 +10,7 @@
 //  copiloto-mapa-estilo   estilo, TileJSON, fontes e sprites da OpenFreeMap. Usa o guardado e atualiza por trás.
 //  copiloto-mapa-blocos   blocos vistos no mapa. Usa o guardado; atualiza por trás se tiver mais de 7 dias. Com limite.
 //  copiloto-mapa-rota     blocos do corredor da rota baixados pelo motorista (gravados pela página, ui/offline.js).
-const VERSAO = "2026-10-31.3";
+const VERSAO = "2026-10-31.4";
 const CACHE_APP = "copiloto-app-" + VERSAO;
 const CACHE_ESTILO = "copiloto-mapa-estilo";
 const CACHE_BLOCOS = "copiloto-mapa-blocos";

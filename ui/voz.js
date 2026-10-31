@@ -8,6 +8,8 @@
 // também esperam (M1: "Obrigado", "Mapa simples", "Recalculando." não cortam "Vire à direita…" no meio).
 // Uma fala que não é de manobra e começa com a orientação ainda tocando (resposta de comando de voz, alerta) a corta:
 // emite "voz-manobra-cortada" ({ texto }) para a navegação repetir a etapa (QA 3, M3). falando(): alguma fala tocando.
+// Voz no iPhone: calar() cancela a fala antes de abrir o microfone; as falas da fila esperam comandos.ouvindo();
+// sintetizando() = speechSynthesis.speaking; o toque em [data-sem-destravar] ("Falar") não destrava a fala.
 (function (C) {
   "use strict";
   const { $ } = C.util;
@@ -23,7 +25,7 @@
   // Guarda a última fala para saber quando o alerta de segurança terminou de ser falado.
   function falar(texto, opcoes) {
     if (!prefVoz.ligada) return false;
-    if (opcoes && opcoes.naoInterromper && ocupada()) return esperarAlerta(texto, opcoes);
+    if (opcoes && opcoes.naoInterromper && (ocupada() || microfoneAberto())) return esperarAlerta(texto, opcoes);
     const fala = { texto: String(texto), t: Date.now(), terminou: false };
     const aoTerminar = () => { fala.terminou = true; if (opcoes && opcoes.aoTerminar) opcoes.aoTerminar(); };
     const ehManobra = !!(opcoes && opcoes.manobra);
@@ -37,6 +39,16 @@
   // Orientação de manobra ainda sendo falada (cortada por outra fala, o falador avisa o fim e ela deixa de contar).
   function emManobra() { return falando(falaManobra); }
   function ocupada() { return emAlerta() || emManobra(); }
+  // Microfone do comando de voz aberto (E4): as falas da fila esperam (o reconhecimento ouviria a fala e a perderia).
+  function microfoneAberto() { return !!(C.comandos && typeof C.comandos.ouvindo === "function" && C.comandos.ouvindo()); }
+  // Cala a fala de agora antes de abrir o microfone. Orientação de manobra cortada: a navegação repete depois.
+  function calar() {
+    const cortada = falando(falaManobra) ? falaManobra : null;
+    if (ultimaFala) ultimaFala.terminou = true;
+    const ok = falador.cancelar();
+    if (cortada) { falaManobra = null; C.emit("voz-manobra-cortada", { texto: cortada.texto }); }
+    return ok;
+  }
   // Alerta falado: até o fim da fala (onend) ou, se o aparelho não avisar, um tempo estimado pelo tamanho do texto.
   function emAlerta() {
     const f = falaAlerta;
@@ -58,7 +70,7 @@
     if (!fila.length) return;
     const f = falaDaFila;
     const anteriorFalando = !!(f && !f.terminou && Date.now() < f.t + 1500 + 75 * f.texto.length);
-    if (ocupada() || anteriorFalando) { agendarFila(); return; }
+    if (ocupada() || anteriorFalando || microfoneAberto()) { agendarFila(); return; }
     const p = fila.shift();
     if (falar(p.texto, Object.assign({}, p.opcoes, { naoInterromper: false }))) falaDaFila = ultimaFala;
     if (fila.length) agendarFila();
@@ -77,7 +89,8 @@
   function salvar() { const s = C.util.storage(); if (s) Voz.gravarPreferencias(s, prefVoz); desenhar(); }
 
   C.voz = { falar, preferencias: () => Object.assign({}, prefVoz), falador, disponivel: () => falador.disponivel(),
-    bipe, bipeLigado: () => bipeLigado, emAlerta, emManobra, falando: () => falando(ultimaFala) };
+    bipe, bipeLigado: () => bipeLigado, emAlerta, emManobra, falando: () => falando(ultimaFala),
+    calar, sintetizando: () => falador.falando() };
 
   // Caixa "Bipe de rádio" no cartão de voz (criada aqui para não mexer no index.html)
   function criarCaixaBipe() {
@@ -107,8 +120,15 @@
       }
     });
     $("voz-perfil").addEventListener("change", () => { prefVoz.perfil = $("voz-perfil").value; salvar(); });
-    // primeiro toque em qualquer lugar também destrava (Safari exige gesto do usuário)
-    document.addEventListener("pointerdown", () => { if (!vozDestravada && prefVoz.ligada && falador.destravar()) vozDestravada = true; }, { once: true, capture: true });
+    // primeiro toque em qualquer lugar também destrava (Safari exige gesto do usuário). Menos no "Falar" (e no "Testar
+    // microfone"): a fala muda de destravar tocaria junto com a abertura do microfone (iPhone: a escuta fica surda).
+    const destravarNoToque = (ev) => {
+      const alvo = ev && ev.target && ev.target.closest ? ev.target.closest("[data-sem-destravar]") : null;
+      if (alvo) return;
+      document.removeEventListener("pointerdown", destravarNoToque, true);
+      if (!vozDestravada && prefVoz.ligada && falador.destravar()) vozDestravada = true;
+    };
+    document.addEventListener("pointerdown", destravarNoToque, true);
     // depois de um voto aceito: agradecimento no jeito escolhido (o alerta em si é igual em todos os perfis)
     C.on("voto", () => falar(Voz.agradecimento(prefVoz.perfil, contAgradecimento++), { naoInterromper: true }));
     // alerta.js fala o alerta e logo em seguida emite "alerta" com abriu: marca essa fala como alerta de segurança

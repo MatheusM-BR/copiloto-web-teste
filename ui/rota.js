@@ -1,5 +1,6 @@
 // Destino e rota (Valhalla). Expõe Copiloto.rota: destino(), atual(), pedirDestino(v), definirDestino(lngLat),
-// tracar(), limpar() e calcular(opcoes) (sem folha: usado pela navegação para recalcular).
+// tracar(), limpar(), calcular(opcoes) (sem folha: usado pela navegação para recalcular; com consultar: true só calcula)
+// e usar(rota) (passa a usar uma rota calculada com consultar: a conferência da rota offline pela navegação).
 // Emite "destino" ({lat, lon} | null), "rota" (rota traçada, com a resposta bruta do servidor),
 // "rota-erro" ({ motivo }) e "rota-limpa".
 (function (C) {
@@ -100,9 +101,26 @@
     if (minha !== geracao || (sinal && sinal.aborted)) throw cancelada();
     let r;
     try { r = Rota.resumirResposta(json); } catch (e) { e.motivo = e.message; throw e; }
-    desenharRota(r.coords, o.enquadrar);
     const avisos = extras.concat(Rota.avisos(perfil, faltando));
-    rotaAtual = { origem: o.origem, destino: dest, perfil, pedido, faltando, avisos, km: r.km, minutos: r.minutos, coords: r.coords, resposta: json };
+    const nova = { origem: o.origem, destino: dest, perfil, pedido, faltando, avisos, km: r.km, minutos: r.minutos, coords: r.coords, resposta: json,
+      calculadaEm: Date.now() };
+    // consultar: só calcula (conferência da rota offline pela navegação); quem pediu decide se usa (usar(rota))
+    if (o.consultar) return nova;
+    desenharRota(nova.coords, o.enquadrar);
+    rotaAtual = nova;
+    C.emit("rota", rotaAtual);
+    return rotaAtual;
+  }
+
+  // Passa a usar uma rota já calculada: desenha, guarda como atual, põe o pino no destino (sem folha) e emite "rota".
+  function usar(nova) {
+    if (nova.destino && (!destino || destino.lat !== nova.destino.lat || destino.lon !== nova.destino.lon)) {
+      destino = { lat: nova.destino.lat, lon: nova.destino.lon };
+      if (marcadorDestino) marcadorDestino.remove();
+      marcadorDestino = new maplibregl.Marker({ element: el("div", "pino-destino") }).setLngLat([destino.lon, destino.lat]).addTo(C.mapa);
+    }
+    desenharRota(nova.coords, false);
+    rotaAtual = nova;
     C.emit("rota", rotaAtual);
     return rotaAtual;
   }
@@ -135,7 +153,7 @@
     }
   }
 
-  C.rota = { destino: () => destino, atual: () => rotaAtual, pedirDestino, definirDestino, tracar: tracarRota, limpar: limparRota, calcular };
+  C.rota = { destino: () => destino, atual: () => rotaAtual, pedirDestino, definirDestino, tracar: tracarRota, limpar: limparRota, calcular, usar };
 
   C.aoIniciar(() => {
     $("btn-destino").addEventListener("click", () => pedirDestino(!modoDestino));
