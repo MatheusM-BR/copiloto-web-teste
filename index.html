@@ -100,12 +100,12 @@
     border-radius: 10px; padding: 8px 12px; font-size: 14px; width: max-content; max-width: 90%;
   }
 
-  /* Tela do veículo */
-  #tela-veiculo {
+  /* Telas do veículo e da conta */
+  #tela-veiculo, #tela-conta {
     position: absolute; inset: 0; z-index: 6; background: var(--bg); overflow-y: auto;
     padding: 14px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
   }
-  #tela-veiculo[hidden] { display: none; }
+  #tela-veiculo[hidden], #tela-conta[hidden] { display: none; }
   h1 { font-size: 22px; margin: 4px 0 12px; }
   .lista-perfis { display: grid; gap: 10px; margin: 0 0 16px; padding: 0; list-style: none; }
   .perfil {
@@ -132,7 +132,7 @@
   .dica { color: var(--suave); font-size: 13px; margin: 0; }
 
   nav {
-    display: grid; grid-template-columns: 1fr 1fr; background: var(--painel); border-top: 1px solid var(--linha);
+    display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--painel); border-top: 1px solid var(--linha);
     padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); z-index: 7;
   }
   nav button {
@@ -170,6 +170,43 @@
   .popup-relato b { font-size: 15px; }
   .popup-relato small { color: #4a5565; }
   .popup-relato button { min-height: 36px; border-radius: 8px; border: 1px solid #c8322b; background: #fff; color: #c8322b; font-weight: 600; }
+  /* Relatos da nuvem: estilo por nível */
+  .relato-marca.nuvem.nivel-reported { background: #f6c27a; border-style: solid; }
+  .relato-marca.nuvem.nivel-probable { background: var(--acento); }
+  .relato-marca.nuvem.nivel-confirmed { background: var(--ok); color: #06200f; }
+  .relato-marca.nuvem.nivel-disputed { background: #2c3542; color: #ffd9a1; border: 2px dashed #ffd9a1; }
+  .relato-marca.nuvem.nivel-hidden { background: #5b6472; color: #eef1f5; border: 2px dashed #9aa6b6; opacity: .75; }
+  .relato-marca.nuvem.meu { box-shadow: 0 0 0 2px #3b82f6; }
+  .relato-marca.pendente { background: #5b6472; color: #fff; border: 2px dashed #fff; }
+  .popup-relato .botoes-voto { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .popup-relato button.voto-sim { border-color: #1f7a4d; color: #1f7a4d; }
+  .popup-relato button.voto-nao { border-color: #c8322b; color: #c8322b; }
+  .confirmar-retirar { display: grid; gap: 6px; }
+  .popup-relato .nivel-disputed { color: #9a5b00; font-weight: 700; }
+  .btn-grande { min-height: 64px; font-size: 18px; width: 100%; }
+  .coluna-botoes { display: grid; gap: 10px; }
+
+  /* Pergunta "Ainda está aí?" na estrada */
+  .pergunta {
+    position: absolute; z-index: 8; left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); top: 8px;
+    background: var(--painel); border: 2px solid var(--acento); border-radius: 16px; padding: 12px; display: grid; gap: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.45);
+  }
+  .pergunta[hidden] { display: none; }
+  .pergunta p { margin: 0; font-size: 19px; font-weight: 700; text-align: center; }
+  .pergunta .botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pergunta button { min-height: 72px; border-radius: 14px; font-size: 18px; font-weight: 800; border: 0; }
+  .pergunta .sim { background: var(--ok); color: #06200f; }
+  .pergunta .nao { background: var(--perigo); color: #fff; }
+
+  /* Conta */
+  .cartao { background: var(--painel); border: 1px solid var(--linha); border-radius: 14px; padding: 14px; display: grid; gap: 8px; margin-bottom: 14px; }
+  .cartao h2 { margin: 0; font-size: 17px; }
+  .reputacao-num { font-size: 34px; font-weight: 800; color: var(--acento); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .msg-conta { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--acento); font-size: 15px; }
+  .msg-conta[hidden] { display: none; }
+  .msg-conta.erro-msg { border-color: #ff8b84; color: #ffd0cc; }
+  .email-conta { word-break: break-all; color: var(--texto); }
   @media (max-width: 380px) { .grade { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -197,8 +234,16 @@
 
       <div class="cartao-gps" id="cartao-gps">
         <h2>Ativar o GPS</h2>
-        <p>O Copiloto usa a sua localização para mostrar onde você está e a sua velocidade. Ela fica só neste aparelho.</p>
+        <p>O Copiloto usa a sua localização para mostrar onde você está e a sua velocidade. Ela só sai do aparelho junto com um relato ou voto seu, quando você está na sua conta.</p>
         <button class="btn btn-principal" id="btn-gps">Ativar GPS</button>
+      </div>
+    </div>
+
+    <div class="pergunta" id="pergunta" hidden role="alertdialog" aria-labelledby="pergunta-texto">
+      <p id="pergunta-texto"></p>
+      <div class="botoes">
+        <button class="sim" id="btn-p-sim">Sim, ainda está</button>
+        <button class="nao" id="btn-p-nao">Não está mais</button>
       </div>
     </div>
 
@@ -253,11 +298,49 @@
         </div>
       </form>
     </section>
+
+    <section id="tela-conta" hidden aria-label="Conta">
+      <h1>Conta</h1>
+      <p class="msg-conta" id="c-msg" role="status" hidden></p>
+
+      <div id="conta-fora">
+        <form id="form-conta" novalidate>
+          <h2 style="margin:0;font-size:17px">Entrar ou criar conta</h2>
+          <p class="dica">Com a conta, seus relatos aparecem para outros motoristas e você confirma os deles na estrada.</p>
+          <label for="c-email">E-mail
+            <input id="c-email" type="email" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="voce@exemplo.com">
+          </label>
+          <label for="c-senha">Senha
+            <input id="c-senha" type="password" autocomplete="current-password" placeholder="Pelo menos 6 caracteres">
+          </label>
+          <div class="linha-botoes">
+            <button type="submit" class="btn btn-principal" id="btn-entrar">Entrar</button>
+            <button type="button" class="btn" id="btn-criar-conta">Criar conta</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="conta-dentro" hidden>
+        <div class="cartao">
+          <h2>Conectado</h2>
+          <div class="email-conta" id="c-usuario"></div>
+        </div>
+        <div class="cartao" id="c-reputacao" aria-live="polite">
+          <h2>Sua reputação</h2>
+          <div class="dica">Carregando…</div>
+        </div>
+        <p class="dica" id="c-fila" hidden></p>
+        <div class="linha-botoes" style="margin-top:12px">
+          <button type="button" class="btn btn-perigo" id="btn-sair">Sair da conta</button>
+        </div>
+      </div>
+    </section>
   </main>
 
   <nav aria-label="Navegação">
     <button id="nav-mapa" aria-current="page">Mapa</button>
     <button id="nav-veiculo">Veículo</button>
+    <button id="nav-conta">Conta</button>
   </nav>
 </div>
 
@@ -266,6 +349,9 @@
 <script src="velocidade.js"></script>
 <script src="rota.js"></script>
 <script src="relatos.js"></script>
+<script src="config.js"></script>
+<script src="nuvem.js"></script>
+<script src="proximidade.js"></script>
 <script>
 (function () {
   "use strict";
@@ -299,7 +385,7 @@
     mapa = new maplibregl.Map({
       container: "mapa", style: ESTILO, center: [-49.25, -16.68], zoom: 6, attributionControl: { compact: true },
     });
-    window.copiloto = { mapa: mapa };
+    window.copiloto = { mapa: mapa, nuvem: nuvem };
     mapa.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: false }), "top-right");
     mapa.on("dragstart", () => definirSeguir(false));
     mapa.on("error", () => {
@@ -338,6 +424,13 @@
     const c = p.coords;
     const lngLat = [c.longitude, c.latitude];
     ultimaPos = lngLat;
+    const vMs = typeof c.speed === "number" && isFinite(c.speed) && c.speed >= 0 ? c.speed : null;
+    gps = {
+      lat: c.latitude, lon: c.longitude,
+      precisao: typeof c.accuracy === "number" && isFinite(c.accuracy) ? c.accuracy : null,
+      rumo: Prox.rumoDoGps(c.heading, vMs),
+      velKmh: vMs == null ? null : Math.round(vMs * 3.6 * 10) / 10,
+    };
     if (!marcador) {
       const el = document.createElement("div"); el.className = "ponto-gps";
       marcador = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(mapa);
@@ -352,6 +445,7 @@
       velocidade: typeof c.speed === "number" ? c.speed : null, t: p.timestamp,
     });
     $("vel").textContent = kmh === null ? "--" : String(kmh);
+    aoMoverNuvem();
   }
 
   function aoErroGps(e) {
@@ -471,11 +565,11 @@
 
   // ------------------------------------------------------------ navegação
   function irPara(tela) {
-    const veiculo = tela === "veiculo";
-    $("tela-veiculo").hidden = !veiculo;
-    $("nav-mapa").setAttribute("aria-current", veiculo ? "false" : "page");
-    $("nav-veiculo").setAttribute("aria-current", veiculo ? "page" : "false");
-    if (!veiculo && mapa) setTimeout(() => mapa.resize(), 50);
+    $("tela-veiculo").hidden = tela !== "veiculo";
+    $("tela-conta").hidden = tela !== "conta";
+    for (const t of ["mapa", "veiculo", "conta"]) $("nav-" + t).setAttribute("aria-current", t === tela ? "page" : "false");
+    if (tela === "conta") desenharConta(true);
+    if (tela === "mapa" && mapa) setTimeout(() => mapa.resize(), 50);
   }
 
   // ------------------------------------------------------------ folha inferior (destino, rota, relato)
@@ -560,7 +654,7 @@
     } finally { clearTimeout(t); }
   }
 
-  // ------------------------------------------------------------ relatos dos motoristas (só neste aparelho por enquanto)
+  // ------------------------------------------------------------ relatos locais (aparelho, quando fora da conta)
   const CHAVE_REL = "copiloto.relatos.v1";
   let relatos = [];
   const marcasRelato = new Map();
@@ -584,6 +678,315 @@
     }
   }
 
+  // ------------------------------------------------------------ nuvem (Supabase): conta, relatos compartilhados, votos
+  const Cfg = window.CopilotoConfig, NuvemLib = window.CopilotoNuvem, Prox = window.CopilotoProximidade;
+  const nuvem = NuvemLib.criarNuvem({ url: Cfg.url, chave: Cfg.chave });
+  const perguntador = Prox.criarPerguntador();
+  const BUSCA_RAIO_M = 20000, REBUSCA_DIST_M = 2000, PERGUNTA_MS = 12000;
+  let gps = null;                 // última leitura do GPS: { lat, lon, precisao, rumo, velKmh }
+  let relatosNuvem = [];          // linhas de copiloto_reports_near
+  const marcasNuvem = new Map();  // id → { m, chave }
+  const marcasPendentes = new Map();
+  let ultimaBusca = null, buscando = false, buscarDeNovo = false;
+  let perguntaAtual = null, timerPergunta = null;
+  let estavaLogado = nuvem.logado();
+
+  function plural(n, um, varios) { return n + " " + (n === 1 ? um : varios); }
+  function tituloServidor(r) {
+    const tipo = NuvemLib.tipoParaApp(r.report_type);
+    return Relatos.titulo({ tipo, valor: r.value_numeric == null ? null : Number(r.value_numeric) });
+  }
+  function siglaServidor(r) {
+    const cfg = Relatos.TIPOS[NuvemLib.tipoParaApp(r.report_type)];
+    return cfg.sigla + (r.value_numeric == null ? "" : " " + String(Number(r.value_numeric)).replace(".", ","));
+  }
+  function paramsGps() {
+    return {
+      p_accuracy_m: gps && gps.precisao != null ? Math.round(gps.precisao * 10) / 10 : null,
+      p_heading_deg: gps ? gps.rumo : null,
+      p_speed_kmh: gps ? gps.velKmh : null,
+    };
+  }
+
+  // ---------- conta
+  function msgConta(texto, erro) {
+    const e = $("c-msg");
+    e.textContent = texto || ""; e.hidden = !texto;
+    e.classList.toggle("erro-msg", !!erro);
+  }
+  function desenharConta(recarregarReputacao) {
+    const logado = nuvem.logado();
+    $("conta-fora").hidden = logado;
+    $("conta-dentro").hidden = !logado;
+    if (!logado) return;
+    const u = nuvem.usuario() || {};
+    $("c-usuario").textContent = u.email || "Conta sem e-mail";
+    const n = nuvem.filaDoUsuario().length;
+    $("c-fila").hidden = !n;
+    $("c-fila").textContent = n ? plural(n, "relato esperando", "relatos esperando") + " a internet para ser enviado." : "";
+    if (recarregarReputacao) carregarReputacao();
+  }
+  async function carregarReputacao() {
+    const box = $("c-reputacao");
+    try {
+      const r = (await nuvem.rpc("copiloto_my_reputation", {})) || {};
+      const num = (v) => (v == null || !isFinite(v) ? "--" : String(Math.round(Number(v) * 100) / 100).replace(".", ","));
+      box.textContent = "";
+      box.append(el("h2", null, "Sua reputação"), el("div", "reputacao-num", num(r.reputation)),
+        el("div", "dica", "Relatos enviados: " + num(r.reports_total) + " · confirmados: " + num(r.reports_confirmed) + " · escondidos: " + num(r.reports_hidden)),
+        el("div", "dica", "Acertos: " + num(r.hits) + " · erros: " + num(r.misses)),
+        el("div", "dica", "Sobe quando outros motoristas confirmam seus relatos e cai quando negam."));
+    } catch (e) {
+      box.textContent = "";
+      box.append(el("h2", null, "Sua reputação"), el("div", "dica", "Não foi possível carregar: " + e.message));
+    }
+  }
+  function lerCredenciais() { return { email: $("c-email").value.trim(), senha: $("c-senha").value }; }
+  function travarConta(v) { $("btn-entrar").disabled = v; $("btn-criar-conta").disabled = v; }
+  async function entrarConta() {
+    const { email, senha } = lerCredenciais();
+    if (!email || !senha) { msgConta("Digite o e-mail e a senha.", true); return; }
+    travarConta(true); msgConta("Entrando…");
+    try {
+      await nuvem.entrar(email, senha);
+      $("c-senha").value = "";
+      msgConta("Pronto! Você entrou. Seus relatos agora vão para outros motoristas.");
+    } catch (e) { msgConta(e.message, true); }
+    finally { travarConta(false); }
+  }
+  async function criarConta() {
+    const { email, senha } = lerCredenciais();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { msgConta("Digite um e-mail válido.", true); return; }
+    if (senha.length < 6) { msgConta("A senha precisa ter pelo menos 6 caracteres.", true); return; }
+    travarConta(true); msgConta("Criando a conta…");
+    try {
+      const r = await nuvem.cadastrar(email, senha);
+      $("c-senha").value = "";
+      msgConta(r.confirmar ? "Enviamos um e-mail de confirmação. Confirme e depois entre." : "Conta criada. Você já entrou.");
+    } catch (e) { msgConta(e.message, true); }
+    finally { travarConta(false); }
+  }
+  async function sairConta() {
+    await nuvem.sair();
+    msgConta("Você saiu da conta. Os relatos novos ficam só neste aparelho.");
+  }
+
+  // ---------- relatos da nuvem no mapa
+  function limparNuvem() {
+    for (const [, x] of marcasNuvem) x.m.remove();
+    marcasNuvem.clear();
+    relatosNuvem = []; ultimaBusca = null;
+    esconderPergunta();
+  }
+
+  function popupNuvem(r) {
+    const pop = el("div", "popup-relato");
+    const nivel = el("small", r.level === "disputed" ? "nivel-disputed" : null,
+      (r.level === "disputed" ? "? " : "") + NuvemLib.textoNivel(r.level) + (r.mine ? " · relato seu" : ""));
+    const cont = el("small", null, plural(Number(r.confirm_count) || 0, "confirmação", "confirmações") + " · " + plural(Number(r.deny_count) || 0, "negação", "negações"));
+    const exp = Date.parse(r.expires_at);
+    pop.append(el("b", null, tituloServidor(r)), nivel, cont);
+    if (isFinite(exp)) pop.append(el("small", null, Relatos.validade(exp, Date.now()).replace(/^v/, "V")));
+    if (r.mine) {
+      // copiloto_report_delete RETIRA o relato do mapa (o histórico fica no servidor): pede confirmação antes
+      const area = el("div", "confirmar-retirar");
+      const excluir = botao("Excluir", "", () => {
+        area.textContent = "";
+        const linha = el("div", "botoes-voto");
+        const sim = botao("Sim, retirar", "voto-nao", () => excluirNuvem(r)); sim.className = "btn-retirar";
+        linha.append(sim, botao("Cancelar", "", () => { area.textContent = ""; area.appendChild(excluir); }));
+        area.append(el("small", null, "Retirar este relato do mapa?"), linha);
+      });
+      area.appendChild(excluir);
+      pop.append(area);
+    } else {
+      if (r.my_vote) pop.append(el("small", null, "Seu voto: " + (r.my_vote === "confirm" ? "ainda está aí" : "não está mais")));
+      const linha = el("div", "botoes-voto");
+      linha.append(botao("Ainda está aí", "voto-sim", () => votar(r, "confirm")), botao("Não está mais", "voto-nao", () => votar(r, "deny")));
+      pop.append(linha);
+    }
+    return pop;
+  }
+
+  function desenharNuvem() {
+    const vivos = new Set(relatosNuvem.map((r) => r.id));
+    for (const [id, x] of marcasNuvem) if (!vivos.has(id)) { x.m.remove(); marcasNuvem.delete(id); }
+    for (const r of relatosNuvem) {
+      const chave = [r.level, r.confirm_count, r.deny_count, r.my_vote, r.mine, r.expires_at, r.value_numeric].join("|");
+      const antes = marcasNuvem.get(r.id);
+      if (antes && antes.chave === chave) continue;
+      if (antes) antes.m.remove();
+      const prefixo = r.level === "disputed" ? "? " : r.level === "confirmed" ? "✓ " : "";
+      const marca = el("div", "relato-marca nuvem nivel-" + r.level + (r.mine ? " meu" : ""), prefixo + siglaServidor(r));
+      marca.dataset.id = r.id;
+      marca.title = tituloServidor(r) + " · " + NuvemLib.textoNivel(r.level);
+      const m = new maplibregl.Marker({ element: marca }).setLngLat([r.lon, r.lat])
+        .setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(popupNuvem(r))).addTo(mapa);
+      marcasNuvem.set(r.id, { m, chave });
+    }
+  }
+
+  async function buscarNuvem() {
+    if (!nuvem.logado() || !gps) return;
+    if (buscando) { buscarDeNovo = true; return; }
+    buscando = true;
+    const pos = { lat: gps.lat, lon: gps.lon };
+    try {
+      const lista = await nuvem.rpc("copiloto_reports_near", { p_lat: pos.lat, p_lon: pos.lon, p_radius_m: BUSCA_RAIO_M });
+      if (!nuvem.logado()) return;
+      relatosNuvem = (Array.isArray(lista) ? lista : []).filter((r) => NuvemLib.visivel(r) && NuvemLib.tipoParaApp(r.report_type) && isFinite(r.lat) && isFinite(r.lon));
+      ultimaBusca = pos;
+      desenharNuvem();
+      verificarPergunta();
+    } catch (e) {
+      if (e.codigo === "sessao_expirada") mensagem(e.message, 7000);
+      // sem internet: mantém o que já está no mapa e tenta no próximo ciclo
+    } finally {
+      buscando = false;
+      if (buscarDeNovo) { buscarDeNovo = false; buscarNuvem(); }
+    }
+  }
+
+  // chamado a cada leitura do GPS
+  function aoMoverNuvem() {
+    if (!nuvem.logado() || !gps) return;
+    if (!ultimaBusca || Prox.distanciaM(ultimaBusca, gps) > REBUSCA_DIST_M) buscarNuvem();
+    verificarPergunta();
+  }
+
+  async function votar(r, voto) {
+    if (!gps) { mensagem("Ative o GPS para votar.", 6000); return; }
+    perguntador.marcar(r.id);
+    try {
+      const resp = await nuvem.rpc("copiloto_report_vote", Object.assign({ p_report_id: r.id, p_vote: voto, p_lat: gps.lat, p_lon: gps.lon },
+        { p_accuracy_m: paramsGps().p_accuracy_m, p_heading_deg: paramsGps().p_heading_deg }));
+      r.my_vote = voto;
+      if (resp && resp.level) r.level = resp.level;
+      if (r.level === "hidden" && !r.mine) relatosNuvem = relatosNuvem.filter((x) => x.id !== r.id);
+      desenharNuvem();
+      mensagem(voto === "confirm" ? "Obrigado! Você confirmou que ainda está lá." : "Obrigado! Você avisou que não está mais lá.", 4000);
+      buscarNuvem();
+    } catch (e) { mensagem(e.message, 7000); }
+  }
+
+  async function excluirNuvem(r) {
+    try {
+      const resp = await nuvem.rpc("copiloto_report_delete", { p_report_id: r.id });
+      if (resp && resp.deleted) {
+        relatosNuvem = relatosNuvem.filter((x) => x.id !== r.id); desenharNuvem(); mensagem("Relato retirado do mapa.", 4000);
+      } else mensagem("Não dá para retirar este relato: ele já foi contestado por outros motoristas.", 7000);
+    } catch (e) { mensagem(e.message, 7000); }
+  }
+
+  // ---------- pergunta "Ainda está aí?"
+  function verificarPergunta() {
+    if (!nuvem.logado() || !gps || perguntaAtual) return;
+    const c = perguntador.escolher({ lat: gps.lat, lon: gps.lon, rumo: gps.rumo }, relatosNuvem, Date.now());
+    if (!c) return;
+    perguntaAtual = c.relato;
+    const onde = gps.rumo == null ? "aqui perto" : "a " + Math.round(c.distanciaM) + " m à frente";
+    $("pergunta-texto").textContent = tituloServidor(c.relato) + " " + onde + ". Ainda está aí?";
+    $("pergunta").hidden = false;
+    clearTimeout(timerPergunta);
+    timerPergunta = setTimeout(esconderPergunta, PERGUNTA_MS);
+  }
+  function esconderPergunta() {
+    clearTimeout(timerPergunta); timerPergunta = null;
+    perguntaAtual = null; $("pergunta").hidden = true;
+  }
+  function responderPergunta(voto) {
+    const r = perguntaAtual;
+    esconderPergunta();
+    if (r) votar(r, voto);
+  }
+
+  // ---------- fila offline (relatos que não saíram por falta de internet)
+  function desenharPendentes() {
+    const fila = nuvem.filaDoUsuario();
+    const vivos = new Set(fila.map((x) => x.id));
+    for (const [id, m] of marcasPendentes) if (!vivos.has(id)) { m.remove(); marcasPendentes.delete(id); }
+    for (const x of fila) {
+      if (marcasPendentes.has(x.id) || !Relatos.TIPOS[x.tipo]) continue;
+      const cfg = Relatos.TIPOS[x.tipo];
+      const marca = el("div", "relato-marca pendente", cfg.sigla + (x.valor == null ? "" : " " + String(x.valor).replace(".", ",")) + " · pendente");
+      const pop = el("div", "popup-relato");
+      pop.append(el("b", null, Relatos.titulo(x)), el("small", null, "Pendente: vai ser enviado quando a internet voltar."));
+      const m = new maplibregl.Marker({ element: marca }).setLngLat([x.lon, x.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(pop)).addTo(mapa);
+      marcasPendentes.set(x.id, m);
+    }
+    if (!$("tela-conta").hidden) desenharConta(false);
+  }
+  async function reenviarFila() {
+    if (!nuvem.filaDoUsuario().length) return;
+    const r = await nuvem.processarFila();
+    if (r.enviados) { mensagem(plural(r.enviados, "relato guardado foi enviado", "relatos guardados foram enviados") + ".", 5000); buscarNuvem(); }
+  }
+  function guardarNaFila(relato, params) {
+    nuvem.enfileirar({ id: relato.id, tipo: relato.tipo, valor: relato.valor, lat: relato.lat, lon: relato.lon, expiraEm: relato.expiraEm, params });
+    fecharFolha();
+    mensagem("Sem internet. O relato ficou guardado e vai ser enviado quando a conexão voltar.", 7000);
+  }
+
+  // ---------- envio de relato logado
+  function folhaErro(titulo, texto) {
+    const b = el("div", "linha-botoes"); b.append(botao("Fechar", "btn", fecharFolha));
+    abrirFolha([el("h2", null, titulo), el("p", null, texto), b]);
+  }
+  async function enviarRelatoNuvem(relato) {
+    const params = Object.assign({ p_type: NuvemLib.tipoParaServidor(relato.tipo), p_lat: relato.lat, p_lon: relato.lon, p_value: relato.valor }, paramsGps());
+    abrirFolha([el("h2", null, "Enviando relato…"), el("p", null, "Conferindo se alguém já relatou isso aqui.")]);
+    let cands;
+    try {
+      cands = await nuvem.rpc("copiloto_report_candidates", { p_type: params.p_type, p_lat: params.p_lat, p_lon: params.p_lon, p_heading_deg: params.p_heading_deg });
+    } catch (e) {
+      if (e.rede) { guardarNaFila(relato, params); desenharPendentes(); return; }
+      folhaErro("Não foi possível enviar", e.message); return;
+    }
+    cands = Array.isArray(cands) ? cands : [];
+    if (cands.some((c) => c.mine)) { folhaErro("Você já relatou isso aqui.", "O seu relato anterior continua valendo."); return; }
+    const c = cands[0];
+    if (!c) { submeter(relato, params, null); return; }
+    const sim = botao("Sim, é este", "btn btn-principal btn-grande", () => submeter(relato, params, c.id)); sim.id = "btn-e-este";
+    const nao = botao("Não, é outro", "btn btn-grande", () => submeter(relato, params, null)); nao.id = "btn-e-outro";
+    const canc = botao("Cancelar", "btn btn-grande", fecharFolha); canc.id = "btn-e-cancelar";
+    const col = el("div", "coluna-botoes"); col.append(sim, nao, canc);
+    abrirFolha([el("h2", null, "Já existe " + tituloServidor(c) + " a " + Math.round(Number(c.distance_m) || 0) + " m. É este?"),
+      el("p", null, NuvemLib.textoNivel(c.level) + ". Se for o mesmo, o seu relato vira uma confirmação."), col]);
+  }
+  async function submeter(relato, params, mesmoQue) {
+    const corpo = Object.assign({}, params);
+    if (mesmoQue) corpo.p_same_as = mesmoQue;
+    abrirFolha([el("h2", null, "Enviando relato…")]);
+    try {
+      const r = await nuvem.rpc("copiloto_report_submit", corpo);
+      fecharFolha();
+      mensagem(r && r.action === "confirmed_existing" ? "Obrigado! Você confirmou o relato que já existia." : "Relato enviado. Outros motoristas vão ver.", 5000);
+      buscarNuvem();
+    } catch (e) {
+      if (e.rede) { guardarNaFila(relato, corpo); desenharPendentes(); return; }
+      folhaErro("Não foi possível enviar", e.message);
+    }
+  }
+
+  function iniciarNuvem() {
+    nuvem.on("sessao", (s) => {
+      const logado = !!s;
+      if (logado !== estavaLogado) {
+        estavaLogado = logado;
+        if (logado) { buscarNuvem(); reenviarFila(); } else limparNuvem();
+        desenharPendentes();
+        desenharConta(logado);
+      }
+    });
+    nuvem.on("fila", desenharPendentes);
+    nuvem.on("descartado", (d) => mensagem("Um relato guardado não foi enviado: " + d.erro.message, 7000));
+    window.addEventListener("online", reenviarFila);
+    setInterval(() => { buscarNuvem(); reenviarFila(); }, 60000);
+    desenharConta(false);
+    desenharPendentes();
+    if (nuvem.logado()) reenviarFila();
+  }
+
   function abrirRelato() {
     if (!ultimaPos) { mensagem("Ative o GPS para reportar neste ponto.", 6000); return; }
     pedirDestino(false);
@@ -595,14 +998,27 @@
     const rotTipo = el("label", null, "O que você viu?"); rotTipo.append(sel);
     function ajustar() { const cfg = Relatos.TIPOS[sel.value]; rotValor.hidden = !cfg.valor; if (cfg.valor) { spanRot.textContent = cfg.valor.rotulo; inp.placeholder = cfg.valor.unidade === "m" ? "4,30" : "30"; } erro.textContent = ""; }
     sel.addEventListener("change", ajustar); ajustar();
+    const logado = nuvem.logado();
     const botoes = el("div", "linha-botoes");
     botoes.append(botao("Salvar relato", "btn btn-principal", () => {
       const r = Relatos.criarRelato(sel.value, { lat: ultimaPos[1], lon: ultimaPos[0] }, inp.value, Date.now(), novoId());
       if (!r.ok) { erro.textContent = r.erro; inp.setAttribute("aria-invalid", "true"); return; }
-      relatos.push(r.relato); gravarRelatos(); desenharRelatos(); fecharFolha(); mensagem("Relato salvo neste ponto.", 4000);
+      if (nuvem.logado()) { enviarRelatoNuvem(r.relato); return; }
+      relatos.push(r.relato); gravarRelatos(); desenharRelatos(); fecharFolha();
+      mensagem("Relato salvo só neste aparelho. Entre para compartilhar com outros motoristas.", 5000);
     }), botao("Cancelar", "btn", fecharFolha));
-    abrirFolha([el("h2", null, "Reportar neste ponto"), rotTipo, rotValor,
-      el("p", null, "Fica salvo só neste aparelho e vence sozinho. Não é uma informação confirmada."), botoes]);
+    const itens = [el("h2", null, "Reportar neste ponto"), rotTipo, rotValor];
+    if (logado) {
+      itens.push(el("p", null, "Vai para outros motoristas. Vence sozinho e só vira confirmado quando outros motoristas confirmarem."));
+    } else {
+      itens.push(el("p", null, "Fica salvo só neste aparelho e vence sozinho. Não é uma informação confirmada."));
+      const dica = el("p", "dica", "Entre para compartilhar com outros motoristas. ");
+      const ir = botao("Entrar na conta", "btn btn-pequeno", () => { fecharFolha(); irPara("conta"); }); ir.id = "btn-ir-conta";
+      dica.appendChild(ir);
+      itens.push(dica);
+    }
+    itens.push(botoes);
+    abrirFolha(itens);
   }
 
   // ------------------------------------------------------------ início
@@ -614,6 +1030,12 @@
   $("btn-cancelar").addEventListener("click", limparForm);
   $("nav-mapa").addEventListener("click", () => irPara("mapa"));
   $("nav-veiculo").addEventListener("click", () => irPara("veiculo"));
+  $("nav-conta").addEventListener("click", () => irPara("conta"));
+  $("form-conta").addEventListener("submit", (ev) => { ev.preventDefault(); entrarConta(); });
+  $("btn-criar-conta").addEventListener("click", criarConta);
+  $("btn-sair").addEventListener("click", sairConta);
+  $("btn-p-sim").addEventListener("click", () => responderPergunta("confirm"));
+  $("btn-p-nao").addEventListener("click", () => responderPergunta("deny"));
   $("btn-gps").addEventListener("click", iniciarGps);
   $("btn-seguir").addEventListener("click", () => definirSeguir(!seguindo));
   $("btn-tela").addEventListener("click", async () => {
@@ -627,6 +1049,7 @@
   mapa.on("click", (e) => { if (modoDestino) definirDestino(e.lngLat); });
   carregarRelatos(); desenharRelatos();
   setInterval(desenharRelatos, 60000);
+  iniciarNuvem();
   // Se a permissão de localização já foi dada, liga o GPS sozinho (senão o cartão tapa o mapa a cada abertura).
   try {
     if (navigator.permissions && navigator.permissions.query) {

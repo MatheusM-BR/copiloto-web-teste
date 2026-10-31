@@ -57,13 +57,16 @@
     return cfg.rotulo.split(" (")[0] + v;
   }
 
-  function descricao(r, agoraMs) {
-    const restante = r.expiraEm - agoraMs;
-    const validade = restante < D ? "vale por mais " + Math.max(1, Math.round(restante / H)) + " h" : "vale até " + dataCurta(r.expiraEm);
-    return "Relato seu, não confirmado · " + validade;
+  function validade(expiraEm, agoraMs) {
+    const restante = expiraEm - agoraMs;
+    return restante < D ? "vale por mais " + Math.max(1, Math.round(restante / H)) + " h" : "vale até " + dataCurta(expiraEm);
   }
 
-  const api = { TIPOS, criarRelato, ativos, titulo, descricao, lerValor };
+  function descricao(r, agoraMs) {
+    return "Relato seu, não confirmado · " + validade(r.expiraEm, agoraMs);
+  }
+
+  const api = { TIPOS, criarRelato, ativos, titulo, descricao, validade, lerValor };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoRelatos = api;
 })(typeof window !== "undefined" ? window : globalThis);
