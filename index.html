@@ -186,18 +186,31 @@
   .btn-grande { min-height: 64px; font-size: 18px; width: 100%; }
   .coluna-botoes { display: grid; gap: 10px; }
 
-  /* Pergunta "Ainda está aí?" na estrada */
-  .pergunta {
+  /* Alerta de relato à frente (estilo Waze) */
+  .alerta {
     position: absolute; z-index: 8; left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); top: 8px;
-    background: var(--painel); border: 2px solid var(--acento); border-radius: 16px; padding: 12px; display: grid; gap: 10px;
-    box-shadow: 0 6px 24px rgba(0,0,0,.45);
+    background: var(--painel); border: 3px solid var(--acento); border-radius: 18px; padding: 14px; display: grid; gap: 8px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.5);
   }
-  .pergunta[hidden] { display: none; }
-  .pergunta p { margin: 0; font-size: 19px; font-weight: 700; text-align: center; }
-  .pergunta .botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .pergunta button { min-height: 72px; border-radius: 14px; font-size: 18px; font-weight: 800; border: 0; }
-  .pergunta .sim { background: var(--ok); color: #06200f; }
-  .pergunta .nao { background: var(--perigo); color: #fff; }
+  .alerta[hidden] { display: none; }
+  .alerta.nivel-disputed { border-style: dashed; border-color: #ffd9a1; }
+  .alerta.nivel-confirmed { border-color: var(--ok); }
+  .alerta-topo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .alerta-sigla { background: var(--acento); color: var(--acento-texto); font-weight: 900; font-size: 14px; border-radius: 8px; padding: 4px 8px; white-space: nowrap; }
+  .alerta-titulo { font-size: 21px; font-weight: 800; line-height: 1.15; min-width: 0; }
+  .alerta-dist { font-size: 40px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+  .alerta-nivel { font-size: 15px; color: var(--suave); font-weight: 600; }
+  .alerta.nivel-disputed .alerta-nivel { color: #ffd9a1; }
+  .alerta-nota { margin: 0; font-size: 14px; color: var(--suave); }
+  .alerta-nota[hidden], .alerta .botoes[hidden] { display: none; }
+  .alerta .botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+  .alerta button { min-height: 76px; border-radius: 14px; font-size: 19px; font-weight: 800; border: 0; }
+  .alerta .sim { background: var(--ok); color: #06200f; }
+  .alerta .nao { background: var(--perigo); color: #fff; }
+
+  /* Voz */
+  .linha-check { display: flex; align-items: center; gap: 12px; font-size: 16px; color: var(--texto); min-height: 48px; }
+  .linha-check input { width: 28px; height: 28px; min-height: 0; accent-color: var(--acento); flex: none; }
 
   /* Conta */
   .cartao { background: var(--painel); border: 1px solid var(--linha); border-radius: 14px; padding: 14px; display: grid; gap: 8px; margin-bottom: 14px; }
@@ -239,11 +252,14 @@
       </div>
     </div>
 
-    <div class="pergunta" id="pergunta" hidden role="alertdialog" aria-labelledby="pergunta-texto">
-      <p id="pergunta-texto"></p>
-      <div class="botoes">
-        <button class="sim" id="btn-p-sim">Sim, ainda está</button>
-        <button class="nao" id="btn-p-nao">Não está mais</button>
+    <div class="alerta" id="alerta" hidden role="alert" aria-live="assertive">
+      <div class="alerta-topo"><span class="alerta-sigla" id="alerta-sigla"></span><span class="alerta-titulo" id="alerta-titulo"></span></div>
+      <div class="alerta-dist" id="alerta-dist"></div>
+      <div class="alerta-nivel" id="alerta-nivel"></div>
+      <p class="alerta-nota" id="alerta-nota" hidden></p>
+      <div class="botoes" id="alerta-botoes">
+        <button class="sim" id="btn-a-sim">Continua lá</button>
+        <button class="nao" id="btn-a-nao">Não está mais</button>
       </div>
     </div>
 
@@ -330,9 +346,19 @@
           <div class="dica">Carregando…</div>
         </div>
         <p class="dica" id="c-fila" hidden></p>
-        <div class="linha-botoes" style="margin-top:12px">
+        <div class="linha-botoes" style="margin:12px 0 14px">
           <button type="button" class="btn btn-perigo" id="btn-sair">Sair da conta</button>
         </div>
+      </div>
+
+      <div class="cartao" id="cartao-voz" style="margin-top:14px">
+        <h2>Voz do Copiloto</h2>
+        <label class="linha-check" for="voz-ligada"><input type="checkbox" id="voz-ligada"> Falar os alertas</label>
+        <label for="voz-perfil">Jeito de falar
+          <select id="voz-perfil"></select>
+        </label>
+        <p class="dica">O alerta é sempre curto e igual em todos os jeitos. Muda só o agradecimento depois do seu voto.</p>
+        <p class="dica" id="voz-msg" role="status"></p>
       </div>
     </section>
   </main>
@@ -352,6 +378,7 @@
 <script src="config.js"></script>
 <script src="nuvem.js"></script>
 <script src="proximidade.js"></script>
+<script src="voz.js"></script>
 <script>
 (function () {
   "use strict";
@@ -681,14 +708,18 @@
   // ------------------------------------------------------------ nuvem (Supabase): conta, relatos compartilhados, votos
   const Cfg = window.CopilotoConfig, NuvemLib = window.CopilotoNuvem, Prox = window.CopilotoProximidade;
   const nuvem = NuvemLib.criarNuvem({ url: Cfg.url, chave: Cfg.chave });
-  const perguntador = Prox.criarPerguntador();
-  const BUSCA_RAIO_M = 20000, REBUSCA_DIST_M = 2000, PERGUNTA_MS = 12000;
+  const alertador = Prox.criarAlertador();
+  const Voz = window.CopilotoVoz;
+  const falador = Voz.criarFalador();
+  let prefVoz = Voz.lerPreferencias((() => { try { return localStorage; } catch (e) { return null; } })());
+  let vozDestravada = false, contAgradecimento = 0;
+  const BUSCA_RAIO_M = 20000, REBUSCA_DIST_M = 2000;
   let gps = null;                 // última leitura do GPS: { lat, lon, precisao, rumo, velKmh }
   let relatosNuvem = [];          // linhas de copiloto_reports_near
   const marcasNuvem = new Map();  // id → { m, chave }
   const marcasPendentes = new Map();
   let ultimaBusca = null, buscando = false, buscarDeNovo = false;
-  let perguntaAtual = null, timerPergunta = null;
+  let alertaAtual = null;
   let estavaLogado = nuvem.logado();
 
   function plural(n, um, varios) { return n + " " + (n === 1 ? um : varios); }
@@ -776,7 +807,8 @@
     for (const [, x] of marcasNuvem) x.m.remove();
     marcasNuvem.clear();
     relatosNuvem = []; ultimaBusca = null;
-    esconderPergunta();
+    if (gps) alertador.atualizar({ lat: gps.lat, lon: gps.lon, rumo: gps.rumo }, []);
+    fecharAlerta();
   }
 
   function popupNuvem(r) {
@@ -837,7 +869,7 @@
       relatosNuvem = (Array.isArray(lista) ? lista : []).filter((r) => NuvemLib.visivel(r) && NuvemLib.tipoParaApp(r.report_type) && isFinite(r.lat) && isFinite(r.lon));
       ultimaBusca = pos;
       desenharNuvem();
-      verificarPergunta();
+      atualizarAlerta();
     } catch (e) {
       if (e.codigo === "sessao_expirada") mensagem(e.message, 7000);
       // sem internet: mantém o que já está no mapa e tenta no próximo ciclo
@@ -851,12 +883,13 @@
   function aoMoverNuvem() {
     if (!nuvem.logado() || !gps) return;
     if (!ultimaBusca || Prox.distanciaM(ultimaBusca, gps) > REBUSCA_DIST_M) buscarNuvem();
-    verificarPergunta();
+    atualizarAlerta();
   }
 
   async function votar(r, voto) {
     if (!gps) { mensagem("Ative o GPS para votar.", 6000); return; }
-    perguntador.marcar(r.id);
+    alertador.dispensar(r.id);
+    if (alertaAtual && alertaAtual.id === r.id) fecharAlerta();
     try {
       const resp = await nuvem.rpc("copiloto_report_vote", Object.assign({ p_report_id: r.id, p_vote: voto, p_lat: gps.lat, p_lon: gps.lon },
         { p_accuracy_m: paramsGps().p_accuracy_m, p_heading_deg: paramsGps().p_heading_deg }));
@@ -865,6 +898,7 @@
       if (r.level === "hidden" && !r.mine) relatosNuvem = relatosNuvem.filter((x) => x.id !== r.id);
       desenharNuvem();
       mensagem(voto === "confirm" ? "Obrigado! Você confirmou que ainda está lá." : "Obrigado! Você avisou que não está mais lá.", 4000);
+      falarSeLigada(Voz.agradecimento(prefVoz.perfil, contAgradecimento++));
       buscarNuvem();
     } catch (e) { mensagem(e.message, 7000); }
   }
@@ -878,26 +912,61 @@
     } catch (e) { mensagem(e.message, 7000); }
   }
 
-  // ---------- pergunta "Ainda está aí?"
-  function verificarPergunta() {
-    if (!nuvem.logado() || !gps || perguntaAtual) return;
-    const c = perguntador.escolher({ lat: gps.lat, lon: gps.lon, rumo: gps.rumo }, relatosNuvem, Date.now());
-    if (!c) return;
-    perguntaAtual = c.relato;
-    const onde = gps.rumo == null ? "aqui perto" : "a " + Math.round(c.distanciaM) + " m à frente";
-    $("pergunta-texto").textContent = tituloServidor(c.relato) + " " + onde + ". Ainda está aí?";
-    $("pergunta").hidden = false;
-    clearTimeout(timerPergunta);
-    timerPergunta = setTimeout(esconderPergunta, PERGUNTA_MS);
+  // ---------- alerta de relato à frente (estilo Waze) + voz
+  function falarSeLigada(texto) { if (prefVoz.ligada) falador.falar(texto); }
+  function atualizarAlerta() {
+    if (!gps || !nuvem.logado()) { fecharAlerta(); return; }
+    const res = alertador.atualizar({ lat: gps.lat, lon: gps.lon, rumo: gps.rumo }, relatosNuvem.filter((r) => r.level !== "hidden"));
+    if (!res.atual) { fecharAlerta(); return; }
+    mostrarAlerta(res.atual.relato, res.atual.distanciaM, res.abriu);
   }
-  function esconderPergunta() {
-    clearTimeout(timerPergunta); timerPergunta = null;
-    perguntaAtual = null; $("pergunta").hidden = true;
+  function mostrarAlerta(r, dist, abriu) {
+    alertaAtual = r;
+    const caixa = $("alerta");
+    caixa.className = "alerta nivel-" + r.level;
+    $("alerta-sigla").textContent = Relatos.TIPOS[NuvemLib.tipoParaApp(r.report_type)].sigla;
+    $("alerta-titulo").textContent = tituloServidor(r);
+    $("alerta-dist").textContent = "a " + (dist < 10 ? "menos de 10" : Math.round(dist / 10) * 10) + " m";
+    $("alerta-nivel").textContent = (r.level === "disputed" ? "? " : "") + NuvemLib.textoNivel(r.level);
+    const podeVotar = !r.mine && !r.my_vote;
+    $("alerta-botoes").hidden = !podeVotar;
+    const nota = r.mine ? "Relato seu." : r.my_vote ? "Você já votou: " + (r.my_vote === "confirm" ? "continua lá." : "não está mais.") : "";
+    $("alerta-nota").textContent = nota; $("alerta-nota").hidden = !nota;
+    caixa.hidden = false;
+    if (abriu) falarSeLigada(Voz.textoAlerta(NuvemLib.tipoParaApp(r.report_type), r.value_numeric == null ? null : Number(r.value_numeric), dist));
   }
-  function responderPergunta(voto) {
-    const r = perguntaAtual;
-    esconderPergunta();
-    if (r) votar(r, voto);
+  function fecharAlerta() { alertaAtual = null; $("alerta").hidden = true; }
+  function responderAlerta(voto) {
+    const r = alertaAtual;
+    if (!r) return;
+    alertador.dispensar(r.id);
+    fecharAlerta();
+    votar(r, voto);
+  }
+
+  // configuração da voz (funciona deslogado: fica neste aparelho)
+  function desenharVoz() {
+    $("voz-ligada").checked = prefVoz.ligada;
+    $("voz-perfil").value = prefVoz.perfil;
+    $("voz-perfil").disabled = !prefVoz.ligada;
+    $("voz-msg").textContent = falador.disponivel() ? "" : "Voz indisponível neste aparelho. Os alertas continuam na tela.";
+  }
+  function salvarVoz() { try { Voz.gravarPreferencias(localStorage, prefVoz); } catch (e) { /* ignora */ } desenharVoz(); }
+  function iniciarVoz() {
+    for (const [id, p] of Object.entries(Voz.PERFIS)) $("voz-perfil").add(new Option(p.rotulo, id));
+    $("voz-ligada").addEventListener("change", () => {
+      prefVoz.ligada = $("voz-ligada").checked;
+      salvarVoz();
+      if (prefVoz.ligada) {
+        // o toque no controle destrava a fala no iPhone
+        if (!falador.falar("Voz ativada.")) $("voz-msg").textContent = "Voz indisponível neste aparelho. Os alertas continuam na tela.";
+        else vozDestravada = true;
+      }
+    });
+    $("voz-perfil").addEventListener("change", () => { prefVoz.perfil = $("voz-perfil").value; salvarVoz(); });
+    // primeiro toque em qualquer lugar também destrava (Safari exige gesto do usuário)
+    document.addEventListener("pointerdown", () => { if (!vozDestravada && prefVoz.ligada && falador.destravar()) vozDestravada = true; }, { once: true, capture: true });
+    desenharVoz();
   }
 
   // ---------- fila offline (relatos que não saíram por falta de internet)
@@ -981,6 +1050,7 @@
     nuvem.on("fila", desenharPendentes);
     nuvem.on("descartado", (d) => mensagem("Um relato guardado não foi enviado: " + d.erro.message, 7000));
     window.addEventListener("online", reenviarFila);
+    iniciarVoz();
     setInterval(() => { buscarNuvem(); reenviarFila(); }, 60000);
     desenharConta(false);
     desenharPendentes();
@@ -1034,8 +1104,8 @@
   $("form-conta").addEventListener("submit", (ev) => { ev.preventDefault(); entrarConta(); });
   $("btn-criar-conta").addEventListener("click", criarConta);
   $("btn-sair").addEventListener("click", sairConta);
-  $("btn-p-sim").addEventListener("click", () => responderPergunta("confirm"));
-  $("btn-p-nao").addEventListener("click", () => responderPergunta("deny"));
+  $("btn-a-sim").addEventListener("click", () => responderAlerta("confirm"));
+  $("btn-a-nao").addEventListener("click", () => responderAlerta("deny"));
   $("btn-gps").addEventListener("click", iniciarGps);
   $("btn-seguir").addEventListener("click", () => definirSeguir(!seguindo));
   $("btn-tela").addEventListener("click", async () => {

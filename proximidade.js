@@ -1,18 +1,27 @@
-// Pergunta "Ainda está aí?" na estrada: escolhe no máximo um relato para perguntar.
-// Regras:
-//  - a até 300 m do motorista;
-//  - não é meu e eu ainda não votei nele;
-//  - ainda não foi perguntado nesta sessão;
-//  - se o rumo do motorista é conhecido, o relato está À FRENTE (diferença ≤ 60° entre o rumo e a direção até ele);
-//  - no máximo uma pergunta a cada 30 s.
-// Lógica pura: sem DOM, testável no Node.
+// Alerta de relato à frente (estilo Waze). Lógica pura: sem DOM, testável no Node.
+//
+// Estado por relato, a cada leitura do GPS:
+//   longe ──(≤ 500 m e à frente)──▶ ativo ──(passou pelo ponto)──▶ passando ──(≥ 300 m depois)──▶ passou
+//   passou ──(> 1000 m de distância)──▶ longe   (rearma para a próxima passagem)
+//
+// "À frente":
+//   - com rumo do GPS: diferença entre o rumo e a direção até o relato ≤ 60°;
+//   - sem rumo: a distância está diminuindo entre leituras (aproximação).
+// "Passou pelo ponto":
+//   - com rumo: o relato ficou atrás (diferença > 90°);
+//   - sem rumo: a distância voltou a crescer (mais de 15 m acima da menor distância vista).
+// Um alerta por relato por passagem. Vários ao mesmo tempo: mostra um (o mais próximo quando abre)
+// e os outros esperam na fila, por distância. Relato que já ficou para trás sai da fila sem aparecer.
 (function (raiz) {
   "use strict";
 
-  const RAIO_M = 300;
-  const INTERVALO_MS = 30000;
+  const RAIO_ALERTA_M = 500;
+  const DEPOIS_M = 300;
+  const REARME_M = 1000;
   const CONE_GRAUS = 60;
-  const PARADO_MS = 1.0; // abaixo disso (m/s) o rumo do GPS não vale
+  const ATRAS_GRAUS = 90;
+  const FOLGA_M = 15;      // ruído do GPS ao decidir "afastando"
+  const PARADO_MS = 1.0;   // abaixo disso (m/s) o rumo do GPS não vale
 
   function distanciaM(a, b) {
     const R = 6371000, rad = Math.PI / 180;
@@ -44,48 +53,93 @@
     return Math.round(heading) % 360;
   }
 
+  function temRumo(pos) { return pos.rumo != null && isFinite(pos.rumo); }
   function aFrente(pos, rel, cone) {
-    if (pos.rumo == null || !isFinite(pos.rumo)) return true; // rumo desconhecido: não filtra
+    if (!temRumo(pos)) return true; // sem rumo: quem decide é a aproximação
     return difAngular(pos.rumo, rumoGraus(pos, rel)) <= (cone == null ? CONE_GRAUS : cone);
   }
 
-  // relatos: [{ id, lat, lon, mine, my_vote }]; pos: { lat, lon, rumo (graus ou null) }
-  function criarPerguntador(opcoes) {
+  // relatos: [{ id, lat, lon, ... }]; pos: { lat, lon, rumo (graus ou null) }
+  function criarAlertador(opcoes) {
     const o = opcoes || {};
-    const raio = o.raioM || RAIO_M, intervalo = o.intervaloMs == null ? INTERVALO_MS : o.intervaloMs, cone = o.coneGraus || CONE_GRAUS;
-    const perguntados = new Set();
-    let ultimaMs = -Infinity;
+    const raio = o.raioM || RAIO_ALERTA_M, depois = o.depoisM || DEPOIS_M, rearme = o.rearmeM || REARME_M;
+    const estados = new Map(); // id → { fase, dist, min, dispensado }
+    let atualId = null;
 
-    function candidatos(pos, relatos) {
-      const lista = [];
-      for (const r of relatos || []) {
-        if (!r || r.id == null || r.mine === true || r.my_vote) continue;
-        if (perguntados.has(r.id)) continue;
-        if (!isFinite(r.lat) || !isFinite(r.lon)) continue;
-        const d = distanciaM(pos, r);
-        if (d > raio) continue;
-        if (!aFrente(pos, r, cone)) continue;
-        lista.push({ relato: r, distanciaM: d });
+    function estado(id) {
+      let e = estados.get(id);
+      if (!e) { e = { fase: "longe", dist: null, min: Infinity, dispensado: false, mostrado: false }; estados.set(id, e); }
+      return e;
+    }
+
+    function avancar(e, pos, r, d) {
+      const anterior = e.dist;
+      e.dist = d;
+      if (e.fase === "longe") {
+        const aproximando = anterior != null && d < anterior - 0.5;
+        const frente = temRumo(pos) ? aFrente(pos, r) : aproximando;
+        if (d <= raio && frente) { e.fase = "ativo"; e.min = d; e.dispensado = false; e.mostrado = false; }
+        return;
       }
-      lista.sort((a, b) => a.distanciaM - b.distanciaM);
-      return lista;
+      if (e.fase === "ativo" || e.fase === "passando") {
+        e.min = Math.min(e.min, d);
+        if (e.fase === "ativo") {
+          const atras = temRumo(pos) ? difAngular(pos.rumo, rumoGraus(pos, r)) > ATRAS_GRAUS : d > e.min + FOLGA_M;
+          if (atras) e.fase = "passando";
+        }
+        if (e.fase === "passando" && d >= depois) e.fase = "passou";
+        return;
+      }
+      if (e.fase === "passou" && d > rearme) { e.fase = "longe"; e.min = Infinity; e.dispensado = false; e.mostrado = false; }
     }
 
-    // Devolve { relato, distanciaM } ou null. Quando devolve, conta como perguntado.
-    function escolher(pos, relatos, agoraMs) {
-      if (!pos || !isFinite(pos.lat) || !isFinite(pos.lon)) return null;
-      if (agoraMs - ultimaMs < intervalo) return null;
-      const c = candidatos(pos, relatos)[0];
-      if (!c) return null;
-      perguntados.add(c.relato.id);
-      ultimaMs = agoraMs;
-      return c;
+    // Devolve { atual: {relato, distanciaM, fase} | null, abriu: bool, fechou: id | null, fila: [{relato, distanciaM}] }
+    function atualizar(pos, relatos) {
+      const res = { atual: null, abriu: false, fechou: null, fila: [] };
+      if (!pos || !isFinite(pos.lat) || !isFinite(pos.lon)) return res;
+      const vistos = new Map();
+      for (const r of relatos || []) {
+        if (!r || r.id == null || !isFinite(r.lat) || !isFinite(r.lon)) continue;
+        const d = distanciaM(pos, r);
+        avancar(estado(r.id), pos, r, d);
+        vistos.set(r.id, { relato: r, distanciaM: d });
+      }
+      for (const id of [...estados.keys()]) if (!vistos.has(id)) estados.delete(id); // relato saiu da lista
+
+      // o que está aberto continua até passar 300 m do ponto (ou ser dispensado)
+      if (atualId != null) {
+        const e = estados.get(atualId);
+        if (!e || e.dispensado || e.fase === "passou" || e.fase === "longe") { res.fechou = atualId; atualId = null; }
+      }
+      // candidatos: à frente (ativo), ainda não mostrados nesta passagem
+      const fila = [];
+      for (const [id, v] of vistos) {
+        const e = estados.get(id);
+        if (id !== atualId && e.fase === "ativo" && !e.dispensado && !e.mostrado) fila.push(v);
+      }
+      fila.sort((a, b) => a.distanciaM - b.distanciaM);
+      if (atualId == null && fila.length) {
+        const prox = fila.shift();
+        atualId = prox.relato.id;
+        estados.get(atualId).mostrado = true;
+        res.abriu = true;
+      }
+      if (atualId != null) {
+        const v = vistos.get(atualId);
+        res.atual = { relato: v.relato, distanciaM: v.distanciaM, fase: estados.get(atualId).fase };
+      }
+      res.fila = fila;
+      return res;
     }
 
-    return { escolher, candidatos, jaPerguntado: (id) => perguntados.has(id), marcar: (id) => perguntados.add(id) };
+    // O motorista votou (ou fechou): some agora, sem voltar nesta passagem.
+    function dispensar(id) { const e = estados.get(id); if (e) { e.dispensado = true; e.mostrado = true; } }
+    function fase(id) { const e = estados.get(id); return e ? e.fase : "longe"; }
+    return { atualizar, dispensar, fase, atual: () => atualId };
   }
 
-  const api = { criarPerguntador, rumoGraus, difAngular, distanciaM, rumoDoGps, aFrente, RAIO_M, INTERVALO_MS, CONE_GRAUS };
+  const api = { criarAlertador, rumoGraus, difAngular, distanciaM, rumoDoGps, aFrente,
+    RAIO_ALERTA_M, DEPOIS_M, REARME_M, CONE_GRAUS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoProximidade = api;
 })(typeof window !== "undefined" ? window : globalThis);
