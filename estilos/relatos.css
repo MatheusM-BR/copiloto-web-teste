@@ -1,0 +1,54 @@
+/* Relatos: marcadores e popups locais, da nuvem e pendentes (ui/relatos.js, ui/comunidade.js) */
+.relato-marca {
+  background: var(--acento); color: var(--acento-texto); font-weight: 800; font-size: 11px; letter-spacing: .02em;
+  border: 2px solid #fff; border-radius: 8px; padding: 2px 6px; white-space: nowrap; cursor: pointer;
+}
+.relato-marca.transitorio { background: #e5484d; color: #fff; }
+.popup-relato { color: #14181f; font-size: 14px; display: grid; gap: 6px; min-width: 190px; }
+.popup-relato b { font-size: 15px; }
+.popup-relato small { color: #4a5565; }
+.popup-relato button { min-height: 36px; border-radius: 8px; border: 1px solid #c8322b; background: #fff; color: #c8322b; font-weight: 600; }
+/* Relatos da nuvem: estilo por nível */
+.relato-marca.nuvem.nivel-reported { background: #f6c27a; border-style: solid; opacity: .8; } /* COM-05: nível discreto, sem rótulo */
+.relato-marca.nuvem.nivel-probable { background: var(--acento); }
+.relato-marca.nuvem.nivel-confirmed { background: var(--ok); color: #06200f; }
+.relato-marca.nuvem.nivel-disputed { background: #2c3542; color: #ffd9a1; border: 2px dashed #ffd9a1; }
+.relato-marca.nuvem.nivel-hidden { background: #5b6472; color: #eef1f5; border: 2px dashed #9aa6b6; opacity: .75; }
+.relato-marca.nuvem.meu { box-shadow: 0 0 0 2px #3b82f6; }
+.relato-marca.pendente { background: #5b6472; color: #fff; border: 2px dashed #fff; }
+.popup-relato .botoes-voto { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.popup-relato button.voto-sim { border-color: #1f7a4d; color: #1f7a4d; }
+.popup-relato button.voto-nao { border-color: #c8322b; color: #c8322b; }
+.confirmar-retirar { display: grid; gap: 6px; }
+.popup-relato .nivel-disputed { color: #9a5b00; font-weight: 700; }
+.btn-grande { min-height: 64px; font-size: 18px; width: 100%; }
+.coluna-botoes { display: grid; gap: 10px; }
+
+/* A3: votos no popup do marcador com alvo de toque de direção (≥ 64 px) */
+.popup-relato .botoes-voto button { min-height: 64px; font-size: 16px; }
+.popup-relato .confirmar-retirar button { min-height: 48px; }
+
+/* A3: formulário de relato — grade de botões grandes por tipo (≥ 64 px), valor com teclado numérico */
+.folha .r-pergunta { color: var(--texto); font-size: 16px; font-weight: 600; }
+.r-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 560px) { .r-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.r-tipo-btn {
+  min-height: 64px; padding: 6px 8px; border-radius: 12px; border: 2px solid var(--linha); background: var(--campo);
+  display: grid; place-items: center; align-content: center; gap: 2px; text-align: center;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.r-tipo-btn .r-sigla {
+  font-size: 13px; font-weight: 800; letter-spacing: .03em; padding: 1px 7px; border-radius: 6px;
+  background: var(--acento); color: var(--acento-texto);
+}
+.r-tipo-btn.risco .r-sigla { background: #e5484d; color: #fff; }
+.r-tipo-btn .r-nome { font-size: 15px; font-weight: 600; line-height: 1.15; color: var(--texto); }
+.r-tipo-btn.escolhido { border-color: var(--acento); background: #3a2a10; box-shadow: 0 0 0 2px var(--acento) inset; }
+.r-valor-rotulo[hidden] { display: none; }
+.r-valor-rotulo input { min-height: 64px; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.folha .r-erro { color: #ff8b84; font-size: 15px; font-weight: 600; }
+.folha .r-erro:empty { display: none; }
+.folha .r-idade { color: #ffd9a1; font-weight: 600; }
+.folha .r-idade[hidden] { display: none; }
+.r-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn.r-ir-conta { min-height: 48px; margin-top: 6px; }

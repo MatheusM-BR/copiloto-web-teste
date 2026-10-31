@@ -9,6 +9,9 @@
     comprimento: { min: 2.0, max: 35.0, rotulo: "Comprimento", unidade: "m", inteiro: false },
     pbtc:        { min: 0.5, max: 91.0, rotulo: "PBTC",        unidade: "t", inteiro: false },
     eixos:       { min: 2,   max: 12,   rotulo: "Eixos",       unidade: "",  inteiro: true  },
+    // Autonomia (pacote E2). Mesmos limites de vehicle_profiles no banco.
+    tanque:      { min: 10,  max: 3000, rotulo: "Tanque",      unidade: "L", inteiro: false },
+    consumo:     { min: 0.5, max: 30,   rotulo: "Consumo",     unidade: "km/L", inteiro: false },
   };
 
   const TIPOS = ["Carro", "Toco", "Truck", "Carreta", "Bitrem", "Rodotrem", "Personalizado"];
@@ -35,7 +38,7 @@
     return { ok: true, valor: n };
   }
 
-  // entrada: { nome, tipo, carga, altura, largura, comprimento, pbtc, eixos } (campos de texto)
+  // entrada: { nome, tipo, carga, altura, largura, comprimento, pbtc, eixos, tanque, consumo } (campos de texto)
   // saída:  { ok, perfil?, erros: {campo: mensagem} }
   function validarPerfil(entrada) {
     const erros = {};

@@ -10,6 +10,8 @@
 // "Passou pelo ponto":
 //   - com rumo: o relato ficou atrás (diferença > 90°);
 //   - sem rumo: a distância voltou a crescer (mais de 15 m acima da menor distância vista).
+// Filtro opcional (opcoes.filtro(pos, relato) → bool): decide, ao entrar no raio, se o relato vale para este motorista
+// (ALT-03: sentido compatível). Depois de aberto, o alerta segue até passar, mesmo que o rumo oscile numa curva.
 // Um alerta por relato por passagem. Vários ao mesmo tempo: mostra um (o mais próximo quando abre)
 // e os outros esperam na fila, por distância. Relato que já ficou para trás sai da fila sem aparecer.
 (function (raiz) {
@@ -63,6 +65,7 @@
   function criarAlertador(opcoes) {
     const o = opcoes || {};
     const raio = o.raioM || RAIO_ALERTA_M, depois = o.depoisM || DEPOIS_M, rearme = o.rearmeM || REARME_M;
+    const filtro = typeof o.filtro === "function" ? o.filtro : null;
     const estados = new Map(); // id → { fase, dist, min, dispensado }
     let atualId = null;
 
@@ -78,7 +81,7 @@
       if (e.fase === "longe") {
         const aproximando = anterior != null && d < anterior - 0.5;
         const frente = temRumo(pos) ? aFrente(pos, r) : aproximando;
-        if (d <= raio && frente) { e.fase = "ativo"; e.min = d; e.dispensado = false; e.mostrado = false; }
+        if (d <= raio && frente && (!filtro || filtro(pos, r))) { e.fase = "ativo"; e.min = d; e.dispensado = false; e.mostrado = false; }
         return;
       }
       if (e.fase === "ativo" || e.fase === "passando") {
@@ -138,8 +141,84 @@
     return { atualizar, dispensar, fase, atual: () => atualId };
   }
 
+
+  // ------------------------------------------------------------ ALT-03: sentido
+  const SENTIDO_GRAUS = 90;
+  // O relato (com rumo de quem relatou) vale para quem vai no rumo do motorista? Sem rumo de um dos lados: vale (como antes).
+  function sentidoCompativel(rumoRelato, rumoMotorista, limite) {
+    const a = rumoRelato == null ? NaN : Number(rumoRelato), b = rumoMotorista == null ? NaN : Number(rumoMotorista);
+    if (!isFinite(a) || !isFinite(b)) return true;
+    return difAngular(a, b) <= (limite == null ? SENTIDO_GRAUS : limite);
+  }
+
+  // ------------------------------------------------------------ ALT-03: altura e peso × veículo ativo
+  const num = (n) => String(Math.round(Number(n) * 100) / 100).replace(".", ",");
+  // tipo: tipo do app; valor: valor do relato; veiculo: perfil ativo ({ altura (m), pbtc (t) } ou null).
+  // Devolve null (tipo sem medida) ou { estado: "excede" | "sem_dado" | "cabe", texto, fala }.
+  function cruzarVeiculo(tipo, valor, veiculo) {
+    let cfg = null;
+    if (tipo === "altura_maxima") cfg = { campo: "altura", un: "m", nome: "Altura máxima", falta: "Altura do veículo não informada", seu: "", falaUn: "metros" };
+    else if (tipo === "limite_peso") cfg = { campo: "pbtc", un: "t", nome: "Limite de peso", falta: "PBTC do veículo não informado", seu: "PBTC de ", falaUn: "toneladas" };
+    if (!cfg || valor == null || !isFinite(valor)) return null;
+    const v = veiculo ? veiculo[cfg.campo] : null;
+    if (v == null || v === "" || !isFinite(v)) {
+      return { estado: "sem_dado", texto: cfg.falta + ". Confira se o seu veículo passa.", fala: null };
+    }
+    if (Number(v) > Number(valor)) {
+      return {
+        estado: "excede",
+        texto: cfg.nome + " " + num(valor) + " " + cfg.un + " — seu veículo tem " + cfg.seu + num(v) + " " + cfg.un,
+        fala: "Atenção: " + cfg.nome.toLowerCase() + " " + num(valor) + " " + cfg.falaUn + ". Seu veículo tem " + num(v) + ".",
+      };
+    }
+    return { estado: "cabe", texto: null, fala: null };
+  }
+
+  // ------------------------------------------------------------ ALT-02: bipe progressivo (sensor de estacionamento)
+  const RAIO_BIPE_M = 200;
+  const BIPE_LENTO_MS = 1000, BIPE_RAPIDO_MS = 150;
+  // Intervalo entre bipes: null fora dos últimos 200 m; 1 s a 200 m, cada vez mais rápido até 0,15 s no ponto.
+  function intervaloBipeMs(distM) {
+    const d = Number(distM);
+    if (!isFinite(d) || d < 0 || d > RAIO_BIPE_M) return null;
+    return Math.round(BIPE_RAPIDO_MS + (BIPE_LENTO_MS - BIPE_RAPIDO_MS) * (d / RAIO_BIPE_M));
+  }
+  // Deve bipar agora? riscoAlto: tipo de risco alto (ou altura/peso que o veículo excede); fase: fase do alertador;
+  // somLigado: voz/som do motorista; dispensado: votou ou fechou. Devolve o intervalo (ms) ou null.
+  function bipeAgora(o) {
+    if (!o || !o.riscoAlto || !o.somLigado || o.dispensado) return null;
+    if (o.fase !== "ativo") return null; // passou do ponto: silêncio
+    return intervaloBipeMs(o.distanciaM);
+  }
+
+  // ------------------------------------------------------------ PRI-05: trecho da rota para ditar ao atendente
+  // rota: { coords: [[lon, lat]…], resposta: JSON do Valhalla }; pos: { lat, lon }. Devolve o nome da via mais próxima ou null.
+  function trechoDaRota(rota, pos) {
+    try {
+      if (!rota || !Array.isArray(rota.coords) || !rota.coords.length || !pos) return null;
+      let melhor = -1, dMin = Infinity;
+      rota.coords.forEach((c, i) => { const d = distanciaM(pos, { lat: c[1], lon: c[0] }); if (d < dMin) { dMin = d; melhor = i; } });
+      if (dMin > 2000) return null; // longe da rota: não afirma trecho
+      const legs = (rota.resposta && rota.resposta.trip && rota.resposta.trip.legs) || [];
+      let base = 0;
+      for (const leg of legs) {
+        const mans = leg.maneuvers || [];
+        const fim = mans.length ? Math.max(...mans.map((m) => Number(m.end_shape_index) || 0)) : 0;
+        for (const m of mans) {
+          if (melhor >= base + Number(m.begin_shape_index) && melhor <= base + Number(m.end_shape_index)) {
+            const nomes = m.street_names || m.begin_street_names;
+            if (Array.isArray(nomes) && nomes.length) return nomes.join(" / ");
+          }
+        }
+        base += fim + 1;
+      }
+      return null;
+    } catch (e) { return null; }
+  }
+
   const api = { criarAlertador, rumoGraus, difAngular, distanciaM, rumoDoGps, aFrente,
-    RAIO_ALERTA_M, DEPOIS_M, REARME_M, CONE_GRAUS };
+    sentidoCompativel, cruzarVeiculo, intervaloBipeMs, bipeAgora, trechoDaRota,
+    RAIO_ALERTA_M, DEPOIS_M, REARME_M, CONE_GRAUS, SENTIDO_GRAUS, RAIO_BIPE_M };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoProximidade = api;
 })(typeof window !== "undefined" ? window : globalThis);

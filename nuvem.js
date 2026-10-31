@@ -1,5 +1,5 @@
 // Nuvem: login (Supabase Auth / GoTrue), chamadas RPC e fila offline dos relatos.
-// Contrato: docs/API_RELATOS.md (v3). Sem biblioteca externa: só fetch.
+// Contrato: docs/API_RELATOS.md (v3.3). Sem biblioteca externa: só fetch.
 // fetch, storage, relógio e agendador são injetáveis para teste (Node).
 (function (raiz) {
   "use strict";
@@ -18,6 +18,14 @@
     acidente: "accident",
     radar_movel: "speed_camera_mobile",
     animal: "animal",
+    // taxonomia 7.1 (E5)
+    fila: "congestion",
+    objeto: "road_object",
+    veiculo_parado: "stopped_vehicle",
+    alagamento: "flooding",
+    neblina: "fog",
+    pista_escorregadia: "slippery_road",
+    balanca: "weigh_station",
   };
   const SERVIDOR_PARA_APP = {};
   for (const k of Object.keys(APP_PARA_SERVIDOR)) SERVIDOR_PARA_APP[APP_PARA_SERVIDOR[k]] = k;
@@ -25,14 +33,23 @@
   function tipoParaApp(t) { return SERVIDOR_PARA_APP[t] || null; }
 
   // ------------------------------------------------------------ níveis
+  // COM-05: o motorista não vê o rótulo repetido "não confirmado" nem pontuação numérica.
+  //  texto     = frase do detalhe (popup) e do título do marcador;
+  //  indicador = sinal discreto no alerta ("" = nada; "Contestado" continua visível: é informação de segurança).
   const NIVEIS = {
-    reported:  { texto: "Não confirmado", mostrar: true },
-    probable:  { texto: "Provável", mostrar: true },
-    confirmed: { texto: "Confirmado por motoristas", mostrar: true },
-    disputed:  { texto: "Contestado", mostrar: true },
-    hidden:    { texto: "Escondido (só você vê)", mostrar: false },
+    reported:  { texto: "Relato de motorista", indicador: "", mostrar: true },
+    probable:  { texto: "Confirmado por outro motorista", indicador: "✓", mostrar: true },
+    confirmed: { texto: "Confirmado por motoristas", indicador: "✓✓", mostrar: true },
+    disputed:  { texto: "Contestado", indicador: "? Contestado", mostrar: true },
+    hidden:    { texto: "Escondido (só você vê)", indicador: "", mostrar: false },
   };
-  function textoNivel(nivel) { return (NIVEIS[nivel] && NIVEIS[nivel].texto) || "Não confirmado"; }
+  function textoNivel(nivel) { return (NIVEIS[nivel] && NIVEIS[nivel].texto) || NIVEIS.reported.texto; }
+  function indicadorNivel(nivel) { return NIVEIS[nivel] ? NIVEIS[nivel].indicador : ""; }
+  // Linha do detalhe: "Relato de motorista · 2 confirmações". Nunca mostra a pontuação.
+  function detalheNivel(r) {
+    const n = Math.max(0, Math.floor(Number(r && r.confirm_count) || 0));
+    return "Relato de motorista · " + n + (n === 1 ? " confirmação" : " confirmações");
+  }
   // hidden só aparece para o autor (mine=true)
   function visivel(r) { return !!r && (r.level !== "hidden" || r.mine === true); }
 
@@ -81,6 +98,22 @@
     return texto ? String(texto) : "Não foi possível falar com o servidor de contas.";
   }
   function erroRede() { return new ErroNuvem("rede", MSG_REDE, { rede: true }); }
+
+  // ------------------------------------------------------------ hora da observação (M7)
+  // Hora (ms) em que o motorista viu o problema: item.observadoEm, senão params.p_observed_at, senão o padrão.
+  function horaObservada(item, padrao) {
+    const i = item || {};
+    if (i.observadoEm != null && isFinite(i.observadoEm)) return Number(i.observadoEm);
+    const p = i.params && i.params.p_observed_at ? Date.parse(i.params.p_observed_at) : NaN;
+    if (isFinite(p)) return p;
+    return isFinite(padrao) ? Number(padrao) : Date.now();
+  }
+  // Cópia de params com p_observed_at (ISO 8601, UTC). Não muda o original; mantém o que já veio.
+  function comHoraObservada(params, ms) {
+    const c = Object.assign({}, params || {});
+    if (!c.p_observed_at && isFinite(ms)) c.p_observed_at = new Date(Number(ms)).toISOString();
+    return c;
+  }
 
   // ------------------------------------------------------------ cliente
   function criarNuvem(opcoes) {
@@ -243,18 +276,42 @@
 
     function gravarFila() { gravar(CHAVE_FILA, fila.length ? fila : null); emitir("fila", fila.slice()); }
 
-    // item: { id, tipo, valor, lat, lon, expiraEm, params } (params = corpo do copiloto_report_submit)
+    // item: { id, tipo, valor, lat, lon, expiraEm, observadoEm?, params } (params = corpo do copiloto_report_submit)
+    // M7: a hora da observação (observadoEm, ms; padrão = agora) vai junto em params.p_observed_at, para o servidor contar
+    // a validade a partir dela e não do reenvio.
     function enfileirar(item) {
       if (!item || !item.id || !item.params) return false;
       if (fila.some((x) => x.id === item.id)) return false; // nunca duas vezes o mesmo
-      fila.push(Object.assign({ criadoEm: agora(), usuario: sessao && sessao.user ? sessao.user.id : null }, item));
+      const t = agora();
+      const obs = horaObservada(item, t);
+      const novo = Object.assign({ criadoEm: t, usuario: sessao && sessao.user ? sessao.user.id : null }, item, { observadoEm: obs });
+      novo.params = comHoraObservada(item.params, obs);
+      fila.push(novo);
       gravarFila();
       return true;
+    }
+    // B3 (QA3): item.seguraAte (ms) segura o reenvio até essa hora — o envio direto cancelado na tela ainda pode estar
+    // chegando ao servidor; quem segurou chama liberar(id) (não chegou) ou retirar(id) (chegou: não manda de novo).
+    function liberar(id) {
+      const x = fila.find((i) => i.id === id);
+      if (!x || x.seguraAte == null) return false;
+      delete x.seguraAte; gravarFila(); return true;
+    }
+    function retirar(id) {
+      if (!fila.some((i) => i.id === id)) return false;
+      fila = fila.filter((i) => i.id !== id); gravarFila(); return true;
     }
     function filaAtual() { return fila.slice(); }
     function filaDoUsuario() {
       const u = sessao && sessao.user ? sessao.user.id : null;
       return fila.filter((x) => !x.usuario || x.usuario === u);
+    }
+
+    // Só uma resposta 4xx do servidor (fora 401/408/429) é recusa pela regra e tira o relato da fila. Erro de rede,
+    // 5xx (inclusive na renovação do token, quando a internet volta) ou resposta sem status: o relato continua guardado.
+    function recusaDeRegra(e) {
+      const s = e && e.status;
+      return s >= 400 && s < 500 && s !== 401 && s !== 408 && s !== 429;
     }
 
     // Reenvia o que ficou na fila. Chamadas simultâneas recebem a mesma execução (sem reenvio duplicado).
@@ -263,6 +320,9 @@
       processando = (async () => {
         const res = { enviados: 0, descartados: 0, restantes: 0 };
         try {
+          // B3 (QA3): sempre assíncrono. Sem nenhum await (fila só com itens segurados, sem sessão), o finally rodava ANTES
+          // de `processando` receber a promessa, e ela ficava presa: todo processarFila() seguinte devolvia o resultado velho.
+          await Promise.resolve();
           // vencidos saem antes de tentar
           const t = agora();
           const vencidos = fila.filter((x) => isFinite(x.expiraEm) && x.expiraEm <= t);
@@ -274,13 +334,16 @@
           if (!sessao) { res.restantes = fila.length; return res; }
           for (const item of filaDoUsuario()) {
             if (!fila.some((x) => x.id === item.id)) continue;
+            if (item.seguraAte != null && item.seguraAte > agora()) continue; // B3: o envio direto ainda pode chegar
             try {
-              await rpc("copiloto_report_submit", item.params);
+              // M7: item guardado antes da M7 (sem p_observed_at) usa a hora em que entrou na fila
+              await rpc("copiloto_report_submit", comHoraObservada(item.params, horaObservada(item, item.criadoEm)));
               fila = fila.filter((x) => x.id !== item.id); res.enviados++; gravarFila();
             } catch (e) {
               if (e.rede) break; // ainda sem internet: tenta depois
               if (e.codigo === "28000" || e.codigo === "sessao_expirada") break; // precisa entrar de novo
-              // servidor recusou (duplicado, inválido, limite): não adianta repetir
+              if (!recusaDeRegra(e)) break; // servidor fora do ar (5xx), renovação do token falhou etc.: tenta depois
+              // servidor recusou pela regra (duplicado, inválido, limite): não adianta repetir
               fila = fila.filter((x) => x.id !== item.id); res.descartados++; gravarFila();
               emitir("descartado", { item, erro: e });
             }
@@ -297,7 +360,7 @@
     if (salva && salva.access_token) { sessao = salva; agendarRenovacao(); }
 
     return {
-      on, cadastrar, entrar, sair, renovar, rpc, enfileirar, processarFila,
+      on, cadastrar, entrar, sair, renovar, rpc, enfileirar, processarFila, liberar, retirar,
       fila: filaAtual, filaDoUsuario,
       sessao: () => sessao,
       logado: () => !!sessao,
@@ -305,8 +368,18 @@
     };
   }
 
+  // M1: espera antes de tentar de novo a busca de relatos depois de N falhas seguidas (rede ou servidor):
+  // 15 s, 30 s, 60 s e depois 2 min no máximo. 0 falhas = pode buscar já.
+  const ESPERA_BUSCA_MS = [15000, 30000, 60000, 120000];
+  function esperaAposFalha(falhas) {
+    const n = Math.floor(Number(falhas) || 0);
+    if (n <= 0) return 0;
+    return ESPERA_BUSCA_MS[Math.min(n, ESPERA_BUSCA_MS.length) - 1];
+  }
+
   const api = {
-    criarNuvem, ErroNuvem, NIVEIS, textoNivel, visivel,
+    esperaAposFalha, ESPERA_BUSCA_MS, horaObservada, comHoraObservada,
+    criarNuvem, ErroNuvem, NIVEIS, textoNivel, indicadorNivel, detalheNivel, visivel,
     tipoParaServidor, tipoParaApp, APP_PARA_SERVIDOR, SERVIDOR_PARA_APP,
     mensagemErroRpc, mensagemErroAuth, MSG_REDE, CHAVE_SESSAO, CHAVE_FILA,
   };

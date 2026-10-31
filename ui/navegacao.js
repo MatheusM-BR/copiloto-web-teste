@@ -1,0 +1,710 @@
+// Navegação guiada (pacote E1): "Iniciar navegação", carregado ou vazio, painel de condução, voz das manobras,
+// recálculo ao sair da rota, chegada, resumo pós-viagem e destinos recentes.
+// Lógica pura em navegacao.js. Dados locais em copiloto.nav.v1 (pesos vazios por veículo, viagens, destinos recentes).
+// Expõe Copiloto.navegacao: iniciar(), encerrar(), ativa(), recentes(), viagens(), mostrarViagens(),
+// trocarDestino({ lat, lon, rotulo }) (recalcula a navegação em andamento para outro destino).
+// Emite "navegacao" ({ ativa, progresso_m, restante_m, coords }) a cada atualização.
+// Ouve "comando:repetir" e "comando:cancelar-rota" (pacote de voz, chama dado.atender()), "alerta"/"alerta-fechado".
+// Sem internet, inicia a partir da rota guardada pelo pacote offline (C.offline.rotaGuardada()).
+// Voz (B1): a orientação só espera enquanto a FRASE do alerta toca (Copiloto.voz.emAlerta()); logo depois fala a etapa
+// vencida ("perto"/"agora"). Falas não críticas ("Recalculando.", "Rota cancelada."…) nunca cortam um alerta (B7).
+// GPS (B2): sem leitura nova há mais de 10 s, o painel diz "Sem sinal de GPS" e os anúncios param até voltar;
+// localização desligada nas escolhas de privacidade encerra a navegação.
+// QA rodada 2: progresso pelo rastreador de navegacao.js (A1: leitura imprecisa ou salto impossível não mexe no
+// progresso); chegada exige o progresso perto do fim (A2); "Encerrar" pede confirmação e não apaga a rota do mapa nem a
+// guardada (A4: só "cancela a rota", "Limpar rota"/"Esquecer rota" ou a chegada apagam); durante o recálculo as manobras
+// continuam pela rota antiga e, de volta a ≤ 40 m dela, o recálculo é cancelado (A6; tempo-limite de 10 s); fala de
+// manobra com { manobra: true } (M1: as não críticas esperam); estado guardado em copiloto.nav.v1 (andamento) e
+// "Continuar navegação" depois de recarregar a página (M4).
+// QA rodada 3: chegada nunca na leitura em que o progresso acabou de saltar (A1); "cancela a rota" pela voz pede
+// confirmação na tela e não apaga a rota (M2); com o microfone ouvindo (C.comandos.ouvindo()) a manobra espera, e a
+// manobra cortada (pela escuta ou por outra fala) é repetida (M3); trocar o destino tem tempo-limite de 10 s e as
+// manobras da rota antiga continuam enquanto isso (B1); na chegada a rota guardada (E3) é esquecida (B2).
+(function (C) {
+  "use strict";
+  const { $, el, botao } = C.util;
+  const Nav = window.CopilotoNavegacao, Rota = window.CopilotoRota;
+
+  let nav = null;           // navegação em andamento
+  let alertaAberto = false; // alerta de segurança na tela ("repete" fica com o alerta)
+  let geracao = 0;
+  let timerRetomada = null; // fala de manobra esperando a frase do alerta acabar
+  let timerAviso = null;    // aviso de carga some do painel depois de AVISO_MS
+  const AVISO_MS = 8000;
+  const RECALCULO_LIMITE_MS = 10000; // A6: tempo-limite do servidor de rotas no recálculo
+  const VOLTOU_M = 40;               // A6: de volta à rota antiga (cancela o recálculo)
+  const ANUNCIA_RECALCULANDO_M = 150; // A6: perto da rota antiga, as manobras dela continuam durante o recálculo
+  const GRAVAR_MS = 3000;            // M4: gravação do andamento no máximo a cada 3 s
+
+  function dados() { return Nav.lerDados(C.util.storage()); }
+  function gravar(d) { Nav.gravarDados(C.util.storage(), d); }
+
+  // ------------------------------------------------------------ início: carregado ou vazio?
+  function iniciar() {
+    if (nav) return;
+    const atual = C.rota.atual();
+    const rota = atual || rotaGuardada();
+    if (!rota) { C.mensagem("Trace uma rota antes de iniciar a navegação.", 6000); return; }
+    const perfil = rota.perfil;
+    // sem internet com a rota guardada (E3): não dá para recalcular com a carga; segue a rota como foi traçada
+    if (!atual && navigator.onLine === false) {
+      if (!C.estado.ultimaPos) { C.mensagem("Ative o GPS para começar a navegação.", 6000); return; }
+      ativar(rota, perfil, { carga: null, peso: null, aviso: avisoGuardada(rota) });
+      return;
+    }
+    if (perfil && Rota.ehCaminhao(perfil)) perguntarCarga(perfil);
+    else comecar(perfil, null, null);
+  }
+
+  // Rota guardada pelo pacote offline (E3), no formato de C.rota.atual(). O perfil é o veículo ativo
+  // (a rota guardada só tem o nome); é ele que vale no recálculo quando a internet voltar.
+  function rotaGuardada() {
+    const g = C.offline && typeof C.offline.rotaGuardada === "function" ? C.offline.rotaGuardada() : null;
+    if (!g || !g.destino || !Array.isArray(g.coords) || g.coords.length < 2) return null;
+    const ativo = C.veiculos && C.veiculos.ativo ? C.veiculos.ativo() : null;
+    return { origem: g.origem, destino: g.destino, perfil: ativo, avisos: g.avisos || [], km: g.km, minutos: g.minutos,
+      coords: g.coords, resposta: g.resposta || null, guardada: true, salvoEm: g.salvoEm, perfilNome: g.perfilNome || null };
+  }
+  function avisoGuardada(rota) {
+    const quando = rota.salvoEm ? " (traçada às " + new Date(rota.salvoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + ")" : "";
+    return "Sem internet: seguindo a rota guardada" + quando + (rota.perfilNome ? " para " + rota.perfilNome : "") +
+      ", sem a escolha de carga." + (rota.resposta ? "" : " Sem as manobras: siga a linha da rota.");
+  }
+
+  function perguntarCarga(perfil) {
+    const escolha = el("div", "nav-escolha");
+    escolha.append(
+      botao("Carregado", "btn btn-principal nav-grande", () => comecar(perfil, "carregado", null)),
+      botao("Vazio", "btn nav-grande", () => pedirTara(perfil)));
+    escolha.firstChild.id = "nav-carregado"; escolha.lastChild.id = "nav-vazio";
+    C.folha.abrir([el("h2", null, "Carregado ou vazio?"), el("p", null, "O peso entra no cálculo da rota (" + perfil.nome + ")."),
+      escolha, botao("Cancelar", "btn", C.folha.fechar)]);
+  }
+
+  function pedirTara(perfil) {
+    const salvo = dados().taras[perfil.id];
+    const campo = el("input"); campo.id = "nav-tara"; campo.inputMode = "decimal"; campo.autocomplete = "off"; campo.placeholder = "Ex.: 15";
+    if (typeof salvo === "number") campo.value = String(salvo).replace(".", ",");
+    const rotulo = el("label", null, "Peso do veículo vazio (t), opcional"); rotulo.htmlFor = "nav-tara"; rotulo.appendChild(campo);
+    const erro = el("span", "erro"); erro.id = "nav-tara-erro";
+    const ok = botao("Continuar", "btn btn-principal nav-grande", () => {
+      const r = Nav.lerToneladas(campo.value);
+      if (!r.ok) { erro.textContent = r.erro; campo.setAttribute("aria-invalid", "true"); return; }
+      const d = dados();
+      if (r.valor == null) delete d.taras[perfil.id]; else d.taras[perfil.id] = r.valor;
+      gravar(d);
+      comecar(perfil, "vazio", r.valor);
+    });
+    ok.id = "nav-tara-ok";
+    C.folha.abrir([el("h2", null, "Vazio"), rotulo, erro,
+      el("p", null, "Sem o peso vazio, a rota vai sem peso e o aviso diz isso. Fica guardado neste aparelho para este veículo."),
+      ok, botao("Voltar", "btn", () => perguntarCarga(perfil))]);
+  }
+
+  function ajustador(escolha) {
+    if (!escolha.carga) return undefined;
+    return (pedido, faltando) => Object.assign(Nav.aplicarPeso(pedido, faltando, escolha.peso), { avisos: [escolha.aviso] });
+  }
+
+  async function comecar(perfil, carga, tara) {
+    const pos = C.estado.ultimaPos;
+    if (!pos) { C.folha.fechar(); C.mensagem("Ative o GPS para começar a navegação.", 6000); return; }
+    const p = Nav.pesoParaRota(perfil, carga, tara);
+    const escolha = { carga, peso: p.peso, aviso: p.aviso };
+    const anterior = C.rota.atual() || rotaGuardada();
+    if (!anterior) { C.folha.fechar(); return; }
+    C.folha.abrir([el("h2", null, "Preparando a navegação…"), el("p", null, carga ? "Recalculando a rota " + (carga === "carregado" ? "carregado." : "vazio.") : "Calculando a rota.")]);
+    let rota;
+    try {
+      rota = await C.rota.calcular({ origem: { lat: pos[1], lon: pos[0] }, destino: anterior.destino, perfil, ajustar: ajustador(escolha), enquadrar: false });
+    } catch (e) {
+      if (e.cancelada) return;
+      if (e.rede && anterior) {
+        rota = anterior;
+        escolha.aviso = anterior.guardada ? avisoGuardada(anterior)
+          : "Sem internet: seguindo a rota já traçada, calculada com o cadastro do veículo (sem a escolha de carga).";
+      } else {
+        const botoes = el("div", "linha-botoes");
+        botoes.append(botao("Tentar de novo", "btn btn-principal", () => comecar(perfil, carga, tara)), botao("Cancelar", "btn", C.folha.fechar));
+        C.folha.abrir([el("h2", null, "Não foi possível iniciar"), el("p", null, e.motivo || e.message), botoes]);
+        return;
+      }
+    }
+    ativar(rota, perfil, escolha);
+  }
+
+  // ------------------------------------------------------------ navegação ativa
+  function carregarRota(n, rota) {
+    n.rota = rota;
+    n.geo = Nav.prepararGeometria(rota.coords);
+    n.manobras = Nav.extrairManobras(rota.resposta, n.geo);
+    n.tempoTotalS = rota.minutos * 60;
+    n.progresso = null;
+    n.rastreador = Nav.criarRastreador(n.geo);
+    n.anunciador = Nav.criarAnunciador();
+    n.detector.zerar();
+    n.ultimo = null;
+  }
+
+  function ativar(rota, perfil, escolha, extra) {
+    geracao++;
+    nav = { id: geracao, perfil, escolha, destino: rota.destino, detector: Nav.criarDetectorDesvio(), registro: Nav.criarRegistro(),
+      ultimoRecalculo: null, recalculando: false, recalculo: null, semInternet: false, ultimaFala: null, falouInicio: false,
+      inicio: Date.now(), rotulo: (extra && extra.rotulo) || null, gravadoEm: 0 };
+    carregarRota(nav, rota);
+    // destino recente
+    const d = dados();
+    d.recentes = Nav.adicionarRecente(d.recentes, { lat: rota.destino.lat, lon: rota.destino.lon, rotulo: rotuloDestino(nav), t: Date.now() });
+    gravar(d);
+    gravarAndamento(nav, true);
+    C.folha.fechar();
+    $("app").classList.add("nav-ativa");
+    $("nav-painel").hidden = false;
+    nav.aviso = escolha.aviso || "";
+    mostrarAviso(true);
+    status("");
+    C.seguir(true);
+    if (C.estado.gps && !gpsVelho()) aoPosicao(C.estado.gps);
+    else { desenharPainel(null); if (C.estado.gps) semSinal(nav); }
+  }
+
+  // B6: o aviso de carga fica ~8 s no painel e depois só aparece ao tocar em "Aviso da rota" (ocupa espaço da manobra).
+  // porToque: o motorista pediu (mostra mesmo com a faixa do alerta aberta).
+  function mostrarAviso(ver, porToque) {
+    const n = nav; clearTimeout(timerAviso); timerAviso = null;
+    const tem = !!(n && n.aviso);
+    $("nav-aviso").textContent = tem ? n.aviso : "";
+    $("nav-aviso").classList.toggle("pedido", !!porToque);
+    $("nav-aviso").hidden = !(tem && ver);
+    $("nav-ver-aviso").hidden = !tem || ver;
+    $("nav-ver-aviso").setAttribute("aria-expanded", String(tem && ver));
+    if (tem && ver) timerAviso = setTimeout(() => { if (nav === n) mostrarAviso(false); }, AVISO_MS);
+  }
+
+  function gpsVelho() { try { return !!(C.gps && C.gps.velho()); } catch (e) { return false; } }
+
+  function rotuloDestino(n) {
+    if (n.rotulo) return n.rotulo;
+    const m = n.manobras;
+    for (let i = m.length - 1; i >= 0; i--) if (m[i].ruas && m[i].ruas.length) return m[i].ruas[0];
+    const d = n.destino;
+    return d.lat.toFixed(4).replace(".", ",") + ", " + d.lon.toFixed(4).replace(".", ",");
+  }
+
+  function velMsDe(gps) {
+    if (typeof gps.velKmh === "number") return gps.velKmh / 3.6;
+    if (typeof gps.kmh === "number") return gps.kmh / 3.6;
+    return null;
+  }
+
+  function aoPosicao(gps) {
+    if (!nav || !gps) return;
+    const n = nav;
+    if (n.semSinal) { // GPS voltou: retoma (sem contar a volta como saída da rota)
+      n.semSinal = false; n.detector.zerar();
+      status(n.semInternet ? "Sem internet: volte para a rota destacada" : "");
+    }
+    const velMs = velMsDe(gps);
+    const pos = { lat: gps.lat, lon: gps.lon };
+    n.registro.adicionar({ lat: gps.lat, lon: gps.lon, t: gps.t, velMs, precisao: gps.precisao });
+    // A1: o rastreador decide se a leitura mexe no progresso (precisão, salto impossível, recuo confirmado);
+    // M6: tempo longo desde a última leitura aceita (túnel) libera a busca na linha toda
+    const proj = n.rastreador.atualizar({ lat: gps.lat, lon: gps.lon, precisao: gps.precisao, rumo: gps.rumo, velMs, t: gps.t });
+    n.progresso = proj.progresso_m;
+    // QA 3 (A1): não chega na leitura em que o progresso acabou de saltar; só numa leitura aceita sem salto
+    if (proj.considerada && !proj.saltou && Nav.chegou(n.geo, pos, n.progresso)) { finalizar(true, { limpar: true }); return; }
+    if (proj.considerada) {
+      const naRota = proj.distancia_m <= VOLTOU_M;
+      // A6: de volta à rota antiga durante o recálculo: desiste dele e segue a antiga
+      if (n.recalculo && naRota) cancelarRecalculo(n);
+      if (n.falhaRecalculo && naRota) { n.falhaRecalculo = false; status(n.semInternet ? "Sem internet: volte para a rota destacada" : ""); }
+      const fora = n.detector.atualizar({ distancia_m: proj.distancia_m, precisao: gps.precisao, velMs });
+      if (fora && !n.recalculando) recalcular(n, gps);
+      else if (n.semInternet && proj.distancia_m <= Math.max(40, 2 * (gps.precisao || 0))) { n.semInternet = false; status(""); }
+    }
+    const sit = Nav.situacaoManobras(n.manobras, proj.indice, n.progresso);
+    n.ultimo = { sit, velMs, proj, t: gps.t };
+    desenharPainel(n.ultimo);
+    // A6: durante o recálculo da saída da rota, as manobras da rota antiga continuam enquanto a posição está perto dela
+    if (ouvindo()) cortadaPelaEscuta(n);
+    // B1 (QA 3): trocando o destino, as manobras da rota antiga continuam até a nova chegar
+    if (!n.recalculando || n.troca || (n.recalculo && proj.distancia_m <= ANUNCIA_RECALCULANDO_M)) anunciar(n, sit, velMs);
+    gravarAndamento(n, false);
+    emitir(n);
+  }
+
+  function restanteM(n) { return Math.max(0, n.geo.total - (n.progresso || 0)); }
+  function emitir(n) { C.emit("navegacao", { ativa: true, progresso_m: n.progresso || 0, restante_m: restanteM(n), coords: n.geo.coords }); }
+
+  // ------------------------------------------------------------ painel
+  function desenharPainel(u) {
+    const n = nav; if (!n) return;
+    const m = u && u.sit.proxima >= 0 ? n.manobras[u.sit.proxima] : (n.manobras[1] || n.manobras[0] || null);
+    $("nav-icone").textContent = m ? Nav.icone(m.tipo) : "↑";
+    $("nav-dist").textContent = u && u.sit.distancia_m != null ? Nav.formatarDistancia(u.sit.distancia_m) : "--";
+    $("nav-instrucao").textContent = m ? m.instrucao : "Siga a rota destacada.";
+    const ruas = m && m.ruas && m.ruas.length ? m.ruas.join(" / ") : "";
+    $("nav-rua").textContent = ruas; $("nav-rua").hidden = !ruas;
+    const s = u && u.sit.seguinte >= 0 ? n.manobras[u.sit.seguinte] : null;
+    $("nav-seguinte").textContent = s ? "Depois: " + s.instrucao : ""; $("nav-seguinte").hidden = !s;
+    const prog = n.progresso || 0;
+    const restS = Nav.tempoRestanteS(n.manobras, prog, n.geo.total, n.tempoTotalS);
+    $("nav-restante").textContent = Nav.formatarDistancia(restanteM(n)) + " · " + Nav.formatarDuracao(restS);
+    $("nav-chegada").textContent = Nav.textoChegada(Date.now(), restS);
+  }
+
+  function status(texto) { const e = $("nav-status"); e.textContent = texto; e.hidden = !texto; }
+
+  // B2: leitura velha. O painel avisa e nada é anunciado com posição errada; a próxima leitura retoma.
+  function semSinal(n) {
+    if (!n || n.semSinal) return;
+    n.semSinal = true;
+    clearTimeout(timerRetomada); timerRetomada = null;
+    status("Sem sinal de GPS. A orientação volta quando o sinal voltar.");
+    $("nav-dist").textContent = "--";
+  }
+
+  // ------------------------------------------------------------ voz
+  function vozEmAlerta() { try { return !!C.voz.emAlerta(); } catch (e) { return false; } }
+  // M3 (QA 3): microfone do "Falar" ouvindo (pacote de comandos; pode não existir)
+  function ouvindo() { try { return !!(C.comandos && C.comandos.ouvindo && C.comandos.ouvindo()); } catch (e) { return false; } }
+  // depois de uma manobra cortada, a repetição espera a fala que a cortou acabar (resposta do comando, por exemplo)
+  function outraFalando() { try { return !!(C.voz.falando && C.voz.falando()); } catch (e) { return false; } }
+  function vozOcupada(n) { return vozEmAlerta() || ouvindo() || !!(n && n.esperarFala && outraFalando()); }
+
+  // Fala de manobra: enquanto a frase do alerta toca ou o microfone ouve, não fala (nem corta o alerta, nem entra na
+  // escuta) e tenta de novo logo depois. forcar: pedido do motorista ("repete"), só o alerta segura.
+  function falar(texto, manobra, forcar) {
+    if (!texto) return false;
+    if (forcar ? vozEmAlerta() : vozOcupada(nav)) { agendarRetomada(); return false; }
+    if (nav) nav.esperarFala = false;
+    const fala = { texto, inicio: Date.now(), fimEm: null, manobra: manobra || null };
+    C.voz.falar(texto, { manobra: true, aoTerminar: () => { fala.fimEm = Date.now(); } });
+    if (nav) { nav.ultimaFala = texto; nav.falaAtual = fala; }
+    return true;
+  }
+  // Falas que não são orientação (B7): esperam o alerta acabar, nunca o interrompem.
+  function falarNaoCritico(texto) { C.voz.falar(texto, { naoInterromper: true }); }
+
+  function agendarRetomada() {
+    if (timerRetomada) return;
+    timerRetomada = setTimeout(() => {
+      timerRetomada = null;
+      const n = nav;
+      if (!n || !n.ultimo || n.semSinal || gpsVelho()) return;
+      if (n.recalculando && !n.troca && !(n.recalculo && n.ultimo.proj.distancia_m <= ANUNCIA_RECALCULANDO_M)) return;
+      if (ouvindo()) cortadaPelaEscuta(n);
+      if (vozOcupada(n)) { agendarRetomada(); return; }
+      anunciar(n, n.ultimo.sit, n.ultimo.velMs);
+    }, 150);
+  }
+
+  // O alerta abriu e cortou uma orientação que estava sendo falada: ela volta depois da frase do alerta.
+  function alertaCortou(n) {
+    const f = n && n.falaAtual;
+    if (!f || !f.manobra) return;
+    const agora = Date.now(), previsto = 1000 + 70 * f.texto.length;
+    const cortada = f.fimEm == null ? agora - f.inicio < previsto : agora - f.fimEm < 150 && f.fimEm - f.inicio < 55 * f.texto.length;
+    if (!cortada) return;
+    desfazerFala(n, f);
+  }
+  function desfazerFala(n, f) {
+    n.falaAtual = null;
+    n.anunciador.desfazer(f.manobra.indice, f.manobra.antes);
+    if (f.manobra.inicio) n.falouInicio = false;
+    agendarRetomada();
+  }
+  // M3 (QA 3): outra fala (resposta de um comando de voz) cortou a orientação: repete a etapa quando ela acabar.
+  // Quem decide que ela ainda tocava é o ui/voz.js (antes de começar a outra); o fim dela chega junto com o corte.
+  function manobraCortada(n, d) {
+    const f = n && n.falaAtual;
+    if (!f || !f.manobra || (d && d.texto && d.texto !== f.texto)) return;
+    n.esperarFala = true;
+    desfazerFala(n, f);
+  }
+  // M3: o microfone abriu com a orientação ainda tocando (o aparelho corta o som ao ouvir): ela é repetida depois
+  function cortadaPelaEscuta(n) {
+    const f = n && n.falaAtual;
+    if (!f || !f.manobra) return;
+    const previsto = 1000 + 70 * f.texto.length;
+    const tocando = f.fimEm == null ? Date.now() - f.inicio < previsto : f.fimEm - f.inicio < 55 * f.texto.length && Date.now() - f.fimEm < 1500;
+    if (tocando) desfazerFala(n, f);
+  }
+
+  function anunciar(n, sit, velMs) {
+    if (n.semSinal) return;
+    if (!n.falouInicio) {
+      // início: fala só a primeira instrução e dá por dita a etapa em que a próxima manobra já está (menos o "agora")
+      if (vozOcupada(n)) { agendarRetomada(); return; }
+      n.falouInicio = true;
+      let marcada = null;
+      if (sit.proxima >= 0) {
+        const e = n.anunciador.avaliar(sit.proxima, sit.distancia_m, velMs, n.manobras[sit.proxima].destino);
+        if (e && e !== "agora") { marcada = { indice: sit.proxima, antes: n.anunciador.dito(sit.proxima), inicio: true }; n.anunciador.marcar(sit.proxima, e); }
+      }
+      falar(n.manobras[0] ? n.manobras[0].pre : "Navegação iniciada.", marcada || { indice: -1, antes: null, inicio: true });
+      return;
+    }
+    if (sit.proxima < 0) return;
+    const m = n.manobras[sit.proxima];
+    const etapa = n.anunciador.avaliar(sit.proxima, sit.distancia_m, velMs, m.destino);
+    if (!etapa) return;
+    const antes = n.anunciador.dito(sit.proxima);
+    if (falar(Nav.textoAnuncio(m, sit.distancia_m, etapa, Nav.limiarEtapa(velMs, etapa)), { indice: sit.proxima, antes })) n.anunciador.marcar(sit.proxima, etapa);
+  }
+
+  // Devolve true se repetiu a orientação. Com alerta aberto, não atende: o pacote de voz repete o alerta.
+  function repetir() {
+    if (!nav || alertaAberto) return false;
+    const u = nav.ultimo;
+    if (u && u.sit.proxima >= 0) {
+      const m = nav.manobras[u.sit.proxima];
+      const agora = Nav.etapasAnuncio(u.velMs).find((e) => e.id === "agora").m;
+      return falar(Nav.textoAnuncio(m, u.sit.distancia_m, u.sit.distancia_m <= agora && !m.destino ? "agora" : "perto"), null, true);
+    }
+    return nav.ultimaFala ? falar(nav.ultimaFala, null, true) : false;
+  }
+  function atender(d) { if (d && typeof d.atender === "function") d.atender(); }
+
+  // ------------------------------------------------------------ recálculo
+  function semInternet(n) {
+    const texto = "Sem internet: volte para a rota destacada";
+    status(texto);
+    if (!n.semInternet) { n.semInternet = true; falarNaoCritico("Sem internet. Volte para a rota destacada."); }
+  }
+
+  // A6: o recálculo tem tempo-limite de 10 s e pode ser cancelado (motorista voltou para a rota antiga). Enquanto
+  // ele não chega, a rota antiga continua valendo (painel e manobras).
+  async function recalcular(n, gps) {
+    if (!Nav.podeRecalcular(gps.t, n.ultimoRecalculo)) return;
+    n.ultimoRecalculo = gps.t;
+    n.detector.zerar();
+    if (navigator.onLine === false) { semInternet(n); return; }
+    const ctl = new AbortController();
+    n.recalculando = true; n.recalculo = ctl;
+    status("Recalculando…");
+    falarNaoCritico("Recalculando.");
+    const meu = () => nav === n && n.recalculo === ctl;
+    try {
+      const rota = await C.rota.calcular({ origem: { lat: gps.lat, lon: gps.lon }, destino: n.destino, perfil: n.perfil,
+        ajustar: ajustador(n.escolha), enquadrar: false, sinal: ctl.signal, tempoLimiteMs: RECALCULO_LIMITE_MS });
+      if (!meu()) return;
+      carregarRota(n, rota);
+      n.falouInicio = true;
+      n.semInternet = false;
+      status("");
+      n.recalculando = false; n.recalculo = null;
+      gravarAndamento(n, true);
+      if (C.estado.gps && !gpsVelho()) aoPosicao(C.estado.gps);
+    } catch (e) {
+      if (!meu() || e.cancelada) return;
+      if (e.rede && !e.demorou) semInternet(n);
+      else if (e.demorou) { n.falhaRecalculo = true; status("O servidor de rotas não respondeu. Siga a rota destacada."); }
+      else { n.falhaRecalculo = true; status("Não foi possível recalcular. Siga a rota destacada."); C.mensagem(e.motivo || e.message, 8000); }
+    } finally { if (n.recalculo === ctl) { n.recalculando = false; n.recalculo = null; } }
+  }
+  function cancelarRecalculo(n) {
+    const ctl = n.recalculo; if (!ctl) return;
+    n.recalculo = null; n.recalculando = false;
+    try { ctl.abort(); } catch (e) { /* ignora */ }
+    status(n.semInternet ? "Sem internet: volte para a rota destacada" : "");
+  }
+
+  // ------------------------------------------------------------ trocar o destino com a navegação andando (A2)
+  // destino: { lat, lon, rotulo? }. Recalcula da posição atual com o mesmo veículo e carga; sem internet ou com erro,
+  // avisa e continua para o destino anterior.
+  async function trocarDestino(destino) {
+    const n = nav;
+    if (!n || !destino) return false;
+    const gps = C.estado.gps;
+    if (!gps || gpsVelho()) { C.mensagem("Sem sinal de GPS: não dá para trocar o destino agora.", 6000); return false; }
+    const nome = destino.rotulo || "o novo destino";
+    cancelarRecalculo(n);
+    if (n.troca) { try { n.troca.abort(); } catch (e) { /* ignora */ } n.troca = null; }
+    if (navigator.onLine === false) { C.mensagem("Sem internet: o destino continua o mesmo.", 6000); falarNaoCritico("Sem internet. O destino continua o mesmo."); return false; }
+    // B1 (QA 3): mesmo tempo-limite do recálculo (10 s) e, até a rota nova chegar, as manobras da antiga continuam
+    // (n.troca); a saída da rota não dispara outro recálculo para o destino antigo (n.recalculando)
+    const ctl = new AbortController();
+    n.recalculando = true; n.troca = ctl;
+    const meu = () => nav === n && n.troca === ctl;
+    status("Recalculando para " + nome + "…");
+    try {
+      const rota = await C.rota.calcular({ origem: { lat: gps.lat, lon: gps.lon }, destino: { lat: destino.lat, lon: destino.lon },
+        perfil: n.perfil, ajustar: ajustador(n.escolha), enquadrar: false, sinal: ctl.signal, tempoLimiteMs: RECALCULO_LIMITE_MS });
+      if (!meu()) return false;
+      n.troca = null;
+      // o pino do destino no mapa vai junto (sem a folha "Destino escolhido": a navegação continua)
+      C.rota.definirDestino({ lat: destino.lat, lng: destino.lon });
+      C.folha.fechar();
+      n.destino = rota.destino;
+      n.rotulo = destino.rotulo || null;
+      carregarRota(n, rota);
+      n.falouInicio = true; n.semInternet = false; n.ultimoRecalculo = gps.t;
+      const d = dados();
+      d.recentes = Nav.adicionarRecente(d.recentes, { lat: destino.lat, lon: destino.lon, rotulo: rotuloDestino(n), t: Date.now() });
+      gravar(d);
+      gravarAndamento(n, true);
+      status("");
+      C.mensagem("Destino trocado: " + nome + ".", 6000);
+      falarNaoCritico("Destino trocado para " + nome + ".");
+      n.recalculando = false;
+      if (C.estado.gps && !gpsVelho()) aoPosicao(C.estado.gps);
+      return true;
+    } catch (e) {
+      if (!meu() || e.cancelada) return false;
+      status("");
+      C.mensagem((e.demorou ? "O servidor de rotas não respondeu" : e.rede ? "Sem internet" : (e.motivo || e.message)) + ": o destino continua o mesmo.", 8000);
+      return false;
+    } finally {
+      if (n.troca === ctl) n.troca = null;
+      if (!n.troca && !n.recalculo) n.recalculando = false;
+    }
+  }
+
+  // ------------------------------------------------------------ fim: chegada ou encerrar
+  // opcoes.limpar: apaga a rota do mapa (e, com ela, a rota guardada do E3). Só na chegada e no "cancela a rota" pela voz;
+  // "Encerrar" (confirmado) mantém a rota no mapa e guardada (A4), com "Retomar navegação" e "Limpar rota" no resumo.
+  function finalizar(chegada, opcoes) {
+    const n = nav; if (!n) return;
+    const limpar = !!(opcoes && opcoes.limpar);
+    nav = null;
+    if (n.recalculo) { try { n.recalculo.abort(); } catch (e) { /* ignora */ } n.recalculo = null; }
+    if (n.troca) { try { n.troca.abort(); } catch (e) { /* ignora */ } n.troca = null; }
+    apagarAndamento();
+    clearTimeout(timerRetomada); timerRetomada = null; clearTimeout(timerAviso); timerAviso = null;
+    $("app").classList.remove("nav-ativa");
+    $("nav-painel").hidden = true;
+    const r = n.registro.resumo();
+    const viagem = Object.assign({ id: C.util.novoId(), chegou: !!chegada, destino: rotuloDestino(n),
+      veiculo: n.perfil ? n.perfil.nome : null, carga: n.escolha.carga, data: Date.now() }, r);
+    const d = dados(); d.viagens = Nav.adicionarViagem(d.viagens, viagem, 20); gravar(d);
+    C.emit("navegacao", { ativa: false, progresso_m: n.progresso || 0, restante_m: restanteM(n), coords: n.geo.coords });
+    if (chegada) falarNaoCritico("Você chegou.");
+    if (limpar) C.rota.limpar();
+    // B2 (QA 3): navegando só com a rota guardada (aberto sem internet), C.rota.limpar() não tem rota da sessão para
+    // limpar e não emite "rota-limpa": na chegada a rota guardada para este destino é esquecida aqui (linha e dados)
+    if (chegada) esquecerGuardada(n);
+    const retomar = !limpar && C.rota.atual() ? { perfil: n.perfil, escolha: n.escolha, rotulo: n.rotulo } : null;
+    mostrarResumo(viagem, chegada ? "Você chegou" : "Navegação encerrada", retomar);
+  }
+
+  function esquecerGuardada(n) {
+    try {
+      const g = C.offline && C.offline.rotaGuardada ? C.offline.rotaGuardada() : null;
+      if (g && g.destino && C.offline.esquecerRota && Nav.distanciaM(g.destino, n.destino) < 100) C.offline.esquecerRota();
+    } catch (e) { /* ignora */ }
+  }
+
+  // A4: "Encerrar" no painel pede confirmação (um toque sem querer, dirigindo, não acaba a navegação).
+  // M2 (QA 3): "cancela a rota" pela voz faz a mesma pergunta (o reconhecimento pode ter entendido errado); "Sim"
+  // encerra como o botão, sem apagar a rota do mapa nem a guardada.
+  function confirmarEncerrar(porVoz) {
+    if (!nav) return;
+    const n = nav;
+    const escolha = el("div", "nav-escolha");
+    const sim = botao("Sim", "btn nav-grande nav-sim", () => { if (nav === n) finalizar(false); else C.folha.fechar(); });
+    const nao = botao("Não", "btn btn-principal nav-grande", C.folha.fechar);
+    sim.id = "nav-encerrar-sim"; nao.id = "nav-encerrar-nao";
+    escolha.append(nao, sim);
+    C.folha.abrir([el("h2", null, "Encerrar navegação?"), el("p", null, "A rota continua no mapa."), escolha]);
+    if (porVoz === true) falarNaoCritico("Encerrar a navegação? Confirme na tela.");
+  }
+
+  function blocoResumo(v) {
+    const caixa = el("dl", "nav-resumo");
+    for (const [rotulo, valor] of Nav.linhasResumo(v)) caixa.append(el("dt", null, rotulo), el("dd", null, valor));
+    return caixa;
+  }
+
+  function mostrarResumo(v, titulo, retomar) {
+    const itens = [el("h2", null, titulo), el("p", "nav-registrado", "Registrado pelo GPS do aparelho (não é estimativa)."), blocoResumo(v)];
+    if (v.leituras < 3) itens.push(el("p", null, "Poucas leituras do GPS: os números podem estar incompletos."));
+    if (retomar) {
+      // encerrou sem apagar a rota: dá para voltar à navegação (mesmo veículo e carga, sem perguntar) ou limpar a rota
+      const r = botao("Retomar navegação", "btn btn-principal nav-grande", () => {
+        const rota = C.rota.atual();
+        if (!rota || nav) { C.folha.fechar(); return; }
+        ativar(rota, retomar.perfil, retomar.escolha, { rotulo: retomar.rotulo });
+      });
+      r.id = "nav-retomar"; itens.push(r);
+    }
+    const botoes = el("div", "linha-botoes");
+    botoes.append(botao("Fechar", "btn btn-principal", C.folha.fechar), botao("Viagens anteriores", "btn", mostrarViagens));
+    if (retomar) { const l = botao("Limpar rota", "btn", () => C.rota.limpar()); l.id = "nav-limpar-rota"; botoes.append(l); }
+    itens.push(botoes);
+    C.folha.abrir(itens);
+  }
+
+  // ------------------------------------------------------------ M4: navegação em andamento (página recarregada)
+  function gravarAndamento(n, forcar) {
+    if (!n || nav !== n) return;
+    const agora = Date.now();
+    if (!forcar && agora - n.gravadoEm < GRAVAR_MS) return;
+    n.gravadoEm = agora;
+    const d = dados();
+    d.andamento = { destino: { lat: n.destino.lat, lon: n.destino.lon }, rotulo: rotuloDestino(n), perfilId: n.perfil ? n.perfil.id : null,
+      perfilNome: n.perfil ? n.perfil.nome : null, carga: n.escolha.carga || null, peso: n.escolha.peso == null ? null : n.escolha.peso,
+      aviso: n.escolha.aviso || null, inicio: n.inicio, atualizado: agora, progresso_m: n.progresso || 0, total_m: n.geo.total,
+      resumo: n.registro.resumo() };
+    gravar(d);
+  }
+  function apagarAndamento() { const d = dados(); if (d.andamento) { d.andamento = null; gravar(d); } }
+
+  // Na abertura: navegação que estava em andamento entra no histórico como interrompida e, se recente, oferece
+  // "Continuar navegação" (1 toque, sem perguntar a carga: vale a escolha guardada).
+  function verificarAndamento() {
+    const d = dados(), a = d.andamento;
+    if (!a) return;
+    if (!a.registrada) {
+      d.viagens = Nav.adicionarViagem(d.viagens, Nav.viagemInterrompida(a, C.util.novoId()), 20);
+      a.registrada = true;
+    }
+    if (!Nav.andamentoValido(a, Date.now())) d.andamento = null;
+    gravar(d);
+    if (!d.andamento) return;
+    // o cartão "Ativar o GPS" fica no meio da tela e a folha cobriria o botão dele: espera a primeira posição (ou erro)
+    const cartao = $("cartao-gps");
+    if (!cartao || cartao.hidden) { oferecerContinuar(d.andamento); return; }
+    const desligar = [];
+    const abrir = () => { desligar.forEach((f) => f()); const x = dados().andamento; if (x) oferecerContinuar(x); };
+    desligar.push(C.on("posicao", abrir), C.on("gps-erro", abrir));
+  }
+  function oferecerContinuar(a) {
+    if (nav) return;
+    const cont = botao("Continuar navegação", "btn btn-principal nav-grande", () => continuar(a)); cont.id = "nav-continuar";
+    const nao = botao("Agora não", "btn nav-grande", () => { apagarAndamento(); C.folha.fechar(); }); nao.id = "nav-continuar-nao";
+    const carga = a.carga === "carregado" ? "carregado" : a.carga === "vazio" ? "vazio" : null;
+    const detalhe = "Para " + (a.rotulo || "o destino") + (a.perfilNome ? " · " + a.perfilNome : "") + (carga ? " · " + carga : "") + ".";
+    C.folha.abrir([el("h2", null, "Navegação interrompida"), el("p", null, detalhe),
+      el("p", "nav-registrado", "O trecho já feito ficou nas viagens anteriores."), cont, nao]);
+  }
+  async function continuar(a) {
+    if (nav) { C.folha.fechar(); return; }
+    const pos = C.estado.ultimaPos;
+    if (!pos) {
+      // sem posição ainda (GPS religando depois de recarregar): continua sozinho na primeira leitura
+      const espera = el("h2", null, "Esperando o GPS…");
+      C.folha.abrir([espera, el("p", null, "Ative o GPS. A navegação continua sozinha na primeira posição."), botao("Cancelar", "btn", C.folha.fechar)]);
+      const desligar = C.on("posicao", () => { desligar(); if (!nav && C.folha.aberta() && espera.isConnected) continuar(a); });
+      return;
+    }
+    const lista = C.veiculos && C.veiculos.lista ? C.veiculos.lista() : [];
+    const perfil = lista.find((v) => v.id === a.perfilId) || (C.veiculos && C.veiculos.ativo ? C.veiculos.ativo() : null);
+    const escolha = { carga: a.carga || null, peso: a.peso == null ? null : a.peso, aviso: a.aviso || "" };
+    const extra = { rotulo: a.rotulo || null };
+    const guardada = () => {
+      const g = rotaGuardada();
+      return g && g.destino && Nav.distanciaM(g.destino, a.destino) < 100 ? g : null;
+    };
+    if (navigator.onLine === false) {
+      const g = guardada();
+      if (!g) { C.mensagem("Sem internet e sem a rota guardada: não dá para continuar agora.", 8000); return; }
+      ativar(g, perfil, Object.assign({}, escolha, { aviso: avisoGuardada(g) }), extra);
+      return;
+    }
+    C.folha.abrir([el("h2", null, "Continuando a navegação…"), el("p", null, "Calculando a rota a partir daqui.")]);
+    let rota;
+    try {
+      rota = await C.rota.calcular({ origem: { lat: pos[1], lon: pos[0] }, destino: { lat: a.destino.lat, lon: a.destino.lon }, perfil,
+        ajustar: ajustador(escolha), enquadrar: false });
+    } catch (e) {
+      if (e.cancelada || nav) return;
+      const g = e.rede ? guardada() : null;
+      if (!g) {
+        const botoes = el("div", "linha-botoes");
+        botoes.append(botao("Tentar de novo", "btn btn-principal", () => continuar(a)), botao("Cancelar", "btn", C.folha.fechar));
+        C.folha.abrir([el("h2", null, "Não foi possível continuar"), el("p", null, e.motivo || e.message), botoes]);
+        return;
+      }
+      ativar(g, perfil, Object.assign({}, escolha, { aviso: avisoGuardada(g) }), extra);
+      return;
+    }
+    if (nav) return;
+    C.rota.definirDestino({ lat: a.destino.lat, lng: a.destino.lon }); // o pino vai junto (a folha fecha em ativar)
+    ativar(rota, perfil, escolha, extra);
+  }
+
+  function mostrarViagens() {
+    const lista = dados().viagens;
+    const itens = [el("h2", null, "Viagens anteriores"), el("p", "nav-registrado", "Registrado pelo GPS do aparelho. Últimas " + lista.length + " de até 20, só neste aparelho.")];
+    const ul = el("ul", "nav-viagens");
+    for (const v of lista) {
+      const li = el("li");
+      const quando = new Date(v.data);
+      li.append(el("b", null, quando.toLocaleDateString("pt-BR") + " " + Nav.formatarHora(quando) + " · " + (v.destino || "destino") + (v.chegou ? "" : v.interrompida ? " (interrompida)" : " (encerrada)")),
+        el("span", null, Nav.formatarDistancia(v.distancia_m) + " · " + Nav.formatarDuracao(v.total_s) + " no total · "
+          + Nav.formatarDuracao(v.movimento_s) + " em movimento · " + Nav.formatarDuracao(v.parado_s) + " parado · média "
+          + (v.vel_media_kmh == null ? "não medida" : v.vel_media_kmh + " km/h")));
+      ul.appendChild(li);
+    }
+    if (!lista.length) itens.push(el("p", null, "Nenhuma viagem registrada ainda."));
+    else itens.push(ul);
+    itens.push(botao("Fechar", "btn", C.folha.fechar));
+    C.folha.abrir(itens);
+  }
+
+  function criarPainel() {
+    const p = el("section", "nav-painel"); p.id = "nav-painel"; p.hidden = true; p.setAttribute("aria-label", "Navegação");
+    const linha = el("div", "nav-manobra");
+    const ic = el("div", "nav-icone", "↑"); ic.id = "nav-icone"; ic.setAttribute("aria-hidden", "true");
+    const txt = el("div", "nav-texto");
+    const dist = el("div", "nav-dist"); dist.id = "nav-dist";
+    const ins = el("div", "nav-instrucao"); ins.id = "nav-instrucao";
+    const rua = el("div", "nav-rua"); rua.id = "nav-rua";
+    txt.append(dist, ins, rua); linha.append(ic, txt);
+    const seg = el("div", "nav-seguinte"); seg.id = "nav-seguinte";
+    const st = el("div", "nav-status"); st.id = "nav-status"; st.setAttribute("role", "status"); st.hidden = true;
+    const rod = el("div", "nav-rodape");
+    const info = el("div", "nav-info");
+    const rest = el("b"); rest.id = "nav-restante";
+    const cheg = el("span"); cheg.id = "nav-chegada";
+    info.append(rest, cheg);
+    const ver = botao("ⓘ", "btn nav-ver-aviso", () => mostrarAviso($("nav-aviso").hidden, true)); ver.id = "nav-ver-aviso"; ver.hidden = true;
+    ver.setAttribute("aria-label", "Aviso da rota"); ver.title = "Aviso da rota"; ver.setAttribute("aria-controls", "nav-aviso");
+    const fim = botao("Encerrar", "btn nav-encerrar", confirmarEncerrar); fim.id = "nav-encerrar";
+    rod.append(info, ver, fim);
+    const av = el("div", "nav-aviso"); av.id = "nav-aviso"; av.hidden = true;
+    av.addEventListener("click", () => mostrarAviso(false));
+    p.append(linha, seg, st, rod, av);
+    document.querySelector("main").appendChild(p);
+    // fim do painel (px a partir do topo do mapa): a faixa do alerta e os botões do mapa ficam abaixo dele
+    const marcarFim = () => {
+      const app = $("app");
+      if (p.hidden) app.style.removeProperty("--nav-fim");
+      else app.style.setProperty("--nav-fim", Math.ceil(p.offsetTop + p.offsetHeight + 8) + "px");
+    };
+    if (typeof ResizeObserver === "function") new ResizeObserver(marcarFim).observe(p);
+    new MutationObserver(marcarFim).observe(p, { attributes: true, attributeFilter: ["hidden"] });
+  }
+
+  C.navegacao = {
+    iniciar, encerrar: (opcoes) => finalizar(false, opcoes), ativa: () => !!nav, trocarDestino,
+    recentes: () => dados().recentes.slice(), viagens: () => dados().viagens.slice(), mostrarViagens,
+  };
+
+  C.aoIniciar(() => {
+    C.carregarEstilo("estilos/navegacao.css");
+    criarPainel();
+    C.on("posicao", aoPosicao);
+    C.on("alerta", (d) => { alertaAberto = true; if (d && d.abriu) alertaCortou(nav); });
+    C.on("alerta-fechado", () => { alertaAberto = false; });
+    C.on("voz-manobra-cortada", (d) => manobraCortada(nav, d));
+    // B2: GPS sem leitura nova (túnel, sem sinal): pausa; localização desligada nas escolhas: encerra
+    C.on("gps-sinal", (d) => {
+      if (!nav || !d || d.ok !== false) return;
+      if (d.motivo === "desligado") { finalizar(false); C.mensagem("Localização desligada: navegação encerrada.", 8000); }
+      else semSinal(nav);
+    });
+    // contrato do E4: quem trata o comando chama dado.atender() em até 300 ms (senão o app diz "Ainda não disponível")
+    C.on("comando:repetir", (d) => { if (repetir()) atender(d); });
+    C.on("comando:cancelar-rota", (d) => {
+      if (nav) { atender(d); confirmarEncerrar(true); }
+      else if (C.rota.atual() || C.rota.destino()) { atender(d); C.rota.limpar(); falarNaoCritico("Rota cancelada."); }
+      else { atender(d); falarNaoCritico("Nenhuma rota para cancelar."); }
+    });
+    // rota limpa por fora (botão Limpar rota, outro pacote): encerra a navegação
+    C.on("rota-limpa", () => { if (nav) finalizar(false); });
+    // M4: página recarregada no meio da navegação (o iOS descarta a aba)
+    C.on("pronto", verificarAndamento);
+  });
+})(window.Copiloto);

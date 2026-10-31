@@ -1,0 +1,13 @@
+/* Conta e voz (ui/conta.js, ui/voz.js) */
+/* Voz */
+.linha-check { display: flex; align-items: center; gap: 12px; font-size: 16px; color: var(--texto); min-height: 48px; }
+.linha-check input { width: 28px; height: 28px; min-height: 0; accent-color: var(--acento); flex: none; }
+
+/* Conta */
+.cartao { background: var(--painel); border: 1px solid var(--linha); border-radius: 14px; padding: 14px; display: grid; gap: 8px; margin-bottom: 14px; }
+.cartao h2 { margin: 0; font-size: 17px; }
+.reputacao-num { font-size: 34px; font-weight: 800; color: var(--acento); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.msg-conta { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--acento); font-size: 15px; }
+.msg-conta[hidden] { display: none; }
+.msg-conta.erro-msg { border-color: #ff8b84; color: #ffd0cc; }
+.email-conta { word-break: break-all; color: var(--texto); }

@@ -1,0 +1,77 @@
+/* Navegação guiada (ui/navegacao.js, pacote E1). Painel de condução no topo; o alerta vira faixa logo abaixo dele
+   (estilos/alerta.css, --nav-fim) e os botões do mapa ficam abaixo dos dois (ui/mapa.js). */
+.nav-painel {
+  position: absolute; z-index: 4; top: 8px; left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px));
+  background: var(--painel); border: 1px solid var(--linha); border-radius: 18px; padding: 12px 14px; display: grid; gap: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+}
+.nav-painel[hidden], .nav-painel [hidden] { display: none; }
+.nav-manobra { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.nav-icone {
+  flex: none; width: 64px; height: 64px; border-radius: 14px; background: var(--acento); color: var(--acento-texto);
+  display: grid; place-items: center; font-size: 40px; font-weight: 900; line-height: 1;
+}
+.nav-texto { min-width: 0; display: grid; gap: 2px; }
+.nav-dist { font-size: 34px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+/* A5 (QA): textos reais do Valhalla podem ser enormes ("Pegue a saída 334A … Aeroporto Internacional."). O painel tem
+   altura máxima: instrução em até 2 linhas, ruas em 1 (com "…"); a fala continua com o texto inteiro. */
+.nav-instrucao {
+  font-size: 18px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+.nav-rua { font-size: 15px; color: #ffd9a1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-seguinte { font-size: 14px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-status { font-size: 15px; font-weight: 700; color: var(--texto); background: #3a2a10; border-left: 4px solid var(--acento); padding: 6px 10px; border-radius: 8px; }
+.nav-rodape { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--linha); padding-top: 8px; }
+.nav-info { flex: 1; min-width: 0; display: grid; }
+.nav-info b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.nav-info span { font-size: 13px; color: var(--suave); }
+.nav-encerrar { min-height: 64px; min-width: 112px; font-size: 17px; color: #ff8b84; border-color: #5a2a28; }
+.nav-ver-aviso { min-height: 64px; min-width: 64px; padding: 0; font-size: 24px; color: #ffd9a1; }
+.nav-aviso { font-size: 12px; color: #ffd9a1; cursor: pointer; }
+
+/* Com a navegação ativa: chip do veículo sai, mensagem curta vai para baixo do painel */
+#app.nav-ativa .chip-veiculo { display: none; }
+#app.nav-ativa .msg-mapa { top: auto; bottom: 96px; left: 12px; transform: none; max-width: calc(100% - 24px); }
+
+/* A5 (QA): tela baixa em pé (iPhone SE 1ª geração, 320×568) com alerta aberto: o rodapé (restante e "Encerrar") sai
+   enquanto o alerta está na tela, para caber o "!" e o "Falar" sem nada por cima. Volta quando o alerta fecha. */
+@media (orientation: portrait) and (max-height: 600px) {
+  #app.nav-ativa:has(#alerta:not([hidden])) .nav-rodape { display: none; }
+}
+
+/* M5 (QA): celular deitado (o aviso "Use o celular em pé" virou faixa, base.css): painel em uma faixa só (manobra à
+   esquerda, restante e "Encerrar" à direita) e alerta logo abaixo, os dois na parte esquerda; a coluna de botões fica à
+   direita. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .nav-painel {
+    right: auto; width: min(500px, calc(100% - 176px)); padding: 6px 10px; gap: 4px 10px;
+    grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+  }
+  .nav-painel > * { grid-column: 1 / -1; }
+  .nav-painel > .nav-manobra { grid-column: 1; grid-row: 1; gap: 8px; }
+  .nav-painel > .nav-rodape { grid-column: 2; grid-row: 1; border-top: 0; padding-top: 0; }
+  .nav-icone { width: 48px; height: 48px; font-size: 30px; }
+  .nav-dist { font-size: 24px; }
+  .nav-instrucao { -webkit-line-clamp: 1; line-clamp: 1; font-size: 15px; }
+  .nav-rua { font-size: 13px; }
+  .nav-encerrar { min-width: 96px; }
+  #app.nav-ativa .alerta { right: auto; width: min(500px, calc(100% - 176px)); }
+}
+
+/* Folhas da navegação */
+.nav-escolha { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.nav-grande { min-height: 72px; font-size: 20px; font-weight: 800; }
+.folha .btn-iniciar-nav { min-height: 64px; font-size: 19px; font-weight: 800; }
+.nav-resumo { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; }
+.nav-resumo dt { color: var(--suave); font-size: 14px; }
+.nav-resumo dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.folha .nav-registrado { color: #ffd9a1; font-size: 13px; }
+.nav-viagens { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.nav-viagens li { display: grid; gap: 2px; border-bottom: 1px solid var(--linha); padding-bottom: 8px; }
+.nav-viagens span { font-size: 13px; color: var(--suave); }
+.lista-recentes { display: grid; gap: 8px; }
+/* A4: confirmação do "Encerrar" (Sim/Não ≥ 64 px) e "Retomar navegação"; M4: "Continuar navegação" depois de recarregar */
+.nav-sim { color: #ff8b84; border-color: #5a2a28; }
+.folha #nav-continuar, .folha #nav-retomar, .folha #nav-continuar-nao { width: 100%; min-height: 72px; }
+.btn-recente { min-height: 64px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
