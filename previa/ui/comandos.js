@@ -47,6 +47,10 @@
   const { $, el, botao, novoId } = C.util;
   const Cmd = window.CopilotoComandos, Relatos = window.CopilotoRelatos, NuvemLib = window.CopilotoNuvem, Voz = window.CopilotoVoz;
   const ESCUTA_MS = 8000, RESPOSTA_MS = 6000, SEM_OUVINTE_MS = 300, SESSAO_RELATO_MS = 60000, LONGO_MS = 650;
+  // Fim da fala por silêncio (campo 01/11: "o áudio para sozinho ao não identificar mais áudio"): 1,2 s sem resultado
+  // novo depois do último texto fecha a escuta e executa; nada dito em 5 s (com som) → "Não ouvi nada" (sem a folha).
+  const FIM_FALA_MS = 1200, SEM_FALA_MS = 5000;
+  const NAO_OUVI = "Não ouvi nada. Toque em Falar e fale depois do bipe.";
   const ROTULOS = {
     pronto: "Falar um comando de voz (toque longo: comandos na tela)",
     abrindo: "Abrindo microfone…",
@@ -92,7 +96,7 @@
     if (C.voz.calar) { C.voz.calar(); D.registrar("ui:fala calada", "antes do start()"); }
     estado("abrindo");
     C.mensagem(ROTULOS.abrindo, 4000);
-    eu.h = escuta.escutar({ maxMs: ms,
+    eu.h = escuta.escutar({ maxMs: ms, fimSilencioMs: extra && extra.fimSilencioMs, semFalaMs: extra && extra.semFalaMs,
       aoOuvindo: () => {
         if (ouvindo !== eu) return;
         eu.abriu = true;
@@ -112,7 +116,7 @@
         desenharDiag();
       } });
     ouvindo = eu; // aoOuvindo/aoTerminar nunca rodam antes deste ponto (são sempre assíncronos)
-    return { parar: (m) => eu.h && eu.h.parar(m) };
+    return { parar: (m) => eu.h && eu.h.parar(m), concluir: () => eu.h && (eu.h.concluir ? eu.h.concluir() : eu.h.parar("cancelado")) };
   }
   function pararEscuta(motivo) { if (ouvindo) { const o = ouvindo; ouvindo = null; o.h.parar(motivo); } }
   function anotar(res) {
@@ -129,14 +133,16 @@
       abrirAlternativa({ erro: Cmd.mensagemEscuta({ motivo: "indisponivel" }) });
       return;
     }
-    if (ouvindo) { pararEscuta("cancelado"); return; }
+    // tocar de novo enquanto ouve: fecha e executa o que já ouviu (campo 01/11: o motorista tocava para "terminar" e o
+    // texto era descartado); sem nada ouvido, cancela
+    if (ouvindo) { const o = ouvindo; if (o.h && o.h.concluir) o.h.concluir(); else pararEscuta("cancelado"); return; }
     if (sessao && sessao.escuta) { sessao.escuta.parar("cancelado"); return; }
     // o microfone ouviria a fala do alerta: espera ela acabar
     if (C.voz.emAlerta()) { C.mensagem("Espere o alerta terminar e toque de novo.", 4000); return; }
     alertaNoToque = C.alerta.atual();
     // M3 (QA2): o relato por voz vai no ponto do TOQUE em "Falar" (como o "!"), não no fim da fala/reconhecimento
     gpsNoToque = C.relatos.leituraDoToque();
-    ouvir(ESCUTA_MS, processar);
+    ouvir(ESCUTA_MS, processar, { fimSilencioMs: FIM_FALA_MS, semFalaMs: SEM_FALA_MS });
   }
 
   // ---------- interpretação
@@ -148,6 +154,12 @@
   function processar(res) {
     const toque = gpsNoToque; gpsNoToque = null;
     if (res.motivo === "alerta" || res.motivo === "cancelado") return;
+    if (!res.textos.length && res.motivo === "silencio" && (!res.codigo || res.codigo === "no-speech")) {
+      // nada foi dito (fim por silêncio): só o aviso, sem a folha de comandos
+      D.registrar("ui:não ouvi nada", "");
+      C.mensagem(NAO_OUVI, 6000);
+      return;
+    }
     if (!res.textos.length) {
       // a escuta falhou: mensagem certa para o código (com o código) e os comandos por toque/teclado
       const texto = Cmd.mensagemEscuta(res, D.ambiente());
@@ -210,7 +222,11 @@
       case "cancelar_rota": return comando("comando:cancelar-rota", {}, semOuvinte);
       case "mapa_modo": return comando("comando:mapa-modo", { modo: r.modo }, semOuvinte);
       case "ir_para": return irPara(r);
-      default: return avisar(Cmd.MSG.naoEntendi, true);
+      case "talvez_lugar": return talvezLugar(r, textos, toque);
+      case "relatar_sem_tipo": // "polícia", "blitz": o app não tem esse tipo; o formulário abre no ponto do toque para escolher
+        C.relatos.abrirFormulario(toque ? { toque } : undefined);
+        return avisar("Esse assunto ainda não é um tipo de relato. Escolha o tipo na tela.", true);
+      default: return naoEntendi(textos, toque);
     }
   }
 
@@ -270,7 +286,7 @@
     if (!salvar) { avisar("Confira o relato na tela."); return; }
     salvar.click();
     if (C.folha.aberta()) avisar("Confira o relato na tela.");
-    else confirmar();
+    else { confirmar(); C.mensagem("Relato anotado: " + (cfg.curto || cfg.rotulo || tipo) + ".", 4000); }
   }
   function escolherTipo(candidatos, toque) {
     const lista = candidatos.filter(tipoDisponivel);
@@ -485,6 +501,70 @@
     }, "cmd-dest-lista");
   }
 
+  // ---------- lugar provável (frase solta: "Goiânia", "posto Graal Anápolis", "CEAGESP") e "não entendi"
+  // Integração (campo 01/11: "ao falar não transfere para busca ou para aviso"): toda frase reconhecida leva a uma ação
+  // visível. Lugar provável: abre a Busca com o que foi dito e procura (Copiloto.busca.procurar); 1 resultado claro →
+  // o fluxo do "me leva para" (fala + traça; navegando, pergunta); vários → a lista na Busca; nenhum → "Não entendi".
+  async function talvezLugar(r, textos, toque) {
+    const meu = ++buscaSeq;
+    D.registrar("ui:lugar provável", r.consulta.length + " letras");
+    const mostrar = (lista, aviso) => { if (C.busca && C.busca.mostrar) C.busca.mostrar(r.lugar, lista, aviso); };
+    mostrar(null, "Buscando “" + r.lugar + "”…");
+    let lista = null, semRede = navigator.onLine === false, erro = null;
+    if (!semRede) {
+      try { lista = await procurar(r.consulta); } catch (e) { if (e && e.rede) semRede = true; else erro = e || new Error(""); }
+    }
+    if (meu !== buscaSeq) return;
+    if (semRede) {
+      const rec = (C.navegacao && C.navegacao.recentes ? C.navegacao.recentes() : []).concat(lerLugares());
+      lista = Cmd.buscarNosRecentes(r, rec);
+    }
+    const d = Cmd.decidirLugares(lista || [], r, posAgora());
+    if (erro || d.tipo === "nenhum") {
+      if (C.abas.atual() === "busca") C.abas.irPara("mapa");
+      naoEntendi(textos, toque, semRede ? "Sem internet para procurar “" + r.lugar + "”." : null);
+      return;
+    }
+    if (d.tipo === "um") { escolherLugar(d.itens[0], { semRede }); return; }
+    mostrar(d.itens.map((it) => ({ nome: it.nome, detalhe: it.detalhe, lat: it.lat, lon: it.lon })), null);
+    avisar("Encontrei " + d.itens.length + " lugares para " + r.lugar + ". Escolha na tela.", true);
+  }
+  // Não entendeu: o que ouviu, "Buscar “<texto>”", "Relatar" (≥ 64 px) e o campo de texto ("Comando sem voz").
+  function naoEntendi(textos, toque, motivo) {
+    const ouvido = String([].concat(textos).find((t) => t && String(t).trim()) || "").trim();
+    D.registrar("ui:não entendi", ouvido.length + " letras");
+    avisar(Cmd.MSG.naoEntendi, true); // o motivo (ex.: sem internet para procurar) vai escrito na folha
+    const filhos = [el("h2", "cmd-titulo", "Não entendi")];
+    if (motivo) filhos.push(el("p", "cmd-ne-motivo", motivo));
+    if (ouvido) { const p = el("p", "cmd-ne-ouvido", "Ouvi: “" + ouvido + "”"); p.id = "cmd-ne-ouvido"; filhos.push(p); }
+    const linha = el("div", "linha-botoes cmd-ne-botoes");
+    if (ouvido) {
+      const b = botao("Buscar “" + ouvido + "”", "btn btn-principal btn-grande", () => { C.folha.fechar(); if (C.busca && C.busca.mostrar) C.busca.mostrar(ouvido); });
+      b.id = "cmd-ne-buscar"; linha.append(b);
+    }
+    const rel = botao("Relatar", "btn btn-grande", () => { C.folha.fechar(); C.relatos.abrirFormulario(toque ? { toque } : undefined); });
+    rel.id = "cmd-ne-relatar"; linha.append(rel);
+    filhos.push(linha);
+    // a folha cobre o "Falar": tentar de novo daqui mesmo (o toque é o gesto que o iPhone pede para abrir o microfone)
+    const denovo = botao("Falar de novo", "btn btn-grande", () => { C.folha.fechar(); tocar(); });
+    denovo.id = "cmd-ne-falar"; denovo.dataset.semDestravar = "";
+    filhos.push(denovo);
+    const form = el("form", "cmd-alt-form"); form.id = "cmd-alt-form";
+    const campo = document.createElement("input");
+    campo.id = "cmd-alt-texto"; campo.type = "text"; campo.autocomplete = "off"; campo.setAttribute("enterkeyhint", "send");
+    campo.setAttribute("aria-label", "Digite o comando"); campo.placeholder = "Ou digite (ou dite no teclado): Goiânia, tem buraco aqui";
+    const enviar = el("button", "btn btn-principal btn-grande", "Enviar"); enviar.type = "submit"; enviar.id = "cmd-alt-enviar";
+    form.append(campo, enviar);
+    form.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const t = campo.value.trim();
+      if (!t) { campo.focus(); return; }
+      C.folha.fechar(); executar([t], toque);
+    });
+    filhos.push(form, botao("Fechar", "btn btn-grande", C.folha.fechar));
+    C.folha.abrir(filhos);
+  }
+
   // Pergunta por voz com a resposta na tela também. Com o mãos-livres, a escuta contínua responde (com ou sem "Copiloto").
   // Sem ele, ouve UMA vez depois do fim da fala + 300 ms (como o "É o mesmo?"); sem resposta clara, a decisão fica na tela.
   function perguntar(texto, tratar, id) {
@@ -502,7 +582,7 @@
         if (!vivo() || res.motivo === "cancelado" || res.motivo === "alerta") return;
         if (res.motivo === "ok" && responder(res.textos)) return;
         C.mensagem("Sem resposta clara. Escolha na tela.", 7000);
-      });
+      }, { fimSilencioMs: FIM_FALA_MS });
     };
     const aposFala = () => { if (feito) return; feito = true; clearTimeout(timerFalha); setTimeout(ouvirResposta, 300); };
     if (C.voz.emAlerta() || !C.voz.falar(texto, { naoInterromper: true, aoTerminar: aposFala })) { feito = true; naTela(); return; }
@@ -538,6 +618,58 @@
     elMl.querySelector(".cmd-ml-texto").textContent = pausado ? "Toque para voltar a ouvir" : "Copiloto";
     const r = pausado ? "Mãos-livres pausado. Toque para voltar a ouvir" : "Mãos-livres: ouvindo “Copiloto”. Toque para desligar";
     elMl.setAttribute("aria-label", r); elMl.title = r;
+    mlPosicionar();
+  }
+  // Integração com o redesenho: o indicador fica à esquerda de um botão da coluna (ui/mapa.js já pôs a coluna no espaço
+  // livre, em pé e deitado, com e sem navegação), na mesma altura: o primeiro, de cima para baixo, em que ele cabe sem
+  // cobrir a busca, a faixa da manobra, a velocidade, a barra do pé, o alerta, o "Recentralizar" nem a atribuição do mapa.
+  // Sem lugar (ou com o cartão da fachada aberto), fica compacto (só o ponto, 64 × 64). Antes ficava fixo a 186 px do pé:
+  // deitado, caía sobre a busca e a faixa da manobra; navegando, sobre a atribuição.
+  let mlQuadro = 0, mlUltima = "";
+  const ML_OBSTACULOS = "#barra-topo, #nav-painel, .painel-mapa > .velocidade, #nav-rodape, #alerta, #btn-recentralizar, #mapa .maplibregl-ctrl-attrib, #folha";
+  function mlPosicionar() {
+    if (!elMl || elMl.hidden || mlQuadro) return;
+    mlQuadro = requestAnimationFrame(() => {
+      mlQuadro = 0;
+      if (!elMl || elMl.hidden) return;
+      const vis = (e) => !!e && !e.hidden && e.getClientRects().length > 0 && getComputedStyle(e).display !== "none" && getComputedStyle(e).visibility !== "hidden";
+      const botoes = [...document.querySelectorAll(".acoes > *")].filter((b) => b !== elMl && vis(b)).map((b) => b.getBoundingClientRect()).sort((a, b) => a.top - b.top);
+      if (!botoes.length) return;
+      const obst = [...document.querySelectorAll(ML_OBSTACULOS)].filter(vis).map((e) => e.getBoundingClientRect()).concat(botoes);
+      const cruza = (a, q) => Math.min(a.right, q.right) - Math.max(a.left, q.left) > 1 && Math.min(a.bottom, q.bottom) - Math.max(a.top, q.top) > 1;
+      const pai = (elMl.offsetParent || document.body).getBoundingClientRect();
+      const fachada = !!(C.fachada && C.fachada.aberta && C.fachada.aberta());
+      elMl.classList.remove("compacto");
+      const largNormal = elMl.offsetWidth, alt = elMl.offsetHeight || 64;
+      let escolha = null;
+      for (const compacto of fachada ? [true] : [false, true]) {
+        const larg = compacto ? 64 : largNormal;
+        for (const r of botoes) {
+          let esq = r.left; // botões lado a lado (deitado): à esquerda do mais à esquerda da fileira
+          for (const q of botoes) if (q.bottom > r.top + 1 && q.top < r.bottom - 1) esq = Math.min(esq, q.left);
+          const right = esq - 8;
+          // centrado no botão; senão alinhado ao topo ou ao pé dele (o "!" tem 76 px: sobra um pouco acima e abaixo)
+          for (const top of [r.top + (r.height - alt) / 2, r.top, r.bottom - alt]) {
+            const caixa = { left: right - larg, right, top, bottom: top + alt };
+            if (caixa.left < pai.left + 4 || caixa.top < pai.top + 4 || caixa.bottom > pai.bottom - 4) continue;
+            if (obst.some((q) => cruza(caixa, q))) continue;
+            escolha = { compacto, caixa }; break;
+          }
+          if (escolha) break;
+        }
+        if (escolha) break;
+      }
+      if (!escolha) { // sem lugar livre: compacto, à esquerda do botão de baixo
+        const r = botoes[botoes.length - 1];
+        escolha = { compacto: true, caixa: { right: r.left - 8, top: r.top + (r.height - alt) / 2 } };
+      }
+      elMl.classList.toggle("compacto", escolha.compacto);
+      elMl.style.left = "auto"; elMl.style.bottom = "auto";
+      elMl.style.right = Math.round(pai.right - escolha.caixa.right) + "px";
+      elMl.style.top = Math.round(escolha.caixa.top - pai.top) + "px";
+      const chave = elMl.style.right + "|" + elMl.style.top + "|" + escolha.compacto;
+      if (chave !== mlUltima) { mlUltima = chave; C.emit("cmd-ml-posicao", { compacto: escolha.compacto }); }
+    });
   }
   function mlEstado(e) { if (ml.estado !== e) { ml.estado = e; mlDesenhar(); } }
   // chamado no toque (gesto): o primeiro start() sai dentro dele
@@ -594,7 +726,7 @@
     const ciclo = { t0: Date.now(), abriu: false, h: null };
     const meu = { parar: (m) => { if (ciclo.h) ciclo.h.parar(m); } };
     ml.h = meu;
-    ciclo.h = escuta.escutar({ maxMs: ML.MAX_MS, surdoMs: ML.SURDO_MS, estenderParcialMs: ML.PARCIAL_MS, rotulo: "(mãos-livres)",
+    ciclo.h = escuta.escutar({ maxMs: ML.MAX_MS, surdoMs: ML.SURDO_MS, estenderParcialMs: ML.PARCIAL_MS, fimSilencioMs: FIM_FALA_MS, rotulo: "(mãos-livres)",
       aoOuvindo: () => { ciclo.abriu = true; },
       aoTerminar: (res) => {
         if (ml.h === meu) ml.h = null;
@@ -675,6 +807,12 @@
     const pai = $("painel-mapa") || document.querySelector("main") || document.body;
     pai.appendChild(elMl);
     mlDesenhar();
+    window.addEventListener("resize", mlPosicionar);
+    const acoes = document.querySelector(".acoes");
+    if (acoes && typeof MutationObserver !== "undefined") new MutationObserver(mlPosicionar).observe(acoes, { attributes: true, subtree: true, attributeFilter: ["style", "hidden", "class"] });
+    for (const ev of ["navegacao", "folha", "alerta", "alerta-fechado", "aba", "fachada:aberta", "fachada:fechada", "mapa-estilo"]) C.on(ev, () => setTimeout(mlPosicionar, 0));
+    // a faixa da manobra e o alerta mudam de altura sem evento próprio: confere a cada 2 s enquanto ligado
+    setInterval(() => { if (ml.ligado) mlPosicionar(); }, 2000);
   }
 
   // ouvindo(): true enquanto o reconhecimento de fala está ativo (toque em "Falar" ou resposta ao "É o mesmo?"). M3 (QA3):

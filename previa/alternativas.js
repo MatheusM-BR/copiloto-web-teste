@@ -228,6 +228,7 @@
     const relMin = menor((x) => x.relatos);
     const unicoMenosRelatos = (i) => isFinite(itens[i].relatos) && itens[i].relatos === relMin &&
       itens.filter((y) => y.relatos === relMin).length === 1 && itens.some((y) => isFinite(y.relatos) && y.relatos > relMin);
+    const usados = new Set(); // rótulo repetido não diferencia (duas "Sem pedágio"): a segunda vira "Alternativa N"
     return itens.map((x, i) => {
       let rotulo = null;
       if (n > 1) {
@@ -237,7 +238,8 @@
         else if (sem("balsa", i)) rotulo = "Sem balsa";
         else if (sem("terra", i)) rotulo = "Sem terra";
         else if (unicoMenosRelatos(i)) rotulo = "Menos relatos";
-        else rotulo = "Alternativa " + (i + 1);
+        if (!rotulo || usados.has(rotulo)) rotulo = "Alternativa " + (i + 1);
+        usados.add(rotulo);
       }
       let comparacao = "";
       if (n > 1 && i !== iRapida && isFinite(x.minutos) && isFinite(tMin)) {

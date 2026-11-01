@@ -558,20 +558,54 @@
     // "sim"/"não" soltos só valem como voto com alerta aberto (e só respostas curtas: "não para não" não é voto)
     if (o.alertaAberto && RE_SO_SIM.test(n)) return res({ intencao: "votar", voto: "confirm", tipo: null });
     if (o.alertaAberto && RE_SO_NAO.test(n)) return res({ intencao: "votar", voto: "deny", tipo: null });
+    // Integração (01/11, campo: "ao falar não transfere para busca"): frase solta sem verbo ("Goiânia", "posto Graal
+    // Anápolis", "CEAGESP") é um lugar PROVÁVEL: a interface procura (Copiloto.busca.procurar) e, sem resultado, mostra o
+    // que ouviu com "Buscar"/"Relatar". Nenhuma frase fica sem ação.
+    // assunto de relato que o app ainda não tem como tipo (polícia, blitz): abre o formulário para escolher, não vira busca
+    const sem = RE_RELATO_SEM_TIPO.exec(n);
+    if (sem) return res({ intencao: "relatar_sem_tipo", palavra: sem[1] });
+    const solto = lugarSolto(texto);
+    if (solto) return res({ intencao: "talvez_lugar", lugar: solto.lugar, nome: solto.nome, cidade: solto.cidade, uf: solto.uf, consulta: solto.consulta });
     return res({ intencao: "desconhecido", motivo: "sem_padrao" });
+  }
+
+  // Lugar dito sem verbo: tira o enchimento do começo e do fim e lê como "ir para <resto>" (cidade + UF, "posto X em
+  // Cidade"). null para conversa ("obrigado", "ok", "tudo bem"), só enchimento ou frase longa demais (> 8 palavras).
+  const RE_RELATO_SEM_TIPO = /\b(policia|policial|policiais|blitz|prf|viatura|guarda|fiscalizacao)\b/;
+  const SO_CONVERSA = new Set(["obrigado", "obrigada", "valeu", "ok", "okay", "beleza", "blz", "tchau", "oi", "ola", "alo", "sim", "nao",
+    "hum", "humm", "hm", "e", "eh", "ah", "ahn", "isso", "nada", "tudo", "bem", "bom", "dia", "tarde", "noite", "boa", "certo", "entendi",
+    "copiloto", "por", "favor", "agora", "ai", "aqui", "ali", "tipo", "assim", "entao", "olha", "ei", "teste", "testando", "um", "dois", "tres",
+    "pela", "ajuda", "me", "leva", "levar", "ir", "para", "pra", "pro", "ate", "rota", "navegar", "navega", "vai", "vamos", "quero", "destino", "caminho"]);
+  function lugarSolto(texto) {
+    const ps0 = palavras(texto);
+    const n0 = ps0.map((p) => p.n).join(" ");
+    const m = new RegExp("^(?:" + ENCHE_INICIO + "\\s+)+").exec(n0 + " ");
+    const i = m ? Math.min(nPalavras(m[0]), ps0.length) : 0;
+    if (i >= ps0.length) return null;
+    const n = ps0.slice(i).map((p) => p.n).join(" ").replace(ENCHE_FIM, "").trim();
+    if (!n || !/[a-z0-9]/.test(n)) return null;
+    // interjeição ("hã", "ééé", "hmmm"): sem nenhuma palavra de 3+ letras que não seja uma letra repetida
+    if (!n.split(" ").some((p) => p.replace(/[^a-z0-9]/g, "").length >= 3 && !/^(.)\1*$/.test(p) && !/^h?[aeiou]+h?$/.test(p) && !/^h*m+$/.test(p))) return null;
+    const ps = n.split(" ");
+    if (ps.length > 8 || ps.every((p) => SO_CONVERSA.has(p))) return null;
+    if (tiposNoTexto(n).length) return null;
+    const d = extrairDestino("ir para " + trechoOriginal(texto, ps0, i, ps0.length - 1));
+    return d && !d.posto ? d : null;
   }
 
   // Várias alternativas do reconhecedor: fica com a primeira que fez sentido (senão, a primeira).
   function interpretarAlternativas(lista, opcoes) {
     const textos = (Array.isArray(lista) ? lista : [lista]).filter((t) => t != null && String(t).trim());
     if (!textos.length) return interpretar("", opcoes);
-    let primeira = null;
+    // um pedido claro (relato, voto, destino com verbo…) vale mais que um lugar provável em outra alternativa
+    let primeira = null, provavel = null;
     for (const t of textos) {
       const r = interpretar(t, opcoes);
       if (!primeira) primeira = r;
+      if (r.intencao === "talvez_lugar") { if (!provavel) provavel = r; continue; }
       if (r.intencao !== "desconhecido") return r;
     }
-    return primeira;
+    return provavel || primeira;
   }
 
   // Resposta à pergunta "É o mesmo?": "sim" | "nao" | "cancelar" | null (sem resposta clara: a decisão fica na tela).
@@ -654,7 +688,7 @@
   };
 
   // ------------------------------------------------------------ escuta (SpeechRecognition)
-  // Uma frase por vez, sem escuta contínua. Reconhecedor injetável (testes).
+  // Uma frase por vez, sem escuta contínua. Reconhecedor e relógio ({ setTimeout, clearTimeout }) injetáveis (testes).
   // escutar({ maxMs, aoComecar, aoOuvindo, aoTerminar({ textos, motivo, codigo }) }) → { parar(motivo) }
   //  aoComecar: onstart (pedido aceito; no iPhone o microfone ainda pode levar ~2 s para abrir).
   //  aoOuvindo: onaudiostart (microfone REALMENTE aberto): bipe e "Ouvindo" vão aqui. maxMs conta a partir dele.
@@ -664,25 +698,35 @@
   // error "aborted"). audiostart sem soundstart/speechstart/result em surdoMs (6 s) → abort e motivo "surdo".
   // interimResults = true: guarda a melhor parcial e, se o final não vier, usa a parcial. Final (isFinal) → stop().
   // Depois do stop() pelo tempo, espera até esperaFinalMs (2,5 s) pelo resultado tardio do servidor.
+  // Fim da fala por silêncio (campo 01/11: "o áudio para sozinho ao não identificar mais áudio"), por sessão:
+  //  fimSilencioMs: depois do último resultado com texto (parcial ou final), esse tempo sem resultado novo → stop() e
+  //    termina NA HORA com o melhor texto (o final, se veio; senão a última parcial), sem esperar o final do servidor;
+  //    cada resultado novo rearma (pausa curta no meio da frase não corta);
+  //  semFalaMs: microfone aberto, com som, e nenhum texto nesse tempo → termina com motivo "silencio" ("Não ouvi nada").
+  //    Sem som nenhum continua valendo o "surdo" (surdoMs).
   function criarEscuta(opcoes) {
     const o = opcoes || {};
     const g = typeof window !== "undefined" ? window : {};
     const Rec = o.Reconhecedor !== undefined ? o.Reconhecedor : (g.SpeechRecognition || g.webkitSpeechRecognition || null);
     const ESPERA_FINAL_MS = o.esperaFinalMs || 2500;
     const SURDO_MS = o.surdoMs || 6000;
+    // relógio injetável (testes determinísticos); padrão: o do navegador
+    const st = (o.relogio && o.relogio.setTimeout) || ((fn, ms) => setTimeout(fn, ms));
+    const ct = (o.relogio && o.relogio.clearTimeout) || ((id) => clearTimeout(id));
     function disponivel() { return typeof Rec === "function"; }
     function escutar(p) {
       const q = p || {};
       const MAX_MS = q.maxMs || 8000;
       let terminou = false, finais = [], parcial = [], erro = null, codigo = null, rec = null;
-      let timer = null, timerFim = null, timerSurdo = null, ouviuSom = false, abriu = false, parando = false;
+      let timer = null, timerFim = null, timerSurdo = null, timerSilencio = null, timerSemFala = null, ouviuSom = false, abriu = false, parando = false;
+      const FIM_SILENCIO = q.fimSilencioMs || 0, SEM_FALA = q.semFalaMs || 0;
       // por sessão: surdoMs (mãos-livres usa um valor maior: silêncio na cabine não é sessão surda), estenderParcialMs
       // (cada parcial rearma o fim para daqui a N ms: a frase que começou no fim da sessão não é cortada), rotulo (log)
       const SURDO = q.surdoMs || SURDO_MS;
       t0Escuta = Date.now(); registrar("start()", "pt-BR, máx " + MAX_MS + " ms" + (q.rotulo ? " " + q.rotulo : ""));
       function fim(motivo) {
         if (terminou) return;
-        terminou = true; clearTimeout(timer); clearTimeout(timerFim); clearTimeout(timerSurdo);
+        terminou = true; ct(timer); ct(timerFim); ct(timerSurdo); ct(timerSilencio); ct(timerSemFala);
         const textos = finais.length ? finais : parcial;
         if (rec) { rec.onresult = rec.onerror = rec.onend = rec.onstart = rec.onaudiostart = rec.onsoundstart = rec.onspeechstart = rec.onnomatch = null; }
         const m = motivo || (textos.length ? "ok" : erro || (abriu ? (ouviuSom ? "naoEntendeu" : "silencio") : "naoAbriu"));
@@ -692,16 +736,16 @@
       // pede para fechar com o que ouviu e espera o resultado tardio; se não fechar, encerra assim mesmo
       function pedirFim() {
         if (parando || terminou) return;
-        parando = true; clearTimeout(timer);
+        parando = true; ct(timer);
         try { rec.stop(); } catch (e) { /* ignora */ }
-        timerFim = setTimeout(() => {
+        timerFim = st(() => {
           registrar("sem end", "abort depois de " + ESPERA_FINAL_MS + " ms");
           try { rec.abort(); } catch (e) { /* ignora */ }
           fim(finais.length || parcial.length ? "ok" : (abriu ? "tempo" : "naoAbriu"));
         }, ESPERA_FINAL_MS);
       }
-      function armarTempo() { clearTimeout(timer); timer = setTimeout(() => { registrar("tempo", "stop()"); pedirFim(); }, MAX_MS); }
-      if (!disponivel()) { registrar("indisponivel", "sem SpeechRecognition"); setTimeout(() => fim("indisponivel"), 0); return { parar() {} }; }
+      function armarTempo() { ct(timer); timer = st(() => { registrar("tempo", "stop()"); pedirFim(); }, MAX_MS); }
+      if (!disponivel()) { registrar("indisponivel", "sem SpeechRecognition"); st(() => fim("indisponivel"), 0); return { parar() {} }; }
       try {
         rec = new Rec();
         rec.lang = "pt-BR"; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 3;
@@ -710,12 +754,18 @@
           if (abriu) return;
           registrar("audiostart"); abriu = true;
           if (!parando) armarTempo();
-          timerSurdo = setTimeout(() => {
+          timerSurdo = st(() => {
             if (ouviuSom || terminou) return;
             registrar("surdo", "sem som em " + SURDO + " ms");
             try { rec.abort(); } catch (e) { /* ignora */ }
             fim("surdo");
           }, SURDO);
+          if (SEM_FALA) timerSemFala = st(() => {
+            if (terminou || finais.length || parcial.length || !ouviuSom) return; // sem som: quem decide é o "surdo"
+            registrar("sem fala", "nada dito em " + SEM_FALA + " ms");
+            try { rec.abort(); } catch (e) { /* ignora */ }
+            fim("silencio");
+          }, SEM_FALA);
           if (q.aoOuvindo) q.aoOuvindo();
         };
         rec.onsoundstart = () => { ouviuSom = true; registrar("soundstart"); };
@@ -732,15 +782,25 @@
           const final = ult.isFinal === true;
           if (final) finais = alt; else parcial = alt;
           registrar("result", (final ? "final" : "parcial") + " " + alt[0].length + " letras");
+          ct(timerSemFala);
+          if (FIM_SILENCIO) {
+            ct(timerSilencio);
+            timerSilencio = st(() => {
+              if (terminou) return;
+              registrar("silêncio", "fim da frase depois de " + FIM_SILENCIO + " ms, stop()");
+              try { rec.stop(); } catch (er) { /* ignora */ }
+              fim("ok");
+            }, FIM_SILENCIO);
+          }
           if (!final) {
-            if (q.estenderParcialMs && !parando) { clearTimeout(timer); timer = setTimeout(() => { registrar("tempo", "fim da frase, stop()"); pedirFim(); }, q.estenderParcialMs); }
+            if (q.estenderParcialMs && !parando) { ct(timer); timer = st(() => { registrar("tempo", "fim da frase, stop()"); pedirFim(); }, q.estenderParcialMs); }
             if (q.aoParcial) q.aoParcial(alt);
             return;
           }
           if (parando) { try { rec.abort(); } catch (er) { /* ignora */ } fim("ok"); return; } // final tardio, depois do stop()
-          parando = true; clearTimeout(timer);
+          parando = true; ct(timer);
           try { rec.stop(); } catch (er) { /* ignora */ }
-          timerFim = setTimeout(() => fim("ok"), ESPERA_FINAL_MS); // o end pode não vir
+          timerFim = st(() => fim("ok"), ESPERA_FINAL_MS); // o end pode não vir
         };
         rec.onerror = (e) => {
           codigo = (e && e.error) || "desconhecido";
@@ -760,7 +820,7 @@
       } catch (e) {
         codigo = String((e && e.name) || "excecao");
         registrar("excecao", codigo);
-        setTimeout(() => fim("erro"), 0);
+        st(() => fim("erro"), 0);
         return { parar() {} };
       }
       armarTempo();
@@ -770,6 +830,14 @@
           registrar("parar", motivo || "cancelado");
           try { rec.abort(); } catch (e) { /* ignora */ }
           fim(motivo || "cancelado");
+        },
+        // toque de novo em "Falar" com algo já ouvido: fecha e usa o que ouviu (antes descartava); sem nada, cancela
+        concluir() {
+          if (terminou) return;
+          if (!finais.length && !parcial.length) { this.parar("cancelado"); return; }
+          registrar("concluir", "toque");
+          try { rec.stop(); } catch (e) { /* ignora */ }
+          fim("ok");
         },
       };
     }
@@ -812,7 +880,7 @@
   const api = { TIPOS_VOZ, FAIXAS_PADRAO, MSG, normalizar, lerValor, tiposNoTexto, interpretar, interpretarAlternativas, simOuNao,
     nomeFalado, textoPergunta, fraseFinal, textoPedirValor, criarEscuta, diagnostico, MSG_ESCUTA, mensagemEscuta, sugerirSafari,
     versaoIOS, palavras, extrairChamada, chamadaEmAlternativas, extrairDestino, lerEscolha, UFS,
-    decidirLugares, buscarNosRecentes, textoOpcoesFalado, distKm };
+    decidirLugares, buscarNosRecentes, textoOpcoesFalado, distKm, lugarSolto };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoComandos = api;
 })(typeof window !== "undefined" ? window : globalThis);

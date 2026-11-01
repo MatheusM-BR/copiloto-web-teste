@@ -64,7 +64,8 @@
 /* "!" grande e laranja no pé da coluna; "Falar" logo acima (estilos/comandos.css) */
 .btn-redondo.btn-relatar { width: 76px; height: 76px; background: var(--acento); color: var(--acento-texto); border-color: var(--acento);
   font-size: 38px; font-weight: 800; box-shadow: 0 4px 16px rgba(0, 0, 0, .35); }
-/* norte/rumo para cima: só navegando (na tela inicial o mapa é sempre norte para cima) */
+/* norte/rumo para cima: o botão só aparece navegando (tela inicial enxuta); fora da navegação a escolha fica em
+   Configurações → Orientação do mapa (equipe D: rumo para cima também fora da navegação) */
 #app:not(.nav-ativa) .acoes > #btn-orientacao { display: none !important; }
 
 /* ------------------------------------------------------------ telas (Configurações, Busca, Veículo, Conta, Emergência) */

@@ -55,7 +55,17 @@
       if (r.bottom - main.top < topo || r.top - main.top > base) continue;
       direita = Math.max(direita, main.right - r.left + 8);
     }
-    const largura = Math.max(160, main.width - 8 - direita);
+    // indicador do mãos-livres (ui/comandos.js, à esquerda da coluna) e a atribuição do mapa: se sobra altura acima
+    // deles, o cartão termina antes; senão, o cartão fica à esquerda deles
+    for (const ml of [$("cmd-ml"), document.querySelector(".maplibregl-ctrl-attrib")]) {
+      if (!visivel(ml) || cartao.contains(ml)) continue;
+      const r = ml.getBoundingClientRect();
+      if (r.bottom - main.top >= topo && r.top - main.top <= base) {
+        if (r.top - main.top - 8 - topo >= 120) base = r.top - main.top - 8;
+        else direita = Math.max(direita, main.right - r.left + 8);
+      }
+    }
+    const largura = Math.max(140, main.width - 8 - direita);
     const altura = Math.max(0, Math.min(240, base - topo));
     cartao.style.top = topo + "px";
     cartao.style.left = "8px";
@@ -176,7 +186,7 @@
       if (vai && ligada()) mostrar(destino, d.coords);
       else if (cartao) posicionar();
     });
-    for (const ev of ["alerta", "alerta-fechado", "folha"]) C.on(ev, () => { if (cartao) setTimeout(posicionar, 0); });
+    for (const ev of ["alerta", "alerta-fechado", "folha", "cmd-ml-posicao"]) C.on(ev, () => { if (cartao) setTimeout(posicionar, 0); });
     window.addEventListener("resize", () => { if (cartao) posicionar(); });
   });
 

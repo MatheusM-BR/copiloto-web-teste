@@ -12,6 +12,15 @@
 .velocidade .limite-rotulo { font-size: 11px; line-height: 1.1; margin-top: 3px; color: var(--suave); }
 .velocidade .limite-rotulo[hidden] { display: none; }
 
+/* Redesenho (bolha redonda de 84 px; 72 px navegando): com a placa à vista a bolha vira uma pílula mais alta, placa em
+   cima e número embaixo — a placa nunca sai da bolha nem cobre o número, e quem desvia da velocidade (ui/mapa.js,
+   fachada, "Recentralizar") usa o retângulo novo. */
+.velocidade:has(> .limite-placa:not([hidden])) { height: auto; padding: 8px 0 10px; border-radius: 42px; }
+.velocidade .limite-placa { margin-bottom: 4px; }
+#app.nav-ativa .velocidade:has(> .limite-placa:not([hidden])) { height: auto; padding: 6px 0 8px; border-radius: 36px; }
+#app.nav-ativa .velocidade .limite-circulo { width: 42px; height: 42px; border-width: 4px; }
+#app.nav-ativa .velocidade .limite-num { font-size: 17px; }
+
 /* acima do limite + margem: velocímetro vermelho */
 .velocidade.limite-excesso { background: var(--perigo); border-color: var(--perigo); color: var(--perigo-texto); }
 .velocidade.limite-excesso > span, .velocidade.limite-excesso .limite-rotulo { color: var(--perigo-texto); }

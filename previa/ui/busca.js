@@ -149,6 +149,19 @@
       }
     }, ESPERA_TECLA_MS);
   }
+  // Para a voz (ui/comandos.js): abre a Busca com o texto dito. lista = resultados já procurados (mostra sem pedir de novo);
+  // lista null = só o aviso ("Buscando…"); sem lista = busca normal do texto (como se fosse digitado).
+  function mostrar(texto, lista, aviso) {
+    if (C.abas.atual() !== "busca") C.abas.irPara("busca");
+    $("busca-texto").value = texto || "";
+    if (lista === undefined) { desenharBusca(); return; }
+    clearTimeout(timerBusca); seqBusca++;
+    const rec = I.filtrarRecentes(recentes(), texto || "");
+    const ul = $("busca-recentes"); ul.textContent = "";
+    for (const d of rec) ul.append(itemDestino(d, "btn-recente"));
+    $("busca-recentes-titulo").hidden = !rec.length;
+    mostrarResultados(lista || [], aviso || null);
+  }
   function aoEnviarBusca(ev) {
     ev.preventDefault();
     const primeiro = document.querySelector("#busca-lista-resultados .busca-resultado");
@@ -219,7 +232,7 @@
     abrirToque(d.lngLat);
   }
 
-  C.busca = { abrir: () => C.abas.irPara("busca"), procurar, irPara, abrirToque, base: lerBase };
+  C.busca = { abrir: () => C.abas.irPara("busca"), procurar, irPara, abrirToque, base: lerBase, mostrar };
 
   C.aoIniciar(() => {
     C.abas.registrar({ id: "busca", rotulo: "Buscar", tela: $("tela-busca"), botao: $("btn-destino"), aoAbrir: () => {

@@ -87,3 +87,10 @@
   100% { box-shadow: 0 0 0 8px rgba(200, 50, 43, 0); }
 }
 @media (prefers-reduced-motion: reduce) { .cmd-ml[data-estado="ouvindo"] .cmd-ml-ponto { animation: none; } }
+/* compacto (sem lugar para a pílula, ou com o cartão da fachada aberto): só o ponto, 64 × 64 */
+.cmd-ml.compacto { width: 64px; padding: 0; justify-content: center; }
+.cmd-ml.compacto .cmd-ml-texto { display: none; }
+/* tema claro (redesenho): pílula clara sobre o mapa claro */
+:root[data-tema="claro"] .cmd-ml { background: rgba(255, 255, 255, .94); box-shadow: 0 2px 10px rgba(0, 0, 0, .18); }
+:root[data-tema="claro"] .cmd-ml[data-estado="pausado"] { background: #fff; border-color: #c27a12; }
+:root[data-tema="claro"] .cmd-ml[data-estado="pausado"] .cmd-ml-ponto { background: #c27a12; }
