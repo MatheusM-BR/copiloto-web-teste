@@ -1,0 +1,24 @@
+/* Fachada na chegada (ui/fachada.js). Posição (top/left/width/height) calculada no JS para não cobrir o painel de
+   manobra, o alerta, o velocímetro, o "Recentralizar" nem a coluna de botões. */
+.fachada-cartao {
+  position: absolute; z-index: 4; box-sizing: border-box;
+  display: flex; flex-direction: column; overflow: hidden; cursor: pointer;
+  background: var(--painel); border: 2px solid var(--acento); border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45); -webkit-tap-highlight-color: transparent;
+}
+.fachada-cartao[hidden] { display: none; }
+.fachada-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; flex: none; }
+.fachada-lado { font-size: 18px; font-weight: 800; color: var(--texto); line-height: 1.15; }
+.fachada-fechar { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--linha); color: var(--texto); font-size: 16px; font-weight: 800; }
+.fachada-corpo { position: relative; flex: 1; min-height: 0; background: #0e1217; }
+.fachada-foto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.fachada-mapa { position: absolute; inset: 0; }
+.fachada-espera { position: absolute; inset: 0; display: grid; place-items: center; color: var(--suave); font-size: 15px; padding: 8px; text-align: center; }
+.fachada-credito { position: absolute; right: 6px; bottom: 6px; padding: 2px 8px; border-radius: 8px; font-size: 12px; font-weight: 700;
+  background: rgba(0, 0, 0, .65); color: #fff; text-decoration: none; max-width: calc(100% - 12px);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fachada-mapa + .fachada-credito { font-size: 10px; font-weight: 600; }
+.fachada-pino-marca { width: 34px; height: 44px; display: grid; place-items: center; pointer-events: none; }
+.fachada-pino { width: 26px; height: 34px; background: var(--perigo); border: 3px solid #fff; border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg); box-shadow: 0 2px 6px rgba(0, 0, 0, .5); }

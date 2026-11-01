@@ -1,0 +1,21 @@
+/* Postos e autonomia (pacote E2). */
+.postos-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 42vh; overflow-y: auto; }
+.postos-item {
+  width: 100%; min-height: 64px; text-align: left; display: flex; flex-direction: column; gap: 2px;
+  background: var(--campo); border: 1px solid var(--linha); border-radius: 12px; padding: 10px 12px;
+}
+.postos-item:active { border-color: var(--acento); }
+.postos-nome { font-weight: 700; font-size: 16px; }
+.postos-dist { color: var(--texto); font-size: 14px; }
+.postos-attr, .postos-nao-inf { color: var(--suave); font-size: 13px; }
+.postos-item.alcance-fora { border-color: var(--perigo); opacity: .8; }
+.postos-item.alcance-limite { border-color: var(--acento); }
+.postos-fora { color: #ff8b84; font-weight: 700; font-size: 13px; }
+.postos-limite { color: var(--acento); font-weight: 700; font-size: 13px; }
+.postos-autonomia input { flex: 1; min-width: 0; min-height: 44px; background: var(--campo); border: 1px solid var(--linha); border-radius: 10px; padding: 0 10px; }
+.postos-litros { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--suave); }
+.folha p.postos-alcance { color: var(--texto); font-size: 14px; }
+.postos-filtros .btn[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
+.postos-atributos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 14px; }
+.postos-atributos .nao-informado { color: var(--suave); font-style: italic; }
+.folha p.postos-credito { font-size: 12px; }

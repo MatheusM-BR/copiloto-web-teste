@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14181f">
+<title>Política de privacidade · Copiloto Caminhoneiro</title>
+<style>
+  :root { --bg: #14181f; --painel: #1d232d; --linha: #2c3542; --texto: #eef1f5; --suave: #9aa6b6; --acento: #f2a43a; --perigo: #c8322b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--texto); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
+  .aviso { background: var(--perigo); color: #fff; text-align: center; font-weight: 700; font-size: 14px; padding: calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px; }
+  main { max-width: 720px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); }
+  h1 { font-size: 24px; margin: 8px 0 4px; }
+  h2 { font-size: 19px; margin: 28px 0 8px; color: var(--acento); }
+  p, li { color: var(--texto); }
+  .suave { color: var(--suave); font-size: 14px; }
+  ul { padding-left: 20px; }
+  li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--linha); }
+  th { color: var(--suave); font-weight: 600; }
+  .tabela { overflow-x: auto; }
+  .caixa { background: var(--painel); border: 1px solid var(--linha); border-radius: 12px; padding: 12px 14px; }
+  a { color: var(--acento); }
+</style>
+</head>
+<body>
+<div class="aviso" role="alert">Versão de teste — texto ainda sem revisão jurídica</div>
+<main>
+  <h1>Política de privacidade</h1>
+  <p class="suave">Copiloto Caminhoneiro (app web de teste) · versão 2026-11-01.1 · vale para o app em <a href="./">esta página</a>.</p>
+
+  <div class="caixa">
+    <p><b>Em resumo:</b> o Copiloto usa a sua localização no aparelho para o mapa e os alertas. Para buscar postos e relatos
+    perto de você, a posição <b>exata</b> vai ao servidor; não guardamos esse trajeto. Ela também vai junto com um relato ou
+    voto seu e, ao traçar uma rota, para o servidor de rotas. Com os alertas da comunidade ligados e a conta aberta, a busca
+    de relatos se repete <b>a cada minuto e a cada 2 km</b>, ligada à sua conta. No comando de voz (botão "Falar"), o
+    <b>microfone</b> só liga depois do seu toque e, no iPhone, o áudio vai ao reconhecimento de fala da Apple. Cada uso de
+    posição é uma escolha separada, que você muda a qualquer hora na aba <b>Conta → Privacidade</b>.</p>
+  </div>
+
+  <h2>Quem é o responsável (controlador)</h2>
+  <p>Responsável pelo tratamento e contato para assuntos de privacidade (encarregado): <b>a definir antes da publicação</b>.
+  Enquanto isso, este app é só um teste fechado.</p>
+
+  <h2>Suas escolhas (consentimento)</h2>
+  <ul>
+    <li><b>Usar a minha localização neste aparelho</b> — necessária para o mapa mostrar onde você está, a velocidade e os alertas. Sem ela o mapa abre, mas sem a sua posição.
+      Com ela, os <b>postos</b> usam a posição no servidor: "Próximo posto" envia a sua posição exata (andando, também o rumo; com rota, a rota e o ponto de partida)
+      e os postos no mapa enviam o centro da área do mapa que você vê — isso acontece <b>mesmo com os alertas da comunidade desligados</b>.
+      Ao traçar uma rota, a origem (a sua posição exata) e o destino vão ao servidor público de rotas Valhalla (projeto OpenStreetMap).
+      Na <b>busca de destino</b>, o texto digitado e a sua posição exata (para mostrar primeiro o que está perto) vão ao serviço público de busca Photon (Komoot).
+      Para mostrar o <b>endereço</b> (rua, cidade, rodovia) na Emergência e ao tocar num ponto do mapa, a posição exata (ou o ponto tocado) vai ao serviço público Nominatim (OpenStreetMap), quando há internet.</li>
+    <li><b>Receber alertas da comunidade</b> — com a conta aberta, o app envia a sua posição exata ao servidor, junto com a identificação
+      da sua conta, <b>a cada minuto e a cada 2 km andados</b> enquanto está aberto, para trazer os relatos por perto. O banco do Copiloto não
+      grava essas posições, mas, repetidas enquanto você dirige, elas mostram por onde você passa. Desligada, o app não busca nem avisa.</li>
+    <li><b>Enviar meus relatos e votos</b> — desligada, nada é enviado; um relato novo fica só no aparelho.</li>
+    <li><b>Enviar dados de qualidade da posição</b> (precisão do GPS, rumo e velocidade no momento do relato ou voto) — serve para calibrar o sistema. Desligada, esses campos vão vazios.</li>
+  </ul>
+  <p><b>Microfone (comando de voz):</b> não é uma das escolhas acima — o próprio aparelho pede a permissão do microfone no primeiro
+  toque em "Falar". O microfone só é usado depois do seu toque, uma frase por vez. Quem transforma a fala em texto é o reconhecimento
+  de fala do aparelho: <b>no iPhone, o áudio vai ao serviço de reconhecimento de fala da Apple</b> (em outros celulares, ao serviço de
+  fala do navegador, como o do Google), que devolve o texto. O Copiloto não grava o áudio nem o manda aos servidores dele; o texto é
+  interpretado no aparelho. Para não usar, não toque em "Falar" ou negue o microfone nos ajustes do navegador.</p>
+  <p><b>Modo mãos-livres (opcional):</b> você liga com um toque (folha "Comando sem voz"). Enquanto o app está aberto e na tela, o microfone fica ouvindo e <b>tudo o que for dito perto do celular</b> vai ao reconhecimento de fala do aparelho; só frases que começam com "Copiloto" viram comando, o resto é descartado no aparelho. Ele desliga ao sair do app (segundo plano ou tela bloqueada) e depois de 10 minutos sem navegação.</p>
+  <p><b>Destino por voz</b> ("me leva para…"): o nome do lugar e a sua posição vão ao serviço de busca de lugares <b>Photon</b> (do OpenStreetMap, operado pela komoot), para achar o lugar e pôr os mais perto primeiro. Não fica gravado no banco do Copiloto.</p>
+  <p>Retirar uma escolha vale para o que acontecer dali em diante. Para apagar o que já foi enviado, veja "Seus direitos".</p>
+
+  <h2>O que é coletado e para quê</h2>
+  <div class="tabela"><table>
+    <tr><th>Dado</th><th>Para quê</th><th>Onde fica</th></tr>
+    <tr><td>E-mail e senha da conta (a senha não fica guardada em texto: o serviço de contas guarda só um código irreversível)</td><td>Entrar e ligar relatos e votos a uma conta (contra abuso)</td><td>Servidor</td></tr>
+    <tr><td>Relato: tipo, local, horário, valor (altura ou peso, quando houver) e, se você permitir, precisão, rumo e velocidade</td><td>Avisar outros motoristas; calibrar raios e regras</td><td>Servidor</td></tr>
+    <tr><td>Voto ("continua lá" / "não está mais"): voto, local, distância até o relato e, se você permitir, precisão e rumo</td><td>Confirmar ou derrubar relatos; peso do voto</td><td>Servidor</td></tr>
+    <tr><td>Reputação: acertos, erros e contagem de relatos</td><td>Dar mais peso a quem acerta e menos a quem erra (contra relatos falsos)</td><td>Servidor</td></tr>
+    <tr><td>Pedido de exclusão de conta</td><td>Registrar e cumprir o seu pedido</td><td>Servidor</td></tr>
+    <tr><td>Posição exata (latitude e longitude com todas as casas do GPS) na busca de relatos por perto, com a identificação da conta, a cada minuto e a cada 2 km andados (com os alertas ligados e a conta aberta)</td><td>Trazer os relatos da região. <b>Não é gravada</b> no banco do Copiloto</td><td>Só na requisição</td></tr>
+    <tr><td>Posição exata e rumo no "Próximo posto"; na rota, o desenho da rota e o ponto de partida; nos postos do mapa, o centro da área vista</td><td>Trazer os postos à frente ou da área do mapa. <b>Não é gravada</b> no banco do Copiloto. Vale também com os alertas da comunidade desligados</td><td>Só na requisição</td></tr>
+    <tr><td>Áudio do comando de voz (depois do toque em "Falar" ou, no modo mãos-livres, enquanto o app está na tela)</td><td>Transformar a fala em texto para entender o comando</td><td>No iPhone, enviado ao serviço de reconhecimento de fala da Apple; em outros aparelhos, ao serviço de fala do navegador. O Copiloto não grava nem recebe o áudio</td></tr>
+    <tr><td>Veículos, relatos feitos fora da conta, relatos esperando internet, preferências da voz e do bipe e as suas escolhas de privacidade</td><td>Funcionar no seu aparelho</td><td>Só no aparelho</td></tr>
+  </table></div>
+  <p>Não gravamos o trajeto contínuo (as buscas de relatos que se repetem não ficam no banco), nem coletamos contatos, fotos nem dados de pagamento. Não há publicidade nem venda de dados.</p>
+
+  <h2>Por quanto tempo</h2>
+  <ul>
+    <li><b>Relatos e os votos neles:</b> cada tipo tem validade (de 1 hora a 180 dias). Depois de vencer, ficam guardados mais <b>30 dias</b> e são apagados automaticamente, todos os dias.</li>
+    <li><b>Relato que você retira:</b> some do mapa na hora; o registro fica até 30 dias depois do vencimento original, para auditoria contra abuso, e então é apagado.</li>
+    <li><b>Reputação:</b> enquanto a conta existir.</li>
+    <li><b>Conta:</b> até você pedir a exclusão e ela ser feita.</li>
+    <li><b>Dados no aparelho:</b> até você apagá-los (excluir relato ou veículo, ou limpar os dados do site no navegador).</li>
+  </ul>
+
+  <h2>Onde ficam e quem mais recebe</h2>
+  <ul>
+    <li>Banco de dados e contas no <b>Supabase</b>, em servidores na região de São Paulo (sa-east-1), com regras de acesso por usuário.</li>
+    <li><b>Mapa</b> (OpenFreeMap) e <b>rotas</b> (servidor público Valhalla do projeto OpenStreetMap): recebem as áreas do mapa que você vê e, ao traçar uma rota, a origem e o destino. Cada serviço tem a sua própria política. O servidor de rotas público é só para teste.</li>
+    <li><b>Busca de destino</b> (serviço público Photon, da Komoot, com dados do OpenStreetMap): recebe o texto que você digita na busca, ou o nome do lugar pedido por voz ("me leva para…"), e a sua posição, para ordenar os resultados pela distância. Tem a sua própria política. Sem internet, a busca é só nos destinos recentes guardados no aparelho.</li>
+    <li><b>Endereço</b> (serviço público Nominatim, do OpenStreetMap): recebe a posição exata (na Emergência) ou o ponto tocado no mapa, para devolver rua, cidade e rodovia. Tem a sua própria política. Sem internet, o endereço vem só do mapa guardado no aparelho.</li>
+    <li><b>Reconhecimento de fala</b> do aparelho (no iPhone, da Apple; em outros celulares, do navegador, como o Google): recebe o áudio de cada comando de voz depois do seu toque em "Falar" e, no modo mãos-livres, o áudio enquanto o app está na tela. Tem a sua própria política.</li>
+    <li>Outros motoristas veem os relatos (tipo, local, validade e quantas confirmações), mas <b>não veem quem relatou</b>.</li>
+  </ul>
+
+  <h2>Seus direitos (LGPD, art. 18)</h2>
+  <p>Você pode pedir: confirmação de que tratamos seus dados, acesso, correção, anonimização, bloqueio ou eliminação do que for
+  desnecessário, portabilidade, informação sobre com quem compartilhamos, e revogar o consentimento a qualquer momento.</p>
+  <ul>
+    <li><b>Revogar:</b> aba Conta → Privacidade, cada opção separada.</li>
+    <li><b>Retirar todos os meus relatos:</b> aba Conta → Meus dados. Relatos já contestados por outros motoristas não podem ser retirados (regra contra quem tenta fugir da penalidade), mas vencem e são apagados no prazo.</li>
+    <li><b>Pedir exclusão da conta:</b> aba Conta → Meus dados. O pedido fica registrado e a exclusão é feita manualmente pelo responsável; <b>o prazo ainda vai ser definido</b> antes da publicação.</li>
+    <li>Para os demais pedidos: contato do responsável <b>a definir antes da publicação</b>. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).</li>
+  </ul>
+
+  <h2>Segurança e menores</h2>
+  <p>A conexão é cifrada (HTTPS). O app é para motoristas habilitados; não é destinado a menores de 18 anos.</p>
+
+  <h2>Mudanças</h2>
+  <p>Se este texto mudar no que você escolheu, o app pergunta de novo antes de continuar.</p>
+  <p class="suave">Texto de teste, pendente de revisão jurídica (PRI-04) antes da publicação nacional.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,38 @@
+/* Offline e dados (pacote E3): faixa de estado, faixa de atualização, relatos guardados, última rota.
+   O mapa da rota baixa sozinho em segundo plano (sem botão nem barra de progresso). */
+.e3-estado {
+  display: block; width: 100%; border: 0; border-bottom: 1px solid var(--linha); z-index: 5;
+  background: var(--painel); color: var(--suave); font-size: 13px; font-weight: 600; text-align: center;
+  min-height: 30px; padding: 5px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.e3-estado::before { content: "● "; color: var(--ok); }
+.e3-estado.sem-internet { background: #3a2a10; color: #ffd9a1; border-bottom-color: var(--acento); font-size: 14px; min-height: 36px; white-space: normal; }
+.e3-estado.sem-internet::before { content: "⚠ "; color: var(--acento); }
+
+.e3-atualizar {
+  display: block; width: 100%; min-height: 64px; border: 0; z-index: 5;
+  background: var(--acento); color: var(--acento-texto); font-weight: 800; font-size: 17px;
+}
+.e3-atualizar[hidden] { display: none; }
+
+.e3-lista { margin: 0; padding-left: 20px; color: var(--suave); font-size: 14px; display: grid; gap: 4px; }
+.folha .e3-alerta, .e3-alerta { color: #ffb3ad; font-weight: 600; }
+.folha .e3-aviso-folha, .e3-aviso-conta { color: #ffd9a1; font-weight: 600; }
+.e3-aviso-conta {
+  margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--acento); background: #3a2a10; font-size: 14px;
+}
+.e3-aviso-conta[hidden] { display: none; }
+
+/* relato guardado (sem internet): cor do nível, apagado e tracejado para ver que é antigo.
+   Sem a classe "nuvem" de propósito: quem procura relatos da nuvem frescos não confunde com os guardados. */
+.relato-marca.e3-guardado { opacity: .8; border-style: dashed; }
+.relato-marca.e3-guardado.nivel-reported { background: #f6c27a; }
+.relato-marca.e3-guardado.nivel-confirmed { background: var(--ok); color: #06200f; }
+.relato-marca.e3-guardado.nivel-disputed { background: #2c3542; color: #ffd9a1; border-color: #ffd9a1; }
+
+/* Última rota (chegou): rótulo no meio da linha tracejada; tocar abre "Voltar pela mesma rota" / "Limpar rota" */
+.e3-rotulo-ultima {
+  border: 2px dashed var(--acento); border-radius: 999px; background: var(--painel); color: #ffd9a1;
+  font-size: 13px; font-weight: 800; padding: 6px 12px; min-height: 36px; white-space: nowrap; cursor: pointer;
+}
+.folha .e3-voltar { width: 100%; min-height: 72px; }

@@ -1,0 +1,23 @@
+/* Conta e voz (ui/conta.js, ui/voz.js) */
+/* Voz */
+.linha-check { display: flex; align-items: center; gap: 12px; font-size: 16px; color: var(--texto); min-height: 48px; }
+.linha-check input { width: 28px; height: 28px; min-height: 0; accent-color: var(--acento); flex: none; }
+
+/* Conta */
+.cartao { background: var(--painel); border: 1px solid var(--linha); border-radius: 14px; padding: 14px; display: grid; gap: 8px; margin-bottom: 14px; }
+.cartao h2 { margin: 0; font-size: 17px; }
+.reputacao-num { font-size: 34px; font-weight: 800; color: var(--acento); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.msg-conta { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--acento); font-size: 15px; }
+.msg-conta[hidden] { display: none; }
+.msg-conta.erro-msg { border-color: #ff8b84; color: #ffd0cc; }
+.email-conta { word-break: break-all; color: var(--texto); }
+
+/* Entrar com Google (acima do e-mail/senha) */
+.conta-social { display: grid; gap: 8px; margin-bottom: 12px; }
+.btn-google { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 64px; width: 100%;
+  background: #fff; color: #1f1f1f; border-color: #dadce0; font-weight: 700; font-size: 17px; }
+.btn-google:disabled { opacity: .6; }
+.btn-google .g-logo { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  font: 900 18px/1 system-ui, sans-serif; color: #fff; background: conic-gradient(#ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0); }
+.ou-separador { display: flex; align-items: center; gap: 10px; margin: 4px 0 0; color: var(--suave); font-size: 14px; }
+.ou-separador::before, .ou-separador::after { content: ""; flex: 1; height: 1px; background: var(--linha); }
