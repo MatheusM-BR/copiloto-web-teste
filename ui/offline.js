@@ -1,7 +1,7 @@
 // Offline e dados (pacote E3): service worker, faixa de estado (online/sem internet e idade dos dados),
-// rota e relatos guardados para abrir sem internet, "Baixar mapa da rota" (corredor) e avisos do que
-// depende de internet (PER-02). Lógica pura em offline.js (window.CopilotoOffline).
-// Expõe Copiloto.offline: online(), rotaGuardada(), relatosGuardados(), mapaBaixado(), baixando(), esquecerRota(),
+// rota e relatos guardados para abrir sem internet, mapa da rota em cache automático (corredor baixado sozinho ao traçar,
+// sem botão) e avisos do que depende de internet (PER-02). Lógica pura em offline.js (window.CopilotoOffline).
+// Expõe Copiloto.offline: online(), rotaGuardada(), relatosGuardados(), mapaBaixado(), baixando(), corredores(), esquecerRota(),
 // marcarUltima(info), ultimaRota(), marcarConferida(ts), abrirRotaGuardada().
 // Chegada (pedido do dono do produto): a rota guardada e o mapa do corredor NÃO são apagados; a rota vira "última rota"
 // por 30 dias (O.ULTIMA_VALIDADE_MS), com a linha tracejada marcada "Última rota" no mapa, "Voltar pela mesma rota" e
@@ -13,10 +13,11 @@
   const O = window.CopilotoOffline;
   const CHAVE_ROTA = "copiloto.e3.rota.v1";
   const CHAVE_RELATOS = "copiloto.e3.relatos.v1";
-  const CHAVE_MAPA = "copiloto.e3.mapa.v1";
-  const CACHE_ROTA = "copiloto-mapa-rota";
+  const CHAVE_MAPA = "copiloto.e3.mapa.v1";     // formato antigo (um corredor só): ainda lido
+  const CHAVE_MAPAS = "copiloto.e3.mapas.v2";   // corredores baixados sozinhos (um por rota)
+  const CHAVE_PERSIST = "copiloto.e3.persist.v1"; // navigator.storage.persist() já pedido
   const CACHE_ESTILO = "copiloto-mapa-estilo";
-  const PARALELO = 6, FALHAS_SEGUIDAS_PARA_PARAR = 8;
+  const FALHAS_SEGUIDAS_PARA_PARAR = 8;
 
   let swRegistro = null, swErro = null, pediuAtualizar = false;
   let rotaGuardada = null;        // { salvoEm, destino, origem, km, minutos, coords, avisos, perfilNome, resposta }
@@ -24,7 +25,6 @@
   let relatosGuardados = null;    // { salvoEm, usuario, lista }
   let relatosFrescos = false;     // já chegou lista nova da nuvem nesta sessão
   const marcasGuardadas = new Map();
-  let download = null;            // { parar, feitos, total, pct }
   let falhaGravar = null;         // texto se não conseguiu guardar rota/relatos (PER-02)
 
   // ------------------------------------------------------------ armazenamento (sem silêncio: falha vira aviso)
@@ -58,12 +58,55 @@
   function aquecerEstilo() {
     if (aqueceu || !online() || !navigator.serviceWorker.controller) return;
     aqueceu = true;
+    setTimeout(() => { guardarEstilosDosTemas().catch(() => {}); }, 2500);
     C.mapaPronto(() => {
       const urls = new Set([C.mapaEstiloUrl]);
       const fontes = (C.mapa.getStyle() || {}).sources || {};
       for (const id of Object.keys(fontes)) if (typeof fontes[id].url === "string") urls.add(fontes[id].url);
       for (const u of urls) if (u && O.classificarUrl(u)) fetch(u, { mode: "cors" }).catch(() => {});
     });
+  }
+  // Os DOIS estilos do mapa (claro e escuro: JSON, TileJSON, sprite e glifos) ficam guardados no cache do mapa quando há internet,
+  // para trocar o tema sem internet (ui/mapa.js busca o JSON do estilo novo antes de trocar). Só o estilo em uso passava pelo
+  // service worker; o do outro tema nunca era pedido. Roda ao abrir (uma vez por dia, ou se faltar algum) e junto do download do
+  // corredor da rota. Devolve true se os dois ficaram guardados.
+  const CHAVE_ESTILOS = "copiloto.e3.estilos.v1";
+  const ESTILOS_RENOVAR_MS = 24 * 3600e3;
+  let guardandoEstilos = null;
+  async function estilosPrecisamDeGuarda(est) {
+    const o = ler(CHAVE_ESTILOS);
+    if (!o || !(Date.now() - o.em < ESTILOS_RENOVAR_MS)) return true;
+    for (const url of Object.values(C.tema.ESTILOS)) if (!(await est.match(url))) return true;
+    return false;
+  }
+  function guardarEstilosDosTemas(deveParar, forcar) {
+    if (guardandoEstilos) return guardandoEstilos;
+    guardandoEstilos = (async () => {
+      if (!online() || !("caches" in window) || !C.tema || !C.tema.ESTILOS) return false;
+      let est;
+      try { est = await caches.open(CACHE_ESTILO); } catch (e) { return false; }
+      if (!forcar && !(await estilosPrecisamDeGuarda(est))) return true;
+      let tudo = true;
+      for (const url of Object.values(C.tema.ESTILOS)) {
+        if (deveParar && deveParar()) return false;
+        try {
+          const resp = await fetch(url, { cache: "no-store", mode: "cors" });
+          if (!resp.ok) { tudo = false; continue; }
+          const json = await resp.clone().json();
+          await est.put(url, await carimbar(resp));
+          const extras = Object.values((json && json.sources) || {}).map((f) => f && f.url).filter((u) => typeof u === "string");
+          for (const u of extras.concat(O.recursosDoEstilo(json, url))) {
+            if (deveParar && deveParar()) return false;
+            if (!O.classificarUrl(u)) continue;
+            if (await est.match(u)) continue;
+            try { const r = await fetch(u, { cache: "no-store", mode: "cors" }); if (r.ok) await est.put(u, await carimbar(r)); else tudo = false; } catch (e) { tudo = false; }
+          }
+        } catch (e) { tudo = false; }
+      }
+      if (tudo) gravar(CHAVE_ESTILOS, { em: Date.now() });
+      return tudo;
+    })().finally(() => { guardandoEstilos = null; });
+    return guardandoEstilos;
   }
   function mostrarAtualizar() {
     let b = $("e3-atualizar");
@@ -83,11 +126,7 @@
   }
 
   // ------------------------------------------------------------ faixa de estado
-  function mapaMeta() { return ler(CHAVE_MAPA); }
-  function mapaDaRotaAtual() {
-    const m = mapaMeta(), r = rotaGuardada;
-    return m && r && m.rotaId === r.salvoEm ? m : null;
-  }
+  function mapaDaRotaAtual() { return corredorDaRota(rotaGuardada); }
   function estadoAtual() {
     const m = mapaDaRotaAtual();
     return {
@@ -95,16 +134,21 @@
       relatosEm: relatosGuardados && C.nuvem.logado() ? relatosGuardados.salvoEm : null,
       rota: !!rotaGuardada,
       mapa: m ? { em: m.em, completo: m.completo, pct: m.total ? (100 * m.baixados) / m.total : 0 } : null,
-      baixando: download ? download.pct : null,
+      baixando: download ? Math.max(0, Math.min(99, download.pct || 0)) : null, // download automático do mapa da rota (em segundo plano)
     };
   }
   let ultimoTexto = null;
+  // A faixa só aparece quando há o que dizer: sem internet, falha ao guardar (pouco espaço) ou baixando o mapa da rota.
+  // Online e tudo em dia ("Online · mapa da rota baixado às 14:10"), nada na tela.
   function atualizarFaixa() {
     const f = $("e3-estado"); if (!f) return;
     const e = estadoAtual();
     const texto = O.textoEstado(e);
-    f.textContent = texto;
+    const mostrar = !e.online || !!falhaGravar || e.baixando != null;
+    if (f.hidden === mostrar) f.hidden = !mostrar;
+    if (f.textContent !== texto) f.textContent = texto;
     f.classList.toggle("sem-internet", !e.online);
+    f.classList.toggle("com-falha", e.online && !!falhaGravar);
     f.setAttribute("aria-label", texto + ". Toque para detalhes.");
     $("e3-aviso-conta").hidden = e.online;
     if (texto !== ultimoTexto) { ultimoTexto = texto; C.emit("offline:estado", { online: e.online, texto }); }
@@ -124,7 +168,6 @@
     if (swErro) itens.push(el("p", "e3-alerta", swErro));
     if (falhaGravar) itens.push(el("p", "e3-alerta", falhaGravar));
     const b = el("div", "linha-botoes");
-    if (rotaGuardada) b.append(botao("Baixar mapa da rota", "btn", abrirBaixar));
     if (ultimaRota()) b.append(botao("Última rota", "btn", folhaRotaGuardada));
     b.append(botao("Fechar", "btn", C.folha.fechar));
     itens.push(b);
@@ -161,22 +204,16 @@
       }
     }
     apagarDesenhoRota();
-    atualizarBotao(); atualizarFaixa();
-    // a folha da rota (ui/rota.js) cobre a coluna de botões: oferece o download nela também.
-    // ui/rota.js emite "rota" antes de abrir a folha com o resultado: espera ela abrir (e só mexe nessa folha,
-    // não numa folha de outro módulo aberta durante um recálculo da navegação).
-    setTimeout(() => {
-      const f = $("folha"), h = f.querySelector("h2");
-      const linha = f.querySelector(".linha-botoes");
-      if (f.hidden || !linha || !h || !/^Rota para /.test(h.textContent) || $("e3-baixar-folha")) return;
-      const b = botao("Baixar mapa da rota", "btn", abrirBaixar); b.id = "e3-baixar-folha";
-      linha.insertBefore(b, linha.firstChild);
-    }, 0);
+    atualizarFaixa();
+    // mapa do corredor: baixa sozinho em segundo plano (mesma rota pronta não baixa de novo; rota nova cancela a anterior)
+    if (download && download.rotaId !== rotaGuardada.salvoEm) pararDownload("trocou");
+    agendarCorredor();
   }
   function esquecerRota() {
     rotaGuardada = null; rotaDestaSessao = false;
     gravar(CHAVE_ROTA, null);
-    apagarDesenhoRota(); atualizarBotao(); atualizarFaixa();
+    pararDownload("limpa"); // o que já baixou fica (mapa guardado, sai pela validade ou com pouco espaço)
+    apagarDesenhoRota(); atualizarFaixa();
   }
   // Grava a rota guardada como está (com a marca de última rota / conferência). Sem espaço: sem as manobras.
   function regravar() {
@@ -192,7 +229,7 @@
     rotaGuardada = Object.assign({}, rotaGuardada, { ultima: Object.assign({ chegouEm: Date.now(), sentido: "ida" }, info) });
     rotaDestaSessao = false;
     regravar();
-    desenharRotaGuardada(); atualizarBotao(); atualizarFaixa();
+    desenharRotaGuardada(); atualizarFaixa();
     return true;
   }
   function ultimaRota() { return rotaGuardada && O.ultimaValida(rotaGuardada, Date.now()) ? rotaGuardada.ultima : null; }
@@ -247,8 +284,7 @@
     const resumo = (isFinite(r.km) ? window.CopilotoRota.formatarKm(r.km) : "distância desconhecida") + " · " +
       (isFinite(r.minutos) ? window.CopilotoRota.formatarTempo(r.minutos) : "tempo desconhecido");
     const b = el("div", "linha-botoes");
-    const baixar = botao("Baixar mapa da rota", "btn btn-principal", abrirBaixar);
-    b.append(baixar, botao("Esquecer rota", "btn", () => { esquecerRota(); C.folha.fechar(); }), botao("Fechar", "btn", C.folha.fechar));
+    b.append(botao("Esquecer rota", "btn", () => { esquecerRota(); C.folha.fechar(); }), botao("Fechar", "btn", C.folha.fechar));
     const m = mapaDaRotaAtual();
     const itens = [
       el("h2", "e3-titulo-rota", "Rota guardada" + (r.perfilNome ? " · " + r.perfilNome : "")),
@@ -256,7 +292,7 @@
       el("p", null, "Traçada " + O.formatarIdade(Date.now() - r.salvoEm) + " (" + O.formatarHora(r.salvoEm) + "). " +
         (online() ? "Para atualizar, trace de novo." : "Sem internet: dá para seguir esta rota; rota nova só com internet.")),
     ];
-    if (m && m.completo) { itens.push(el("p", null, "Mapa do caminho baixado às " + O.formatarHora(m.em) + ".")); baixar.remove(); }
+    if (m && m.completo) itens.push(el("p", null, "Mapa do caminho guardado às " + O.formatarHora(m.em) + "."));
     for (const a of r.avisos || []) itens.push(el("p", "aviso-rota", a));
     // navegação guiada (E1) a partir da rota guardada: sem internet ela segue esta rota sem recalcular
     if (C.navegacao && C.navegacao.iniciar && !C.navegacao.ativa()) {
@@ -329,14 +365,58 @@
     }
   }
 
-  // ------------------------------------------------------------ baixar mapa da rota (corredor)
-  let botaoBaixar = null;
-  function atualizarBotao() { if (botaoBaixar) botaoBaixar.hidden = !rotaGuardada; }
+  // ------------------------------------------------------------ mapa da rota em cache automático (corredor)
+  // Sem botão: ao traçar uma rota (evento "rota"), o corredor dela é baixado sozinho, em segundo plano, para um cache
+  // próprio (O.nomeCacheCorredor(id), id = salvoEm da rota guardada). Não baixa de novo o que está pronto e valendo
+  // (30 dias, O.CORREDOR_VALIDADE_MS); rota trocada cancela o download em andamento; sem internet não tenta (volta a
+  // tentar no evento "online"); com dados móveis segue normal. Antes de baixar, limpa os corredores vencidos e, com
+  // pouco espaço (O.LIMIAR_ESPACO: livre < 15 % da cota ou < 200 MB), os mais antigos, nunca o da rota ativa.
+  // Pede navigator.storage.persist() uma vez, no primeiro download. Aviso só em erro relevante (sem espaço).
+  const PARALELO = 4; // 4 pedidos de cada vez: não disputa com o mapa nem trava a tela
+  const ESPERA_REDE_MS = 2 * 60e3, TENTATIVAS_REDE = 3;
+  let download = null;            // { id, rotaId, parar, motivo, feitos, total, pct, bytes, fim (Promise) }
+  let timerAgenda = null, timerRede = null, tentativasRede = 0, avisouEspacoDe = null, esperandoMapa = false;
+
+  // Registro dos corredores (localStorage). Lê também o formato antigo (um corredor só, cache "copiloto-mapa-rota").
+  function corredores() {
+    const lista = (Array.isArray(ler(CHAVE_MAPAS)) ? ler(CHAVE_MAPAS) : []).filter((c) => c && c.id != null);
+    const antigo = ler(CHAVE_MAPA);
+    if (antigo && antigo.rotaId != null && !lista.some((c) => c.cache === O.CACHE_CORREDOR)) {
+      const em = antigo.em || antigo.iniciado || Date.now();
+      lista.push({ id: "antigo-" + antigo.rotaId, cache: O.CACHE_CORREDOR, rotaId: antigo.rotaId, destino: null, iniciado: antigo.iniciado || em,
+        em: antigo.em || null, validoAte: em + O.CORREDOR_VALIDADE_MS, completo: !!antigo.completo, total: antigo.total || 0,
+        baixados: antigo.baixados || 0, bytes: antigo.bytes || 0 });
+    }
+    return lista;
+  }
+  function gravarCorredores(lista) {
+    const novos = lista.filter((c) => c.cache !== O.CACHE_CORREDOR);
+    const antigo = lista.find((c) => c.cache === O.CACHE_CORREDOR);
+    if (!antigo) gravar(CHAVE_MAPA, null);
+    else gravar(CHAVE_MAPA, { rotaId: antigo.rotaId, total: antigo.total, baixados: antigo.baixados, bytes: antigo.bytes, em: antigo.em, completo: antigo.completo, iniciado: antigo.iniciado });
+    gravar(CHAVE_MAPAS, novos);
+  }
+  function salvarCorredor(c) {
+    const lista = corredores().filter((x) => String(x.id) !== String(c.id));
+    lista.push(c); gravarCorredores(lista);
+  }
+  function corredorDaRota(r) {
+    if (!r) return null;
+    return corredores().find((c) => c.rotaId === r.salvoEm && c.cache !== O.CACHE_CORREDOR) ||
+      corredores().find((c) => c.rotaId === r.salvoEm) || null;
+  }
+  async function removerCorredor(id) {
+    const c = corredores().find((x) => String(x.id) === String(id)); if (!c) return;
+    try { await caches.delete(c.cache); } catch (e) { /* segue */ }
+    gravarCorredores(corredores().filter((x) => String(x.id) !== String(id)));
+  }
 
   // Modelo do endereço dos blocos ({z}/{x}/{y}) e zoom máximo da fonte vetorial do estilo carregado.
   function fonteDeBlocos() {
-    const m = C.mapa; if (!m || !m.isStyleLoaded()) return null;
-    const estilo = m.getStyle();
+    const m = C.mapa; if (!m) return null;
+    let estilo;
+    try { estilo = m.getStyle(); } catch (e) { return null; }
+    if (!estilo) return null;
     for (const id of Object.keys(estilo.sources || {})) {
       const def = estilo.sources[id];
       if (def.type !== "vector") continue;
@@ -351,149 +431,177 @@
     try { if (navigator.storage && navigator.storage.estimate) return await navigator.storage.estimate(); } catch (e) { /* sem estimativa */ }
     return null;
   }
-  async function persistente() {
-    try { if (navigator.storage && navigator.storage.persisted) return await navigator.storage.persisted(); } catch (e) { /* sem suporte */ }
-    return null;
-  }
-
-  async function abrirBaixar() {
-    const r = rotaGuardada;
-    if (!r) return;
-    if (download) { folhaProgresso(); return; }
-    if (!online()) { folhaSimples("Precisa de internet", "Baixar o mapa da rota precisa de internet. O que já está guardado continua funcionando."); return; }
-    const fonte = fonteDeBlocos();
-    if (!fonte) { folhaSimples("O mapa ainda não carregou", "Espere o mapa aparecer (precisa de internet) e tente de novo."); return; }
-    const plano = O.planejarCorredor(r.coords, { zMax: Math.min(14, fonte.maxzoom) });
-    const [est, persist] = await Promise.all([espacoLivre(), persistente()]);
-    const espaco = O.cabeNoAparelho(est, plano.bytes);
-    const itens = [el("h2", null, "Baixar mapa da rota"),
-      el("div", "grande", "~" + O.formatarBytes(plano.bytes)),
-      el("p", "e3-estimativa", "Cerca de " + O.formatarNumero(plano.total) + " pedaços de mapa, faixa de " +
-        O.formatarNumero(plano.larguraM / 1000) + " km em volta da rota. O tamanho é estimado."),
-    ];
-    if (plano.reduzido) itens.push(el("p", null, "Rota longa: o mapa baixado vai até o zoom " + plano.zMax + " (menos detalhe de perto) para não ficar grande demais."));
-    if (espaco.sabe) itens.push(el("p", null, "Espaço que o app ainda pode usar: ~" + O.formatarBytes(espaco.livre) + "."));
-    else itens.push(el("p", null, "Este aparelho não informa o espaço livre."));
-    const m = mapaMeta();
-    if (m && m.rotaId !== r.salvoEm) itens.push(el("p", null, "O mapa baixado da rota anterior vai ser trocado por este."));
-    const b = el("div", "linha-botoes");
-    if (!espaco.cabe) {
-      itens.push(el("p", "e3-alerta", "Não cabe: o aparelho não tem espaço suficiente para este mapa. Libere espaço no iPhone ou trace uma rota menor."));
-    } else {
-      if (persist === false) itens.push(el("p", null, "Vamos pedir ao aparelho para não apagar o mapa baixado quando faltar espaço. Se ele pedir permissão, toque em Permitir."));
-      const sim = botao("Baixar agora", "btn btn-principal", () => iniciarDownload(plano, fonte, persist === false));
-      sim.id = "e3-confirmar-baixar";
-      b.append(sim);
-    }
-    b.append(botao("Cancelar", "btn", C.folha.fechar));
-    itens.push(b);
-    C.folha.abrir(itens);
-  }
-
-  function folhaSimples(titulo, texto) {
-    const b = el("div", "linha-botoes"); b.append(botao("Fechar", "btn", C.folha.fechar));
-    C.folha.abrir([el("h2", null, titulo), el("p", null, texto), b]);
-  }
-
-  let progressoEl = null;
-  function folhaProgresso() {
-    const d = download; if (!d) return;
-    progressoEl = el("p", "e3-progresso-texto");
-    const barra = el("div", "e3-barra"); const cheio = el("div", "e3-barra-cheia"); barra.append(cheio);
-    progressoEl._barra = cheio;
-    const parar = botao("Parar", "btn btn-grande", () => { d.parar = true; d.motivo = "motorista"; });
-    parar.id = "e3-parar";
-    const b = el("div", "coluna-botoes"); b.append(parar, botao("Continuar usando o app", "btn", C.folha.fechar));
-    C.folha.abrir([el("h2", null, "Baixando mapa da rota…"), barra, progressoEl,
-      el("p", null, "Pode parar quando quiser: o que já baixou fica guardado."), b]);
-    desenharProgresso();
-  }
-  function desenharProgresso() {
-    const d = download;
-    if (!d || !progressoEl || !progressoEl.isConnected) return;
-    progressoEl.textContent = O.formatarNumero(d.feitos) + " de " + O.formatarNumero(d.total) + " (" + Math.floor(d.pct) + "%)";
-    progressoEl._barra.style.width = d.pct + "%";
-  }
-
-  async function iniciarDownload(plano, fonte, pedirPersistencia) {
-    const r = rotaGuardada; if (!r || download) return;
-    if (pedirPersistencia) { try { await navigator.storage.persist(); } catch (e) { /* o aparelho decide */ } }
-    if (!("caches" in window)) { folhaSimples("Não foi possível baixar", "Este navegador não deixa guardar o mapa."); return; }
-    const anterior = mapaMeta();
-    if (anterior && anterior.rotaId !== r.salvoEm) await caches.delete(CACHE_ROTA); // um corredor por vez: o da rota guardada
-    const cacheRota = await caches.open(CACHE_ROTA);
-    const meta = { rotaId: r.salvoEm, total: plano.total, baixados: 0, bytes: 0, em: null, completo: false, zMax: plano.zMax, iniciado: Date.now() };
-    gravar(CHAVE_MAPA, meta);
-    const d = download = { parar: false, motivo: null, feitos: 0, total: plano.total, pct: 0, bytes: 0, semBloco: 0, erros: 0 };
-    folhaProgresso(); atualizarFaixa();
-
-    // fontes e sprites do estilo (para os nomes das ruas aparecerem sem internet)
+  // Pede uma vez só (o iPhone instalado na tela de início costuma aceitar sem perguntar)
+  async function pedirPersistenciaUmaVez() {
+    if (ler(CHAVE_PERSIST)) return;
+    gravar(CHAVE_PERSIST, { pedidoEm: Date.now() });
     try {
-      const est = await caches.open(CACHE_ESTILO);
-      const extras = [C.mapaEstiloUrl].concat(Object.values(fonte.estilo.sources || {}).map((f) => f.url))
-        .filter((u) => typeof u === "string" && O.classificarUrl(u));
-      for (const u of extras.concat(O.recursosDoEstilo(fonte.estilo, fonte.modelo))) {
-        if (d.parar) break;
-        try { const resp = await fetch(u, { cache: "no-store", mode: "cors" }); if (resp.ok) await est.put(u, await carimbar(resp)); } catch (e) { /* segue */ }
-      }
-    } catch (e) { /* sem Cache Storage para o estilo: segue com os blocos */ }
+      if (!navigator.storage || !navigator.storage.persist) return;
+      if (navigator.storage.persisted && await navigator.storage.persisted()) return;
+      await navigator.storage.persist();
+    } catch (e) { /* o aparelho decide */ }
+  }
 
-    let seguidas = 0, ultimoDesenho = 0;
-    const fila = plano.blocos.slice();
-    async function trabalhador() {
-      while (!d.parar && fila.length) {
-        const b = fila.shift();
-        const url = O.urlBloco(fonte.modelo, b);
-        const chave = O.chaveBloco(url) || url;
-        try {
-          if (!(await cacheRota.match(chave))) {
-            const resp = await fetch(url, { cache: "no-store", mode: "cors" });
-            if (resp.ok) {
-              const c = await carimbar(resp);
-              d.bytes += Number(c.headers.get("x-copiloto-bytes")) || 0;
-              await cacheRota.put(chave, c);
-            } else if (resp.status === 404 || resp.status === 204) d.semBloco++; // mar ou área sem dado
-            else d.erros++;
-          }
-          seguidas = 0;
-        } catch (e) {
-          if (e && e.name === "QuotaExceededError") { d.parar = true; d.motivo = "espaco"; break; }
-          d.erros++;
-          if (++seguidas >= FALHAS_SEGUIDAS_PARA_PARAR || !online()) { d.parar = true; d.motivo = d.motivo || "rede"; break; }
-          fila.push(b); // tenta este bloco de novo mais tarde
-          continue;
-        }
-        d.feitos++;
-        d.pct = (100 * d.feitos) / d.total;
-        const agora = Date.now();
-        if (agora - ultimoDesenho > 250) { ultimoDesenho = agora; desenharProgresso(); atualizarFaixa(); meta.baixados = d.feitos; gravar(CHAVE_MAPA, meta); }
-      }
-    }
-    await Promise.all(Array.from({ length: PARALELO }, trabalhador));
-    meta.baixados = d.feitos; meta.bytes = (anterior && anterior.rotaId === r.salvoEm ? anterior.bytes || 0 : 0) + d.bytes;
-    meta.completo = d.feitos >= d.total;
-    meta.em = Date.now();
-    gravar(CHAVE_MAPA, meta);
-    download = null;
-    atualizarFaixa();
-    const b = el("div", "linha-botoes");
-    if (meta.completo) {
-      b.append(botao("Fechar", "btn btn-principal", C.folha.fechar));
-      const persist = await persistente();
-      const itens = [el("h2", null, "Mapa da rota baixado"),
-        el("p", null, O.formatarNumero(meta.total) + " pedaços de mapa (" + O.formatarBytes(meta.bytes) + " baixados agora). O mapa do caminho aparece mesmo sem internet."),
-      ];
-      if (persist === false) itens.push(el("p", "e3-alerta", "O aparelho não garantiu guardar para sempre: se faltar espaço, ele pode apagar o mapa. Instalar o app na tela de início ajuda."));
-      itens.push(b);
-      C.folha.abrir(itens);
-    } else {
-      const motivo = d.motivo === "motorista" ? "Download parado." :
-        d.motivo === "espaco" ? "O espaço do aparelho acabou." : "A internet caiu.";
-      b.append(botao("Continuar baixando", "btn btn-principal", abrirBaixar), botao("Fechar", "btn", C.folha.fechar));
-      C.folha.abrir([el("h2", null, motivo),
-        el("p", null, "Já baixou " + O.formatarNumero(d.feitos) + " de " + O.formatarNumero(d.total) + " (" + Math.floor(d.pct) + "%). O que baixou fica guardado; continue quando quiser."), b]);
+  // Espera curta: vários "rota" seguidos (recálculo) viram um download só
+  function agendarCorredor(ms) {
+    clearTimeout(timerAgenda);
+    timerAgenda = setTimeout(() => { garantirCorredor().catch(() => {}); }, ms == null ? 400 : ms);
+  }
+  function pararDownload(motivo) { if (download) { download.parar = true; download.motivo = download.motivo || motivo; } }
+
+  // Uma conferência por vez (início, "rota", "online" podem chegar juntos); a que chegar no meio roda depois.
+  let garantindo = false, deNovo = false;
+  async function garantirCorredor() {
+    if (garantindo) { deNovo = true; return; }
+    garantindo = true;
+    try { await garantirAgora(); } finally {
+      garantindo = false;
+      if (deNovo) { deNovo = false; agendarCorredor(0); }
     }
   }
+  async function garantirAgora() {
+    const r = rotaGuardada;
+    if (!r || !Array.isArray(r.coords) || r.coords.length < 2) return;
+    if (!online() || !("caches" in window)) return;
+    const reg = corredorDaRota(r);
+    const id = reg ? String(reg.id) : String(r.salvoEm);
+    if (download) {
+      if (download.rotaId === r.salvoEm) return; // já baixando esta rota
+      pararDownload("trocou");
+      await download.fim; // (o download em andamento não segura a trava: ele roda fora do garantir)
+      if (!rotaGuardada || rotaGuardada.salvoEm !== r.salvoEm) return; // outra rota chegou enquanto esperava: ela agenda o próprio download
+    }
+    if (reg && O.corredorPronto(reg, Date.now())) return; // pronto e valendo: não baixa de novo
+    const fonte = fonteDeBlocos();
+    if (!fonte) {
+      // estilo ainda carregando: tenta quando o mapa ficar pronto (sem fonte vetorial no estilo, não há o que baixar)
+      if (!esperandoMapa) { esperandoMapa = true; C.mapaPronto(() => { esperandoMapa = false; if (fonteDeBlocos()) agendarCorredor(0); }); }
+      return;
+    }
+    const plano = O.planejarCorredor(r.coords, { zMax: Math.min(14, fonte.maxzoom) });
+    // corredor vencido da rota ativa: começa do zero (blocos velhos saem)
+    let atual = reg;
+    if (atual && O.corredorVencido(atual, Date.now()) && atual.completo) { await removerCorredor(atual.id); atual = null; }
+    const falta = atual ? Math.max(0, plano.bytes * (1 - (atual.baixados || 0) / Math.max(1, plano.total))) : plano.bytes;
+    const limpeza = O.planejarLimpeza(corredores(), { agora: Date.now(), ativo: atual ? atual.id : id, estimativa: await espacoLivre(), bytesNovo: falta });
+    for (const x of limpeza.remover) await removerCorredor(x);
+    if (!rotaGuardada || rotaGuardada.salvoEm !== r.salvoEm || download) return;
+    if (!limpeza.cabe) { avisarEspaco(r); return; }
+    pedirPersistenciaUmaVez();
+    baixarCorredor(r, atual, plano, fonte).catch(() => {}); // em segundo plano: a trava sai já, a troca de rota pode cancelar
+  }
+
+  // Corredores vencidos (30 dias) saem ao abrir o app, menos o da rota ativa (esse é renovado com internet)
+  async function limparVencidos() {
+    if (!("caches" in window)) return;
+    const ativo = corredorDaRota(rotaGuardada);
+    for (const c of corredores()) if (O.corredorVencido(c, Date.now()) && (!ativo || String(c.id) !== String(ativo.id))) await removerCorredor(c.id);
+  }
+
+  function avisarEspaco(r) {
+    if (avisouEspacoDe === r.salvoEm) return;
+    avisouEspacoDe = r.salvoEm;
+    falhaGravar = "Pouco espaço no aparelho: o mapa desta rota não foi guardado para usar sem internet.";
+    C.mensagem(falhaGravar, 7000);
+    atualizarFaixa();
+  }
+
+  async function baixarCorredor(r, reg, plano, fonte) {
+    const agora = Date.now();
+    const meta = reg ? Object.assign({}, reg, { total: plano.total }) : {
+      id: String(r.salvoEm), cache: O.nomeCacheCorredor(r.salvoEm), rotaId: r.salvoEm, destino: O.chaveDestino(r),
+      iniciado: agora, em: null, validoAte: agora + O.CORREDOR_VALIDADE_MS, completo: false, total: plano.total, baixados: 0, bytes: 0,
+    };
+    salvarCorredor(meta);
+    let soltar;
+    // marcado já (antes de qualquer espera): outra conferência vê que esta rota está baixando
+    const d = download = { id: meta.id, rotaId: r.salvoEm, parar: false, motivo: null, feitos: 0, total: plano.total, pct: 0, bytes: 0,
+      fim: new Promise((ok) => { soltar = ok; }) };
+    atualizarFaixa();
+    try {
+      const cacheRota = await caches.open(meta.cache);
+      // fontes e sprites do estilo (para os nomes das ruas aparecerem sem internet)
+      try {
+        const est = await caches.open(CACHE_ESTILO);
+        const extras = [C.mapaEstiloUrl].concat(Object.values(fonte.estilo.sources || {}).map((f) => f.url))
+          .filter((u) => typeof u === "string" && O.classificarUrl(u));
+        for (const u of extras.concat(O.recursosDoEstilo(fonte.estilo, fonte.modelo))) {
+          if (d.parar) break;
+          if (await est.match(u)) continue;
+          try { const resp = await fetch(u, { cache: "no-store", mode: "cors" }); if (resp.ok) await est.put(u, await carimbar(resp)); } catch (e) { /* segue */ }
+        }
+      } catch (e) { /* sem Cache Storage para o estilo: segue com os blocos */ }
+      // os dois temas ficam guardados junto do corredor (trocar claro × escuro no meio da rota, sem internet)
+      try { await guardarEstilosDosTemas(() => d.parar); } catch (e) { /* segue com os blocos */ }
+
+      let seguidas = 0, ultimaGravacao = 0;
+      const fila = plano.blocos.slice();
+      const trabalhador = async () => {
+        while (!d.parar && fila.length) {
+          if (!online()) { d.parar = true; d.motivo = d.motivo || "rede"; break; }
+          const b = fila.shift();
+          const url = O.urlBloco(fonte.modelo, b);
+          const chave = O.chaveBloco(url) || url;
+          try {
+            if (!(await cacheRota.match(chave))) {
+              // já guardado em outro cache (mapa visto ou corredor anterior) e recente: copia, sem ir à rede
+              const outro = await caches.match(chave);
+              if (outro && idadeMs(outro) < 7 * 24 * 3600e3) {
+                d.bytes += Number(outro.headers.get("x-copiloto-bytes")) || 0;
+                await cacheRota.put(chave, outro);
+              } else {
+                const resp = await fetch(url, { cache: "no-store", mode: "cors" });
+                if (resp.ok) {
+                  const c = await carimbar(resp);
+                  d.bytes += Number(c.headers.get("x-copiloto-bytes")) || 0;
+                  await cacheRota.put(chave, c);
+                } else if (resp.status !== 404 && resp.status !== 204) { // 404/204: mar ou área sem dado
+                  if (++seguidas >= FALHAS_SEGUIDAS_PARA_PARAR) { d.parar = true; d.motivo = d.motivo || "rede"; break; }
+                  fila.push(b); continue;
+                }
+              }
+            }
+            seguidas = 0;
+          } catch (e) {
+            if (e && e.name === "QuotaExceededError") { d.parar = true; d.motivo = "espaco"; break; }
+            if (++seguidas >= FALHAS_SEGUIDAS_PARA_PARAR || !online()) { d.parar = true; d.motivo = d.motivo || "rede"; break; }
+            fila.push(b); // tenta este bloco de novo mais tarde
+            continue;
+          }
+          d.feitos++;
+          d.pct = (100 * d.feitos) / d.total;
+          if (Date.now() - ultimaGravacao > 1000) {
+            ultimaGravacao = Date.now();
+            meta.baixados = Math.max(meta.baixados || 0, d.feitos); meta.bytes = (reg ? reg.bytes || 0 : 0) + d.bytes;
+            salvarCorredor(meta);
+            atualizarFaixa();
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: PARALELO }, trabalhador));
+      meta.baixados = d.feitos; meta.bytes = (reg ? reg.bytes || 0 : 0) + d.bytes;
+      meta.completo = d.feitos >= d.total;
+      if (meta.completo) { meta.em = Date.now(); meta.validoAte = meta.em + O.CORREDOR_VALIDADE_MS; }
+      // rota limpa no meio do download: o pedaço baixado fica (vale como mapa guardado), mas não é mais o ativo
+      if (corredores().some((c) => String(c.id) === String(meta.id))) salvarCorredor(meta);
+      if (meta.completo) {
+        tentativasRede = 0;
+        // recálculo da mesma viagem: os corredores anteriores com o mesmo destino saem (não duplica o mapa)
+        const ativo = corredorDaRota(rotaGuardada);
+        for (const x of O.corredoresSubstituidos(corredores(), meta)) if (!ativo || String(x) !== String(ativo.id)) await removerCorredor(x);
+      } else if (d.motivo === "espaco") avisarEspaco(r);
+      else if (d.motivo === "rede" && online() && tentativasRede < TENTATIVAS_REDE) {
+        // servidor do mapa falhando com internet: tenta de novo daqui a pouco (sem internet, espera o "online")
+        tentativasRede++;
+        clearTimeout(timerRede); timerRede = setTimeout(() => agendarCorredor(0), ESPERA_REDE_MS);
+      }
+    } finally {
+      if (download === d) download = null;
+      soltar();
+      atualizarFaixa();
+    }
+  }
+  function idadeMs(resp) { const t = Number(resp.headers.get("x-copiloto-em")); return isFinite(t) && t > 0 ? Date.now() - t : Infinity; }
   async function carimbar(resp) {
     const corpo = await resp.arrayBuffer();
     const cab = new Headers(resp.headers);
@@ -519,8 +627,10 @@
     // true enquanto não chegou lista nova da nuvem nesta sessão (ex.: app aberto sem internet): o alerta à frente
     // usa os relatos guardados; quando a nuvem responde, passa a usar só a lista nova (mesmos ids, sem alerta repetido)
     usandoGuardados: () => !relatosFrescos && !!relatosGuardados,
-    mapaBaixado: () => mapaDaRotaAtual(), baixando: () => (download ? { feitos: download.feitos, total: download.total } : null),
-    abrirBaixar,
+    guardarEstilosDosTemas,
+    mapaBaixado: () => mapaDaRotaAtual(), baixando: () => (download ? { feitos: download.feitos, total: download.total, rotaId: download.rotaId } : null),
+    // corredores guardados (mapa das rotas em cache automático; o da rota ativa nunca é apagado)
+    corredores: () => corredores(),
     // "Limpar rota" da última rota e do resumo de chegada
     esquecerRota,
     // chegada: a rota vira "última rota" (30 dias) em vez de ser esquecida; a navegação confere a rota com a internet
@@ -529,14 +639,12 @@
 
   C.aoIniciar(() => {
     C.carregarEstilo("estilos/offline.css");
-    const faixa = el("button", "e3-estado"); faixa.type = "button"; faixa.id = "e3-estado";
+    const faixa = el("button", "e3-estado"); faixa.type = "button"; faixa.id = "e3-estado"; faixa.hidden = true;
     faixa.addEventListener("click", abrirDetalhes);
     document.querySelector(".aviso").after(faixa);
     const avisoConta = el("p", "e3-aviso-conta", "Sem internet: entrar na conta ou criar conta precisa de internet.");
     avisoConta.id = "e3-aviso-conta"; avisoConta.hidden = true;
     const tc = $("tela-conta"); if (tc) tc.insertBefore(avisoConta, tc.querySelector("h1").nextSibling);
-
-    botaoBaixar = C.botoesMapa.adicionar({ id: "e3-btn-baixar", icone: "⤓", rotulo: "Baixar mapa da rota", aoTocar: abrirBaixar, noFim: true });
 
     // dados guardados
     // M5: a gravada vem sem as coordenadas (só a polyline): decodifica aqui (aceita também o formato antigo, com coords)
@@ -545,7 +653,6 @@
     // última rota vencida (mais de 30 dias da chegada): esquecida
     if (rotaGuardada && rotaGuardada.ultima && !O.ultimaValida(rotaGuardada, Date.now())) { rotaGuardada = null; gravar(CHAVE_ROTA, null); }
     relatosGuardados = ler(CHAVE_RELATOS);
-    atualizarBotao();
     if (rotaGuardada) {
       desenharRotaGuardada();
       // o cartão "Ativar o GPS" fica no meio da tela: a folha da rota guardada espera ele sair
@@ -558,6 +665,11 @@
       }
     }
     C.mapaPronto(desenharRelatosGuardados);
+    // mapa da rota guardada: completa ou renova o corredor sozinho (com internet), e tira os corredores vencidos
+    C.mapaPronto(() => setTimeout(() => {
+      limparVencidos().catch(() => {});
+      if (rotaGuardada) agendarCorredor(0);
+    }, 1500));
 
     C.on("rota", guardarRota);
     C.on("rota-limpa", () => { if (rotaDestaSessao) esquecerRota(); });
@@ -570,13 +682,15 @@
       atualizarFaixa();
     });
     C.on("destino", (d) => { if (d) avisoDestinoSemInternet(); });
-    $("btn-destino").addEventListener("click", () => {
-      if (!online() && $("btn-destino").getAttribute("aria-pressed") === "true")
+    const btnDestino = $("btn-destino");
+    if (btnDestino) btnDestino.addEventListener("click", () => {
+      if (!online() && btnDestino.getAttribute("aria-pressed") === "true")
         C.mensagem("Sem internet: rota nova precisa de internet. Você ainda pode marcar o destino no mapa.", 7000);
     });
 
-    window.addEventListener("online", () => { atualizarFaixa(); C.mensagem("Internet de volta.", 4000); });
+    window.addEventListener("online", () => { atualizarFaixa(); C.mensagem("Internet de volta.", 4000); tentativasRede = 0; agendarCorredor(1000); setTimeout(() => { guardarEstilosDosTemas().catch(() => {}); }, 3000); });
     window.addEventListener("offline", () => {
+      pararDownload("rede");
       atualizarFaixa();
       C.mensagem("Sem internet. A rota e os relatos guardados continuam; rota nova e relatos novos esperam a conexão.", 8000);
     });

@@ -11,3 +11,16 @@
 .msg-conta[hidden] { display: none; }
 .msg-conta.erro-msg { border-color: #ff8b84; color: #ffd0cc; }
 .email-conta { word-break: break-all; color: var(--texto); }
+
+/* Entrar com Google (acima do e-mail/senha) */
+.conta-social { display: grid; gap: 8px; margin-bottom: 12px; }
+.btn-google { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 64px; width: 100%;
+  background: #fff; color: #1f1f1f; border-color: #dadce0; font-weight: 700; font-size: 17px; }
+.btn-google:disabled { opacity: .6; }
+.btn-google .g-logo { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  font: 900 18px/1 system-ui, sans-serif; color: #185abc; background: #fff; border: 2px solid #dadce0; }
+.ou-separador { display: flex; align-items: center; gap: 10px; margin: 4px 0 0; color: var(--suave); font-size: 14px; }
+.ou-separador::before, .ou-separador::after { content: ""; flex: 1; height: 1px; background: var(--linha); }
+
+/* Revisão 4 (item 18): na tela Conta (entrar, criar conta, escolhas de privacidade) os alvos também têm 64 px ou mais */
+#tela-conta .btn, #tela-conta input:not([type="checkbox"]), #tela-conta select, #tela-conta .linha-check { min-height: 64px; }

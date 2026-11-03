@@ -1,0 +1,65 @@
+/* Via do trajeto (ui/via.js) e rota longa (ui/rotalonga.js). Alvos ≥ 64 px; contraste nos dois temas (escuro é o padrão). */
+:root {
+  --via-terra: #e8b27a; --via-ruim: #ffc266; --via-boa: #9be3bd; --via-falha: #ffb4ae;
+  --via-dupla: #4c9aff; --via-simples: #aab4c3; --via-bterra: #c9843a;
+}
+:root[data-tema="claro"] {
+  --via-terra: #7a3f08; --via-ruim: #8a4b00; --via-boa: #17603a; --via-falha: #a3231b;
+  --via-dupla: #1f6fd6; --via-simples: #6b7684; --via-bterra: #8d4b12;
+}
+.via-bloco { display: grid; gap: 8px; min-width: 0; }
+.via-bloco:empty { display: none; }
+
+/* linha de terra e piso ruim */
+.via-terra { font-size: 13px; line-height: 1.3; color: var(--suave); min-width: 0; overflow-wrap: anywhere; }
+.via-terra[data-estado="terra"] { color: var(--via-terra); font-weight: 700; }
+.via-terra[data-estado="ruim"] { color: var(--via-ruim); font-weight: 700; }
+.via-terra[data-estado="boa"] { color: var(--via-boa); font-weight: 700; }
+.via-terra[data-estado="falha"] { color: var(--via-falha); }
+.via-terra-btn {
+  display: block; width: 100%; min-height: 64px; padding: 8px 12px; text-align: left; font: inherit; font-size: 15px; cursor: pointer;
+  background: var(--campo); border: 2px solid var(--linha); border-radius: 12px; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.via-terra-btn:disabled { cursor: default; opacity: 1; }
+.via-terra-btn[data-estado="terra"], .via-terra-btn[data-estado="ruim"] { border-color: currentColor; }
+.via-seta { opacity: .8; }
+.via-cartao-linha { display: block; min-width: 0; }
+.via-menos { margin-left: auto; }
+
+/* cartão Avançado */
+.via-cartao {
+  display: grid; gap: 6px; width: 100%; min-height: 64px; padding: 10px 12px; text-align: left; font: inherit; color: var(--texto);
+  background: var(--campo); border: 2px solid var(--linha); border-radius: 12px; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; min-width: 0;
+}
+.via-titulo { font-weight: 700; font-size: 16px; }
+.via-l { display: block; font-size: 14px; color: var(--texto); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.via-parcial { color: var(--via-ruim); font-size: 13px; }
+.via-ver { font-size: 14px; color: var(--suave); }
+.via-barra { display: flex; width: 100%; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; background: var(--linha); }
+.via-b { display: block; min-width: 4px; height: 100%; }
+.via-b-dupla { background: var(--via-dupla); }
+.via-b-simples { background: var(--via-simples); }
+.via-b-terra { background: var(--via-bterra); background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 3px, transparent 3px 6px); }
+
+/* detalhe */
+.via-secao { display: grid; gap: 8px; min-width: 0; }
+.via-secao h3 { margin: 0; font-size: 15px; }
+.via-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--linha); }
+.via-item-info { display: grid; gap: 2px; min-width: 0; }
+.via-item-info b { font-size: 15px; overflow-wrap: anywhere; }
+.via-item-info span { font-size: 13px; color: var(--suave); }
+.folha .via-ver-mapa { padding: 0 12px; font-size: 14px; white-space: nowrap; }
+.via-rodovias { display: flex; flex-wrap: wrap; gap: 6px; }
+.via-rod { font-size: 13px; padding: 3px 9px; border-radius: 999px; background: var(--linha); color: var(--texto); font-variant-numeric: tabular-nums; }
+:root[data-tema="claro"] .via-rod { background: #e6eaf0; color: #1f2733; }
+
+/* rota longa: progresso e falha */
+.rl-barra { height: 8px; border-radius: 4px; background: var(--linha); overflow: hidden; }
+.rl-barra-cheia { display: block; height: 100%; width: 0; background: #2f80ed; transition: width .3s; }
+.rl-motivo { color: var(--texto); }
+.folha .rl-trechos { opacity: .9; }
+.pino-falha {
+  width: 30px; height: 30px; border-radius: 50%; background: #e5484d; color: #fff; border: 3px solid #fff; display: grid; place-items: center;
+  font: 800 16px/1 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.5);
+}
+.folha.rl-longa { max-height: 52%; }

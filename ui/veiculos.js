@@ -38,7 +38,7 @@
       if (p.id === estado.ativoId) { const s = document.createElement("span"); s.className = "selo"; s.textContent = "ATIVO"; h.appendChild(s); }
       const d = document.createElement("div"); d.className = "dados";
       d.append(dado("Altura", p.altura, "m"), dado("Largura", p.largura, "m"), dado("Comprimento", p.comprimento, "m"),
-               dado("PBTC", p.pbtc, "t"), dado("Eixos", p.eixos, ""),
+               dado("PBTC", p.pbtc, "t"), dado("Peso vazio", p.tara, "t"), dado("Eixos", p.eixos, ""),
                dado("Tanque", p.tanque, "L"), dado("Consumo", p.consumo, "km/L"));
       const c = document.createElement("span"); c.textContent = "Carga: " + p.carga; d.appendChild(c);
       const b = document.createElement("div"); b.className = "linha-botoes";
@@ -56,7 +56,7 @@
     gravar(); atualizarTudo();
   }
 
-  const CAMPOS_NUM = ["altura", "largura", "comprimento", "pbtc", "eixos", "tanque", "consumo"];
+  const CAMPOS_NUM = ["altura", "largura", "comprimento", "pbtc", "eixos", "tara", "tanque", "consumo"];
   function lerForm() {
     const o = { nome: $("f-nome").value, tipo: $("f-tipo").value, carga: $("f-carga").value };
     for (const c of CAMPOS_NUM) o[c] = $("f-" + c).value;

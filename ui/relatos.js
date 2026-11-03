@@ -1,4 +1,5 @@
-// Relatos: botão "!" com o formulário de relato e os relatos locais (copiloto.relatos.v1, quando fora da conta).
+// Relatos: botão "!" com o formulário de relato (com "SOS · Emergência" pequeno no pé; abrirFormulario({ toque, aqui }) relata
+// num ponto tocado no mapa, ui/busca.js) e os relatos locais (copiloto.relatos.v1, quando fora da conta).
 // Logado e com permissão de envio (consentimento "enviar"), o relato segue para Copiloto.comunidade.enviar();
 // sem a permissão, fica só no aparelho e o motorista é avisado (PRI-01). Expõe Copiloto.relatos.abrirFormulario({ toque? }), locais() e
 // leituraDoToque() (posição, rumo, velocidade e precisão de agora; null sem GPS).
@@ -49,9 +50,10 @@
   // opcoes.toque (M3 do QA2): leitura já guardada antes (o toque em "Falar" dos comandos de voz); sem ela, a de agora.
   function abrirFormulario(opcoes) {
     const pos = C.estado.ultimaPos;
-    if (!pos) { C.mensagem("Ative o GPS para reportar neste ponto.", 6000); return; }
+    const dado = opcoes && opcoes.toque && isFinite(opcoes.toque.lat) ? opcoes.toque : null;
+    if (!pos && !dado) { C.mensagem("Ative o GPS para reportar neste ponto.", 6000); return; }
     C.rota.pedirDestino(false);
-    const toque = (opcoes && opcoes.toque) || leituraDoToque();
+    const toque = dado || leituraDoToque();
     const sel = el("select"); sel.id = "r-tipo"; sel.hidden = true; sel.setAttribute("aria-hidden", "true"); sel.tabIndex = -1;
     sel.add(new Option("", ""));
     const grade = el("div", "r-grade"); grade.id = "r-grade"; grade.setAttribute("role", "radiogroup"); grade.setAttribute("aria-label", "O que você viu?");
@@ -61,7 +63,7 @@
       const b = el("button", "r-tipo-btn" + (cfg.risco ? " risco" : ""));
       b.type = "button"; b.dataset.tipo = id; b.setAttribute("role", "radio"); b.setAttribute("aria-checked", "false");
       b.setAttribute("aria-label", cfg.rotulo);
-      b.append(el("b", "r-sigla", cfg.sigla), el("span", "r-nome", cfg.curto || cfg.rotulo));
+      b.append(el("span", "r-nome", cfg.curto || cfg.rotulo)); // só o nome: a sigla repetia o nome
       b.addEventListener("click", () => {
         sel.value = id; sel.dispatchEvent(new Event("change"));
         if (cfg.valor) inp.focus();
@@ -105,17 +107,17 @@
         return;
       }
       relatos.push(r.relato); gravar(); desenhar(); C.folha.fechar();
-      C.mensagem((C.nuvem.logado() ? "Relato salvo só neste aparelho: o envio está desligado nas suas escolhas de privacidade (Conta)."
+      C.mensagem((C.nuvem.logado() ? "Relato salvo só neste aparelho: o envio está desligado nas suas escolhas de privacidade (Configurações → Privacidade)."
         : "Relato salvo só neste aparelho. Entre para compartilhar com outros motoristas.") + (aviso ? " " + aviso : ""), 6000);
     });
     salvar.id = "r-salvar";
     const cancelar = botao("Cancelar", "btn btn-grande", () => { clearInterval(relogio); C.folha.fechar(); }); cancelar.id = "r-cancelar";
     botoes.append(salvar, cancelar);
-    const itens = [el("h2", null, "Reportar neste ponto"), rotTipo, grade, sel, rotValor, erro, idade];
+    const itens = [el("h2", null, opcoes && opcoes.aqui ? "Relatar no ponto tocado" : "Reportar neste ponto"), rotTipo, grade, sel, rotValor, erro, idade];
     if (logado && envia) {
       itens.push(el("p", null, "Vai para outros motoristas. Vence sozinho e ganha força quando outros motoristas confirmarem."));
     } else if (logado) {
-      itens.push(el("p", null, "O envio de relatos está desligado nas suas escolhas de privacidade (aba Conta). Este relato fica só neste aparelho e vence sozinho."));
+      itens.push(el("p", null, "O envio de relatos está desligado nas suas escolhas de privacidade (Configurações → Privacidade). Este relato fica só neste aparelho e vence sozinho."));
     } else {
       itens.push(el("p", null, "Fica salvo só neste aparelho e vence sozinho."));
       const dica = el("p", "dica", "Entre para compartilhar com outros motoristas. ");
@@ -124,6 +126,13 @@
       itens.push(dica);
     }
     itens.push(botoes);
+    // SOS pequeno (redesenho): a Emergência fica a um toque a partir do "!", sem ocupar espaço no mapa
+    const sos = botao("SOS · Emergência", "btn btn-pequeno r-sos", () => {
+      clearInterval(relogio); C.folha.fechar();
+      if (C.privacidade && C.privacidade.abrirEmergencia) C.privacidade.abrirEmergencia();
+    });
+    sos.id = "r-sos"; sos.setAttribute("aria-label", "SOS: abrir Emergência (191, 192, 193 e sua posição)");
+    itens.push(sos);
     C.folha.abrir(itens);
   }
 

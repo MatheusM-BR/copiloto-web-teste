@@ -80,34 +80,39 @@
       ", sem a escolha de carga." + (rota.resposta ? "" : " Sem as manobras: siga a linha da rota.");
   }
 
-  function perguntarCarga(perfil) {
-    const escolha = el("div", "nav-escolha");
-    escolha.append(
-      botao("Carregado", "btn btn-principal nav-grande", () => comecar(perfil, "carregado", null)),
-      botao("Vazio", "btn nav-grande", () => pedirTara(perfil)));
-    escolha.firstChild.id = "nav-carregado"; escolha.lastChild.id = "nav-vazio";
-    C.folha.abrir([el("h2", null, "Carregado ou vazio?"), el("p", null, "O peso entra no cálculo da rota (" + perfil.nome + ")."),
-      escolha, botao("Cancelar", "btn", C.folha.fechar)]);
-  }
-
-  function pedirTara(perfil) {
+  // Redesenho: uma folha só. "Carregado" usa o peso total do campo (começa com o último peso carregado deste veículo ou o
+  // PBTC do cadastro); "Vazio" NÃO pergunta nada: usa o peso vazio (tara) do cadastro do veículo (ou, de versões antigas,
+  // o peso vazio guardado neste aparelho); sem ele, a rota vai sem peso e o aviso diz isso.
+  function taraDe(perfil) {
+    if (typeof perfil.tara === "number" && isFinite(perfil.tara)) return perfil.tara;
     const salvo = dados().taras[perfil.id];
-    const campo = el("input"); campo.id = "nav-tara"; campo.inputMode = "decimal"; campo.autocomplete = "off"; campo.placeholder = "Ex.: 15";
-    if (typeof salvo === "number") campo.value = String(salvo).replace(".", ",");
-    const rotulo = el("label", null, "Peso do veículo vazio (t), opcional"); rotulo.htmlFor = "nav-tara"; rotulo.appendChild(campo);
-    const erro = el("span", "erro"); erro.id = "nav-tara-erro";
-    const ok = botao("Continuar", "btn btn-principal nav-grande", () => {
+    return typeof salvo === "number" && isFinite(salvo) ? salvo : null;
+  }
+  function perguntarCarga(perfil) {
+    const d = dados();
+    const ultimo = d.pesos && typeof d.pesos[perfil.id] === "number" ? d.pesos[perfil.id] : null;
+    const inicial = ultimo != null ? ultimo : typeof perfil.pbtc === "number" ? perfil.pbtc : null;
+    const campo = el("input"); campo.id = "nav-peso"; campo.inputMode = "decimal"; campo.autocomplete = "off"; campo.placeholder = "Ex.: 45";
+    if (inicial != null) campo.value = String(inicial).replace(".", ",");
+    const rotulo = el("label", "nav-peso-rotulo", "Peso total carregado (t)"); rotulo.htmlFor = "nav-peso"; rotulo.appendChild(campo);
+    const erro = el("span", "erro"); erro.id = "nav-peso-erro";
+    const escolha = el("div", "nav-escolha");
+    const carregado = botao("Carregado", "btn btn-principal nav-grande", () => {
       const r = Nav.lerToneladas(campo.value);
       if (!r.ok) { erro.textContent = r.erro; campo.setAttribute("aria-invalid", "true"); return; }
-      const d = dados();
-      if (r.valor == null) delete d.taras[perfil.id]; else d.taras[perfil.id] = r.valor;
-      gravar(d);
-      comecar(perfil, "vazio", r.valor);
+      const dd = dados(); dd.pesos = dd.pesos && typeof dd.pesos === "object" ? dd.pesos : {};
+      if (r.valor == null) delete dd.pesos[perfil.id]; else dd.pesos[perfil.id] = r.valor;
+      gravar(dd);
+      comecar(perfil, "carregado", r.valor);
     });
-    ok.id = "nav-tara-ok";
-    C.folha.abrir([el("h2", null, "Vazio"), rotulo, erro,
-      el("p", null, "Sem o peso vazio, a rota vai sem peso e o aviso diz isso. Fica guardado neste aparelho para este veículo."),
-      ok, botao("Voltar", "btn", () => perguntarCarga(perfil))]);
+    const vazio = botao("Vazio", "btn nav-grande", () => comecar(perfil, "vazio", taraDe(perfil)));
+    carregado.id = "nav-carregado"; vazio.id = "nav-vazio";
+    escolha.append(carregado, vazio);
+    const tara = taraDe(perfil);
+    const dica = el("p", "nav-carga-dica", tara != null
+      ? "Vazio usa o peso vazio do cadastro (" + String(tara).replace(".", ",") + " t)."
+      : "Vazio: sem peso vazio no cadastro do veículo, a rota vai sem peso.");
+    C.folha.abrir([el("h2", null, "Carregado ou vazio?"), escolha, rotulo, erro, dica, botao("Cancelar", "btn", C.folha.fechar)]);
   }
 
   function ajustador(escolha) {
@@ -168,7 +173,7 @@
     const g0 = C.estado.gps || null, p0 = C.estado.ultimaPos;
     nav = { id: geracao, perfil, escolha, destino: (extra && extra.destino) || rota.destino, detector: Nav.criarDetectorDesvio(), registro: Nav.criarRegistro(),
       ultimoRecalculo: null, recalculando: false, recalculo: null, ultimaFala: null, falouInicio: false,
-      inicio: Date.now(), rotulo: (extra && extra.rotulo) || null, gravadoEm: 0, volta: !!(extra && extra.volta),
+      inicio: Date.now(), rotulo: (extra && extra.rotulo) || rota.rotulo || null, gravadoEm: 0, volta: !!(extra && extra.volta),
       inicioPos: g0 ? { lat: g0.lat, lon: g0.lon } : p0 ? { lat: p0[1], lon: p0[0] } : null,
       // rota offline: faixa, falta de rede, conferência com a internet e reentrada na linha
       conferidor: Nav.criarConferidor(), rotaOffline: false, conferidaEm: null, semRede: false, motivoSemRede: null,
@@ -579,7 +584,7 @@
       if (!meu()) return false;
       n.troca = null;
       // o pino do destino no mapa vai junto (sem a folha "Destino escolhido": a navegação continua)
-      C.rota.definirDestino({ lat: destino.lat, lng: destino.lon });
+      C.rota.definirDestino({ lat: destino.lat, lng: destino.lon }, { rotulo: destino.rotulo || null });
       C.folha.fechar();
       n.destino = rota.destino;
       n.rotulo = destino.rotulo || null;
@@ -852,17 +857,23 @@
     re.append(seta, reT);
     const rod = el("div", "nav-rodape");
     const info = el("div", "nav-info");
-    const rest = el("b"); rest.id = "nav-restante";
-    const cheg = el("span"); cheg.id = "nav-chegada";
-    info.append(rest, cheg);
+    const rest = el("span", "nav-restante"); rest.id = "nav-restante";
+    const cheg = el("b", "nav-chegada"); cheg.id = "nav-chegada";
+    info.append(cheg, rest);
     const ver = botao("ⓘ", "btn nav-ver-aviso", () => mostrarAviso($("nav-aviso").hidden, true)); ver.id = "nav-ver-aviso"; ver.hidden = true;
     ver.setAttribute("aria-label", "Aviso da rota"); ver.title = "Aviso da rota"; ver.setAttribute("aria-controls", "nav-aviso");
-    const fim = botao("Encerrar", "btn nav-encerrar", confirmarEncerrar); fim.id = "nav-encerrar";
+    const fim = el("button", "btn nav-encerrar"); fim.type = "button"; fim.id = "nav-encerrar";
+    fim.append(el("span", "nav-encerrar-icone", "✕"), el("span", "nav-encerrar-texto", "Encerrar"));
+    fim.setAttribute("aria-label", "Encerrar navegação"); fim.addEventListener("click", () => confirmarEncerrar());
     rod.append(info, ver, fim);
     const av = el("div", "nav-aviso"); av.id = "nav-aviso"; av.hidden = true;
     av.addEventListener("click", () => mostrarAviso(false));
-    p.append(off, linha, seg, st, re, rod, av);
+    p.append(linha, seg, off, st, re, av);
     document.querySelector("main").appendChild(p);
+    // Redesenho (navegando = mínimo): chegada, restante, aviso e "Encerrar" numa barra embaixo, ao lado da velocidade
+    rod.id = "nav-rodape"; rod.hidden = true; rod.setAttribute("aria-label", "Chegada e restante");
+    $("painel-mapa").appendChild(rod);
+    new MutationObserver(() => { rod.hidden = p.hidden; }).observe(p, { attributes: true, attributeFilter: ["hidden"] });
     // fim do painel (px a partir do topo do mapa): a faixa do alerta e os botões do mapa ficam abaixo dele
     const marcarFim = () => {
       const app = $("app");

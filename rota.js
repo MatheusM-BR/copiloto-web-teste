@@ -59,11 +59,20 @@
     return coords;
   }
 
+  // Erros conhecidos do servidor em português claro (nunca "Path distance exceeds…" cru na tela). Rota longa: rotalonga.js.
+  function traduzirErro(msg) {
+    const t = String(msg);
+    if (/max distance limit|exceeds the max distance/i.test(t)) return "A rota é muito longa para o servidor de rotas de uma vez. Tente de novo; o app divide a viagem em trechos.";
+    if (/No suitable edges|Could not find a location/i.test(t)) return "Não achei estrada perto da origem ou do destino. Escolha um ponto mais perto de uma estrada.";
+    if (/No path could be found/i.test(t)) return "O servidor não achou caminho para este veículo (restrição de altura, peso ou eixos, ou estrada interrompida).";
+    return "O servidor de rotas respondeu: " + t;
+  }
+
   // Lança Error com mensagem em português se a resposta não for uma rota.
   function resumirResposta(json) {
     if (!json || !json.trip) {
       const msg = json && (json.error || json.message);
-      throw new Error(msg ? "O servidor de rotas respondeu: " + msg : "Resposta inesperada do servidor de rotas.");
+      throw new Error(msg ? traduzirErro(msg) : "Resposta inesperada do servidor de rotas.");
     }
     if (json.trip.status !== 0 || !Array.isArray(json.trip.legs) || !json.trip.legs.length) {
       throw new Error(json.trip.status_message || "Não foi possível traçar a rota.");
@@ -97,11 +106,12 @@
     } else if (faltando.length) {
       lista.push("Medidas não informadas (" + faltando.join(", ") + "): o servidor usou valores padrão dele. Cadastre as medidas do veículo.");
     }
-    lista.push("Rota não verificada para pontes, viadutos e limites de peso. O mapa tem poucas restrições cadastradas. Confira a sinalização da estrada.");
+    // o aviso de pontes, viadutos e limite de peso só faz sentido para caminhão (para carro seria ruído)
+    if (perfil && ehCaminhao(perfil)) lista.push("Rota não verificada para pontes, viadutos e limites de peso. O mapa tem poucas restrições cadastradas. Confira a sinalização da estrada.");
     return lista;
   }
 
-  const api = { URL_PADRAO, criarPedido, decodificarPolyline6, resumirResposta, formatarTempo, formatarKm, avisos, ehCaminhao };
+  const api = { URL_PADRAO, traduzirErro, criarPedido, decodificarPolyline6, resumirResposta, formatarTempo, formatarKm, avisos, ehCaminhao };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoRota = api;
 })(typeof window !== "undefined" ? window : globalThis);

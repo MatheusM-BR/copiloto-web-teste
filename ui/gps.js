@@ -10,8 +10,10 @@
 // leituras): nada de transição CSS no elemento que o MapLibre posiciona por transform (a marca "escorregava" no arrasto).
 // A câmera (seguir, rumo para cima) fica em ui/mapa.js, no evento "posicao".
 // Bússola (webkitCompassHeading): opcional e DESLIGADA por padrão (chave copiloto.rumo.bussola.v1 = { ligada: true }):
-// a permissão do iOS é pedida dentro do toque em "Ativar GPS"/"Iniciar navegação"; só vale parado e sem rumo anterior.
-// Expõe Copiloto.gps: idadeMs(gps?), velho(), IDADE_MAX_MS, ligado(), rumo(), duracaoAnimMs(), posicaoExibida().
+// a permissão do iOS é pedida dentro do toque em "Ativar GPS"/"Iniciar navegação" (com a opção ligada) ou no toque no
+// botão de orientação (#btn-orientacao) enquanto a seta ainda não tem rumo de movimento — permitida, liga a opção.
+// Só vale parado/devagar (< 2 m/s) e sem rumo de movimento antes; gira a SETA, não o mapa (ui/mapa.js).
+// Expõe Copiloto.gps: idadeMs(gps?), velho(), IDADE_MAX_MS, ligado(), ativar() (o mesmo de "Ativar GPS"), rumo(), duracaoAnimMs(), posicaoExibida().
 (function (C) {
   "use strict";
   const { $ } = C.util;
@@ -74,8 +76,14 @@
     if (tinha) C.emit("gps-sinal", { ok: false, idadeMs: Infinity, motivo: "desligado" });
   }
 
-  function iniciarGps() {
+  // automatico: religar sozinho ao abrir (permissão do aparelho já dada); com a localização desligada nas escolhas não
+  // oferece nada (só o toque em "Ativar GPS" oferece "Ligar localização")
+  function iniciarGps(automatico) {
     if (!("geolocation" in navigator)) { C.mensagem("Este navegador não tem GPS.", 8000); return; }
+    if (!localizacaoPermitida() && Consent && !Consent.pendentes(Consent.ler(C.util.storage()), { foto: false }).includes("localizacao")) {
+      if (automatico === true) return;
+      if (C.privacidade && C.privacidade.oferecerLocalizacao) { C.privacidade.oferecerLocalizacao(); return; }
+    }
     $("cartao-gps").hidden = true;
     if (vigiaId == null) {
       // -1: a guarda do consentimento (ui/privacidade.js) segurou o pedido até a resposta; conta como ligado
@@ -84,7 +92,7 @@
       });
       vigiaId = id == null ? -1 : id;
       // localização negada nas escolhas: a guarda não ligou nada; o próximo "Ativar GPS" (depois de permitir) tenta de novo
-      if (vigiaId === -1 && !localizacaoPermitida() && Consent && !Consent.precisaPerguntar(Consent.ler(C.util.storage()))) vigiaId = null;
+      if (vigiaId === -1 && !localizacaoPermitida() && Consent && !Consent.pendentes(Consent.ler(C.util.storage()), {}).includes("localizacao")) vigiaId = null;
     }
     pedirTelaLigada();
   }
@@ -98,7 +106,8 @@
     const lngLat = [c.longitude, c.latitude];
     C.estado.ultimaPos = lngLat;
     const vMs = typeof c.speed === "number" && isFinite(c.speed) && c.speed >= 0 ? c.speed : null;
-    const r = rumo.atualizar({ lat: c.latitude, lon: c.longitude, precisao: c.accuracy, heading: c.heading, velMs: vMs, t: recebidoEm });
+    // valores crus: rumo.js trata null/NaN/−1/texto do Safari (heading e speed vêm null muitas vezes, mesmo andando)
+    const r = rumo.atualizar({ lat: c.latitude, lon: c.longitude, precisao: c.accuracy, heading: c.heading, velMs: c.speed, t: recebidoEm });
     const dur = estimarDuracao(recebidoEm);
     const gps = {
       lat: c.latitude, lon: c.longitude,
@@ -205,12 +214,22 @@
     if (typeof e.webkitCompassHeading !== "number" || !isFinite(e.webkitCompassHeading)) return;
     rumo.bussola({ graus: e.webkitCompassHeading, precisao: e.webkitCompassAccuracy, t: Date.now() });
   }
-  // o iOS só deixa pedir a permissão dentro de um toque
-  function pedirBussola() {
-    if (ouvindoBussola || !bussolaLigada()) return;
+  // o iOS só deixa pedir a permissão dentro de um toque. oferecer = toque no botão de orientação (norte/rumo) sem rumo de
+  // movimento ainda (seta sem direção, parado ou devagar): pede mesmo com a opção desligada e, se o iPhone permitir,
+  // liga a opção (copiloto.rumo.bussola.v1 = { ligada: true }) para as próximas aberturas.
+  function pedirBussola(oferecer) {
+    if (ouvindoBussola) return;
+    if (!bussolaLigada()) {
+      const f = rumo.estado().fonte;
+      if (!oferecer || f === "gps" || f === "leituras") return;
+    }
     const DOE = window.DeviceOrientationEvent;
     if (!DOE) return;
-    const ligar = () => { if (ouvindoBussola) return; ouvindoBussola = true; window.addEventListener("deviceorientation", aoOrientar, true); };
+    const ligar = () => {
+      if (ouvindoBussola) return;
+      ouvindoBussola = true; window.addEventListener("deviceorientation", aoOrientar, true);
+      if (!bussolaLigada()) C.util.gravarJSON(CHAVE_BUSSOLA, { ligada: true });
+    };
     try {
       if (typeof DOE.requestPermission === "function") DOE.requestPermission().then((s) => { if (s === "granted") ligar(); }, () => {});
       else ligar();
@@ -229,7 +248,7 @@
   }
 
   C.gps = {
-    idadeMs, velho, IDADE_MAX_MS, ligado: () => vigiaId != null,
+    idadeMs, velho, IDADE_MAX_MS, ligado: () => vigiaId != null, ativar: () => iniciarGps(),
     rumo: () => rumo.estado(),                 // { graus, confiavel, fonte, movendo }
     duracaoAnimMs: () => Math.round(intervaloMedio * 0.95), // a câmera (ui/mapa.js) anda junto com a marca
     posicaoExibida: () => { if (!marcador) return null; const p = marcador.getLngLat(); return [p.lng, p.lat]; },
@@ -242,9 +261,11 @@
       if (document.visibilityState === "visible" && $("btn-tela").getAttribute("aria-pressed") === "true" && !travaTela) pedirTelaLigada();
       if (document.visibilityState === "visible" && travaTela && travaTela.released) { travaTela = null; pedirTelaLigada(); }
     });
-    $("btn-gps").addEventListener("click", iniciarGps);
+    $("btn-gps").addEventListener("click", () => iniciarGps());
     document.addEventListener("click", (e) => {
-      if (e.target && e.target.closest && e.target.closest("#btn-gps, .btn-iniciar-nav")) pedirBussola();
+      if (!e.target || !e.target.closest) return;
+      if (e.target.closest("#btn-gps, .btn-iniciar-nav")) pedirBussola(false);
+      else if (e.target.closest("#btn-orientacao, #cfg-orient-rumo")) pedirBussola(true); // botão (navegando) ou Configurações
     }, true);
     $("btn-tela").addEventListener("click", async () => {
       if ($("btn-tela").getAttribute("aria-pressed") === "true" && travaTela) { await travaTela.release(); travaTela = null; }
@@ -256,7 +277,7 @@
   C.on("pronto", () => {
     try {
       if (navigator.permissions && navigator.permissions.query) {
-        navigator.permissions.query({ name: "geolocation" }).then((r) => { if (r.state === "granted") iniciarGps(); }, () => {});
+        navigator.permissions.query({ name: "geolocation" }).then((r) => { if (r.state === "granted") iniciarGps(true); }, () => {});
       }
     } catch (e) { /* sem suporte: o botão Ativar GPS continua valendo */ }
   });

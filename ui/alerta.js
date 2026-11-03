@@ -127,7 +127,7 @@
     const podeVotar = !r.mine && !r.my_vote && podeEnviar;
     $("alerta-botoes").hidden = !podeVotar;
     const nota = r.mine ? "Relato seu." : r.my_vote ? "Você já votou: " + (r.my_vote === "confirm" ? "continua lá." : "não está mais.")
-      : !podeEnviar ? "Votos desligados nas suas escolhas de privacidade (Conta)." : "";
+      : !podeEnviar ? "Votos desligados nas suas escolhas de privacidade (Configurações → Privacidade)." : "";
     $("alerta-nota").textContent = nota; $("alerta-nota").hidden = !nota;
     caixa.hidden = false;
     if (abriu) {

@@ -86,12 +86,12 @@
     document.addEventListener("click", barrar, true);
   }
   const folha = {
-    abrir(filhos) { const f = $("folha"); f.textContent = ""; filhos.forEach((x) => f.appendChild(x)); f.hidden = false; emit("folha", { aberta: true }); },
-    fechar() { const f = $("folha"); f.hidden = true; f.textContent = ""; emit("folha", { aberta: false }); },
+    abrir(filhos) { const f = $("folha"); f.textContent = ""; delete f.dataset.decisao; filhos.forEach((x) => f.appendChild(x)); f.hidden = false; emit("folha", { aberta: true }); },
+    fechar() { const f = $("folha"); f.hidden = true; f.textContent = ""; delete f.dataset.decisao; emit("folha", { aberta: false }); },
     aberta() { return !$("folha").hidden; },
   };
 
-  // ------------------------------------------------------------ abas da barra inferior
+  // ------------------------------------------------------------ abas (telas; o menu fica na tela de Configurações)
   // { id, rotulo, tela?: HTMLElement, botao?: HTMLElement, aoAbrir?: fn }
   // Sem "tela": cria <section class="tela" id="tela-<id>">. Sem "botao": cria <button id="nav-<id>"> na barra.
   const abas = new Map();

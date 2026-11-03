@@ -37,12 +37,9 @@
   display: grid; place-items: center; align-content: center; gap: 2px; text-align: center;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.r-tipo-btn .r-sigla {
-  font-size: 13px; font-weight: 800; letter-spacing: .03em; padding: 1px 7px; border-radius: 6px;
-  background: var(--acento); color: var(--acento-texto);
-}
-.r-tipo-btn.risco .r-sigla { background: #e5484d; color: #fff; }
-.r-tipo-btn .r-nome { font-size: 15px; font-weight: 600; line-height: 1.15; color: var(--texto); }
+/* o nome diz o tipo (a sigla repetia o nome: ACID/Acidente); tipos de risco na estrada têm o contorno vermelho */
+.r-tipo-btn.risco { border-color: #c62f35; }
+.r-tipo-btn .r-nome { font-size: 16px; font-weight: 600; line-height: 1.15; color: var(--texto); }
 .r-tipo-btn.escolhido { border-color: var(--acento); background: #3a2a10; box-shadow: 0 0 0 2px var(--acento) inset; }
 .r-valor-rotulo[hidden] { display: none; }
 .r-valor-rotulo input { min-height: 64px; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }

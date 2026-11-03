@@ -348,19 +348,20 @@
     return { ok: true, valor: n };
   }
   function tFalado(n) { return String(Math.round(n * 100) / 100).replace(".", ",") + " t"; }
-  // carga: "carregado" | "vazio" | null (veículo leve). taraT: peso vazio informado (t) ou null.
-  // Devolve { peso: t | null, aviso } — nunca presume peso: sem dado, a rota vai sem peso e o aviso diz.
-  function pesoParaRota(perfil, carga, taraT) {
+  // carga: "carregado" | "vazio" | null (veículo leve). pesoT: carregado = peso total digitado (t; null/omitido = PBTC do
+  // cadastro); vazio = peso vazio (tara) do cadastro (t) ou null.
+  function pesoParaRota(perfil, carga, pesoT) {
     if (!perfil || !RotaLib.ehCaminhao(perfil) || !carga) return { peso: null, aviso: null };
+    const t = typeof pesoT === "number" && isFinite(pesoT) ? pesoT : null;
     if (carga === "carregado") {
-      const p = typeof perfil.pbtc === "number" && isFinite(perfil.pbtc) ? perfil.pbtc : null;
-      return p != null
-        ? { peso: p, aviso: "Carregado: rota calculada com " + tFalado(p) + " (PBTC do cadastro)." }
+      const pbtc = typeof perfil.pbtc === "number" && isFinite(perfil.pbtc) ? perfil.pbtc : null;
+      if (t != null && t !== pbtc) return { peso: t, aviso: "Carregado: rota calculada com " + tFalado(t) + " (peso informado por você)." };
+      return pbtc != null
+        ? { peso: pbtc, aviso: "Carregado: rota calculada com " + tFalado(pbtc) + " (PBTC do cadastro)." }
         : { peso: null, aviso: "Carregado, mas o peso (PBTC) não foi informado no cadastro: a rota foi calculada sem peso." };
     }
-    const t = typeof taraT === "number" && isFinite(taraT) ? taraT : null;
     return t != null
-      ? { peso: t, aviso: "Vazio: rota calculada com " + tFalado(t) + " (peso vazio informado por você)." }
+      ? { peso: t, aviso: "Vazio: rota calculada com " + tFalado(t) + " (peso vazio do veículo)." }
       : { peso: null, aviso: "Vazio, sem peso vazio informado: a rota foi calculada sem peso." };
   }
   // Ajusta pedido + faltando (de rota.criarPedido) ao peso escolhido. Não altera os originais.
@@ -420,6 +421,7 @@
     o = o && typeof o === "object" ? o : {};
     return {
       taras: o.taras && typeof o.taras === "object" ? o.taras : {},
+      pesos: o.pesos && typeof o.pesos === "object" ? o.pesos : {}, // último peso carregado por veículo (redesenho)
       viagens: Array.isArray(o.viagens) ? o.viagens : [],
       recentes: Array.isArray(o.recentes) ? o.recentes : [],
       andamento: o.andamento && typeof o.andamento === "object" ? o.andamento : null,

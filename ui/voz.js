@@ -10,6 +10,7 @@
 // emite "voz-manobra-cortada" ({ texto }) para a navegação repetir a etapa (QA 3, M3). falando(): alguma fala tocando.
 // Voz no iPhone: calar() cancela a fala antes de abrir o microfone; as falas da fila esperam comandos.ouvindo();
 // sintetizando() = speechSynthesis.speaking; o toque em [data-sem-destravar] ("Falar") não destrava a fala.
+// Emite "voz:falar" ({ texto, manobra }) logo antes de cada fala (o mãos-livres do E4 fecha o microfone).
 (function (C) {
   "use strict";
   const { $ } = C.util;
@@ -30,6 +31,8 @@
     const aoTerminar = () => { fala.terminou = true; if (opcoes && opcoes.aoTerminar) opcoes.aoTerminar(); };
     const ehManobra = !!(opcoes && opcoes.manobra);
     const cortada = !ehManobra && falando(falaManobra) ? falaManobra : null;
+    // mãos-livres (ui/comandos.js): a escuta contínua fecha o microfone antes de o app falar (não ouve a si mesmo)
+    C.emit("voz:falar", { texto: String(texto), manobra: ehManobra });
     const ok = falador.falar(texto, { aoTerminar });
     if (ok) { ultimaFala = fala; falaManobra = ehManobra ? fala : null; }
     if (ok && cortada) { cortada.terminou = true; C.emit("voz-manobra-cortada", { texto: cortada.texto }); }

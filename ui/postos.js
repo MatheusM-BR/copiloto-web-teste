@@ -1,6 +1,6 @@
 // Postos e autonomia — pacote E2. Lógica pura em postos.js e autonomia.js.
 // - Mapa: postos a partir do zoom 11, buscados pela área visível (com espera entre buscas).
-// - Botão "Próximo posto" (e o comando de voz "comando:proximo-posto"): 5 postos À FRENTE — na rota ativa
+// - "Postos à frente" na busca (ui/busca.js; e o comando de voz "comando:proximo-posto"): 5 postos À FRENTE — na rota ativa
 //   se houver, senão pelo rumo do GPS — com distância, bandeira e atributos conhecidos ou "não informado".
 // - Autonomia: litros de agora (opcional) × consumo do veículo → alcance estimado; marca postos fora do alcance.
 // API pública (anônima): copiloto_stations_near / copiloto_stations_along_route (docs/API_RELATOS.md, seção Postos).
@@ -235,8 +235,7 @@
   function irPara(p) {
     if (C.navegacao && C.navegacao.ativa && C.navegacao.ativa() && C.navegacao.trocarDestino) { perguntarTroca(p); return; }
     C.emit("postos:destino", p);
-    C.rota.pedirDestino(true);
-    C.emit("mapa-clique", { lngLat: { lat: p.lat, lng: p.lon } });
+    C.rota.definirDestino({ lat: p.lat, lng: p.lon });
     C.rota.tracar();
   }
   function perguntarTroca(p) {
@@ -258,7 +257,7 @@
 
   C.aoIniciar(() => {
     C.carregarEstilo("estilos/postos.css");
-    C.botoesMapa.adicionar({ id: "btn-postos", icone: "⛽", rotulo: "Próximo posto", aoTocar: abrirProximo });
+    // redesenho: sem botão de posto na tela inicial; "Postos à frente" fica na busca (ui/busca.js chama abrirProximo)
     // comando de voz (pacote de voz): { origem: "voz", atender } — confirmar em até 300 ms que tratamos o pedido
     C.on("comando:proximo-posto", (d) => { if (d && typeof d.atender === "function") d.atender(); abrirProximo(); });
     C.mapaPronto(garantirCamada);

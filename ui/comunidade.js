@@ -10,7 +10,7 @@
   const { $, el, botao, plural } = C.util;
   const Relatos = window.CopilotoRelatos, NuvemLib = window.CopilotoNuvem, Prox = window.CopilotoProximidade;
   const Consent = window.CopilotoConsentimento;
-  const MSG_SEM_ENVIO = "O envio de relatos e votos está desligado nas suas escolhas de privacidade (aba Conta). Nada foi enviado.";
+  const MSG_SEM_ENVIO = "O envio de relatos e votos está desligado nas suas escolhas de privacidade (Configurações → Privacidade). Nada foi enviado.";
   const nuvem = C.nuvem;
   const BUSCA_RAIO_M = 20000, REBUSCA_DIST_M = 2000;
   let relatosNuvem = [];          // linhas de copiloto_reports_near
@@ -69,7 +69,7 @@
         const linha = el("div", "botoes-voto");
         linha.append(botao("Ainda está aí", "voto-sim", () => votar(r, "confirm")), botao("Não está mais", "voto-nao", () => votar(r, "deny")));
         pop.append(linha);
-      } else pop.append(el("small", null, "Votos desligados nas suas escolhas de privacidade (Conta)."));
+      } else pop.append(el("small", null, "Votos desligados nas suas escolhas de privacidade (Configurações → Privacidade)."));
     }
     return pop;
   }

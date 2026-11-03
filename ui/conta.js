@@ -1,4 +1,7 @@
-// Conta: entrar, criar conta, sair, reputação e relatos esperando internet. Aba "Conta".
+// Conta: entrar (Google ou e-mail), criar conta, sair, reputação e relatos esperando internet. Aba "Conta".
+// Entrar com Google: OAuth do Supabase pelo fluxo PKCE (nuvem.js). A ida é na MESMA janela (location.assign): no app
+// instalado no iPhone a página do Google abre por cima do Copiloto (navegador interno do app, mesmo armazenamento) e,
+// quando o Supabase manda de volta para o endereço do app, ela fecha e o Copiloto abre com ?code=… (ver docs/LOGIN_GOOGLE.md).
 (function (C) {
   "use strict";
   const { $, el, plural } = C.util;
@@ -36,6 +39,48 @@
       box.append(el("h2", null, "Sua reputação"), el("div", "dica", "Não foi possível carregar: " + e.message));
     }
   }
+  // ------------------------------------------------------------ Google
+  const N = window.CopilotoNuvem;
+  function standalone() {
+    try { return !!(navigator.standalone || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)); } catch (e) { return false; }
+  }
+  // Ir para outra página (o teste troca para ver a URL sem sair do app).
+  C.conta = { irPara: (url) => window.location.assign(url) };
+  async function entrarGoogle() {
+    const b = $("btn-google");
+    b.disabled = true; msgConta("Abrindo o Google…");
+    try {
+      const url = await nuvem.iniciarOAuth("google", N.urlDeRetorno(window.location.href));
+      C.conta.irPara(url);
+    } catch (e) { msgConta(e.message, true); b.disabled = false; }
+  }
+  function montarGoogle() {
+    if ($("btn-google")) return;
+    const caixa = el("div", "conta-social"); caixa.id = "conta-social";
+    const b = el("button", "btn btn-google", null); b.type = "button"; b.id = "btn-google";
+    b.append(el("span", "g-logo", "G"), el("span", null, "Entrar com Google"));
+    b.addEventListener("click", entrarGoogle);
+    caixa.append(b);
+    if (standalone()) caixa.append(el("p", "dica", "No app da tela de início, a página do Google abre por cima do Copiloto e fecha sozinha quando você termina. Se ela ficar aberta, toque em OK e entre com e-mail e senha."));
+    caixa.append(el("p", "ou-separador", "ou com e-mail"));
+    const form = $("form-conta");
+    form.parentNode.insertBefore(caixa, form);
+  }
+  // Volta do Google (?code=… ou ?error=…): limpa a URL na hora (recarregar não repete) e conclui.
+  async function tratarRetorno() {
+    const href = window.location.href;
+    try { nuvem.descartarPkceVencido(); } catch (e) { /* segue */ } // login abandonado há mais de 10 min: o verificador sai
+    const ret = N.lerRetornoOAuth(href);
+    if (!ret) return;
+    try { history.replaceState(history.state, "", N.urlSemRetorno(href)); } catch (e) { /* segue */ }
+    C.abas.irPara("conta");
+    msgConta("Entrando com o Google…");
+    try {
+      await nuvem.concluirOAuth(href);
+      msgConta("Pronto! Você entrou com o Google. Seus relatos agora vão para outros motoristas.");
+    } catch (e) { msgConta(e.message, true); }
+  }
+
   function lerCredenciais() { return { email: $("c-email").value.trim(), senha: $("c-senha").value }; }
   function travar(v) { $("btn-entrar").disabled = v; $("btn-criar-conta").disabled = v; }
   async function entrar() {
@@ -71,8 +116,10 @@
     $("form-conta").addEventListener("submit", (ev) => { ev.preventDefault(); entrar(); });
     $("btn-criar-conta").addEventListener("click", criarConta);
     $("btn-sair").addEventListener("click", sair);
+    montarGoogle();
     C.on("fila", () => { if (!$("tela-conta").hidden) desenhar(false); });
     C.on("sessao", (s) => desenhar(!!s));
     desenhar(false);
+    tratarRetorno();
   });
 })(window.Copiloto);

@@ -9,27 +9,37 @@
 //    pede "Use o celular em pé" sem tapar SOS, alerta nem botões (estilos/base.css);
 //  - B4: o mapa não gira nem inclina pelo TOQUE (sem a bússola do MapLibre); quem gira é o "rumo para cima";
 //  - câmera (mapa iOS): a cada leitura, seguindo, easeTo linear com a duração da animação da marca (ui/gps.js), e:
-//      "rumo para cima" (padrão ao navegar): bearing = rumo suavizado (só com rumo confiável), inclinação 45°, veículo
-//      no terço inferior (câmera à frente), zoom pela velocidade navegando (a pinça soma um ajuste do motorista);
-//      "norte para cima": bearing 0, sem inclinação. O botão de orientação (#btn-orientacao) alterna os dois.
+//      "rumo para cima" (padrão, com ou sem navegação): bearing = rumo suavizado, só com rumo confiável de MOVIMENTO
+//      (GPS ou entre leituras; parado ou só com a bússola o mapa não gira); navegando, também inclinação 45°, veículo
+//      no terço inferior (câmera à frente) e zoom pela velocidade (a pinça soma um ajuste do motorista); fora da
+//      navegação, sem inclinação e o veículo no centro; "norte para cima": bearing 0, sem inclinação. O botão de
+//      orientação (#btn-orientacao) alterna os dois e a escolha fica guardada (copiloto.mapa.orientacao.v1).
 //    Pinça/roda com o "seguir" ligado: zoom em volta do veículo (around: "center"); arrasto desliga o "seguir";
 //  - Recentralizar (#btn-recentralizar): pílula visível só sem o "seguir" e com GPS. Volta automática só navegando,
 //    15 s depois do FIM da interação (sem dedo na tela e depois da inércia), adiada por novo toque/roda; na hora, com
 //    manobra a ≤ 300 m, alerta aberto ou o veículo saindo da área visível (estava na tela quando o motorista soltou);
+//  - Redesenho: estilo do mapa pelo tema (Copiloto.tema: claro = liberty, escuro = dark) e tipo "Ruas" (sem prédios) ou
+//    "Ruas + prédios" (prédios do estilo e, sem extrusão no estilo, a camada 3D própria "copiloto-predios-3d"). Trocar o
+//    estilo busca o JSON do estilo novo ANTES (sem ele, nada muda e o app avisa) e então faz setStyle(objeto, transformStyle),
+//    que leva junto as camadas e fontes dos pacotes (rota, postos, rota guardada…); enquanto troca, mapaPronto(fn) espera o
+//    estilo novo. Emite "mapa-estilo" ({ url }) depois da troca. Toque no mapa: emite
+//    "mapa-clique" com { lngLat, point, sobreMarcador, camada } (camada = id da camada própria tocada, ex.: "postos-pontos");
 //  - NAV-05: comando de voz "mapa simples"/"mapa completo" (comando:mapa-modo). Simples esconde postos, relatos guardados
 //    e os pontos de interesse do mapa base; rota, alertas e relatos ativos continuam. Fica guardado (copiloto.mapa.modo.v1).
 (function (C) {
   "use strict";
   const { $, el } = C.util;
-  const ESTILO = "https://tiles.openfreemap.org/styles/liberty"; // gratuito, sem chave
+  const ESTILO_PADRAO = "https://tiles.openfreemap.org/styles/liberty"; // gratuito, sem chave
+  let estiloUrl = C.tema && C.tema.estiloMapa ? C.tema.estiloMapa() : ESTILO_PADRAO;
   const CHAVE_MODO = "copiloto.mapa.modo.v1";
+  const CHAVE_ORIENTACAO = "copiloto.mapa.orientacao.v1";
   let seguindo = false, avisouErro = false, avisouSemRede = 0;
   let modo = (C.util.lerJSON(CHAVE_MODO, null) || {}).modo === "simples" ? "simples" : "completo";
 
   // ------------------------------------------------------------ seguir, orientação e câmera
   const VOLTA_SEGUIR_MS = 15000, MANOBRA_PERTO_M = 300, PITCH_RUMO = 45;
   const linear = (t) => t;
-  let orientacao = "norte";             // "norte" | "rumo"
+  let orientacao = (C.util.lerJSON(CHAVE_ORIENTACAO, null) || {}).modo === "norte" ? "norte" : "rumo"; // "norte" | "rumo"
   let navAntes = false, manobraM = null;
   let zoomAlvo = null, deltaZoomUsuario = 0, zoomSeguir = null;
   let dedos = 0, mouseApertado = false, gestoAtivo = false, panDesligadoPorPinca = false;
@@ -83,7 +93,7 @@
   // sem jeito, vai para a esquerda das colunas de botões.
   function lugarDoVeiculo(W, H, topo) {
     const mr = C.mapa.getContainer().getBoundingClientRect(), R = 28;
-    const obst = retangulos(".acoes > *, .painel-mapa > .btn-recentralizar, .painel-mapa > .velocidade, .maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *")
+    const obst = retangulos(".acoes > *, .painel-mapa > .btn-recentralizar, .painel-mapa > .velocidade, .painel-mapa > .nav-rodape, .maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *")
       .map((r) => ({ l: r.left - mr.left, r: r.right - mr.left, t: r.top - mr.top, b: r.bottom - mr.top }));
     const minY = topo + R + 4;
     const colide = (x, y) => y < minY || obst.some((o) => x + R > o.l && x - R < o.r && y + R > o.t && y - R < o.b);
@@ -106,19 +116,24 @@
     const m = C.mapa, H = m.getContainer().clientHeight || 1;
     const o = { center: pos, duration: dur, easing: linear };
     const topo = topoOcupado();
+    const nav = navegando();
     if (orientacao === "rumo") {
       const r = C.gps && C.gps.rumo ? C.gps.rumo() : null;
-      if (r && r.confiavel && r.graus != null) o.bearing = r.graus; // sem rumo confiável, o mapa não gira
+      // sem rumo confiável de movimento (parado, só bússola), o mapa não gira: fica no último bearing
+      if (r && r.confiavel && r.graus != null && r.fonte !== "bussola") o.bearing = r.graus;
+    }
+    if (orientacao === "rumo" && nav) {
       o.pitch = PITCH_RUMO;
       // câmera à frente: o veículo fica no terço inferior, sem ficar embaixo de botão (ver lugarDoVeiculo)
       const W = m.getContainer().clientWidth || 1, a = lugarDoVeiculo(W, H, topo);
       const top = Math.max(topo + 16, 2 * a.y - H), right = Math.max(0, W - 2 * a.x);
       o.padding = { top, bottom: top + H - 2 * a.y, left: 0, right };
     } else {
-      o.bearing = 0; o.pitch = 0;
+      if (orientacao !== "rumo") o.bearing = 0;
+      o.pitch = 0;
       o.padding = { top: topo ? Math.min(H * 0.5, topo + 16) : 0, bottom: 0, left: 0, right: 0 };
     }
-    if (navegando()) {
+    if (nav) {
       const z = zoomPorVelocidade();
       if (z != null) o.zoom = Math.min(19, Math.max(11, z + deltaZoomUsuario));
     } else if (zoomSeguir != null) {
@@ -136,24 +151,28 @@
     const n = navegando();
     if (n === navAntes) return;
     navAntes = n; deltaZoomUsuario = 0; zoomAlvo = null; manobraM = null;
-    orientacao = n ? "rumo" : "norte"; // rumo para cima é o padrão ao navegar
-    if (!n) {
+    if (!n) { // fim da navegação: sem inclinação; a orientação escolhida continua (rumo para cima gira também fora dela)
       cancelarVolta();
-      if (C.mapa) C.mapa.easeTo({ bearing: 0, pitch: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 600 });
+      if (C.mapa) C.mapa.easeTo(Object.assign({ pitch: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 600 }, orientacao === "norte" ? { bearing: 0 } : {}));
     }
     atualizarBotoes();
   }
 
+  function guardarOrientacao() { C.util.gravarJSON(CHAVE_ORIENTACAO, { modo: orientacao }); }
   function alternarOrientacao() {
     orientacao = orientacao === "rumo" ? "norte" : "rumo";
+    guardarOrientacao();
     atualizarBotoes();
     if (seguindo) moverCamera(C.estado.ultimaPos, 600); else definirSeguir(true);
     C.mensagem(orientacao === "rumo" ? "Rumo para cima." : "Norte para cima.", 2500);
+    C.emit("orientacao", { modo: orientacao });
   }
   function orientacaoPublica(novo) {
     if ((novo === "norte" || novo === "rumo") && novo !== orientacao) {
-      orientacao = novo; atualizarBotoes();
-      if (seguindo) moverCamera(C.estado.ultimaPos, 600);
+      orientacao = novo; guardarOrientacao(); atualizarBotoes();
+      if (seguindo && C.estado.ultimaPos) moverCamera(C.estado.ultimaPos, 600);
+      else if (novo === "norte" && C.mapa) C.mapa.easeTo({ bearing: 0, pitch: 0, duration: 600 }); // escolhido nas Configurações
+      C.emit("orientacao", { modo: novo });
     }
     return orientacao;
   }
@@ -261,8 +280,166 @@
   // Roda fn quando o estilo do mapa estiver carregado (para addSource/addLayer).
   // Depois do primeiro "load", roda na hora. Não dá para confiar só em isStyleLoaded(): ele volta a ser false enquanto
   // uma fonte nova carrega (ex.: a camada de postos do E2), e aí once("load") nunca mais dispararia.
-  let carregou = false;
-  function mapaPronto(fn) { if (carregou || C.mapa.isStyleLoaded()) fn(); else C.mapa.once("load", fn); }
+  // Enquanto o estilo é trocado (tema, tipo de mapa), espera o estilo novo: as camadas dos pacotes já vêm junto
+  // (transformStyle) e quem chamar mapaPronto encontra a fonte dele lá.
+  let carregou = false, trocando = false;
+  const naFila = [];
+  function mapaPronto(fn) {
+    if (trocando) { naFila.push(fn); return; }
+    if (carregou || C.mapa.isStyleLoaded()) fn(); else C.mapa.once("load", fn);
+  }
+
+  // ------------------------------------------------------------ estilo pelo tema e tipo de mapa (Ruas / Ruas + prédios)
+  const PREDIOS_3D = "copiloto-predios-3d";
+  let idsBase = null; // camadas e fontes do estilo base (o resto é dos pacotes e vai junto na troca)
+  function guardarBase() {
+    try {
+      const st = C.mapa.getStyle() || {};
+      idsBase = { camadas: new Set((st.layers || []).map((l) => l.id).filter((id) => id !== PREDIOS_3D)), fontes: new Set(Object.keys(st.sources || {})) };
+    } catch (e) { idsBase = null; }
+  }
+  function camadaPredio(c) { return c && (c["source-layer"] === "building" || c.sourceLayer === "building"); }
+  function aplicarPredios() {
+    const mapa = C.mapa;
+    if (!mapa || !mapa.getStyle) return;
+    let st;
+    try { st = mapa.getStyle(); } catch (e) { return; }
+    if (!st) return;
+    const tipo = C.tema && C.tema.tipoMapa ? C.tema.tipoMapa() : "ruas";
+    const ver = tipo === "predios" ? "visible" : "none";
+    const camadas = st.layers || [];
+    let temExtrusao = false, fonte = null;
+    for (const c of camadas) {
+      if (!camadaPredio(c)) continue;
+      if (c.type === "fill-extrusion" && c.id !== PREDIOS_3D) temExtrusao = true;
+      if (!fonte) fonte = c.source;
+      try { if ((mapa.getLayoutProperty(c.id, "visibility") || "visible") !== ver) mapa.setLayoutProperty(c.id, "visibility", ver); } catch (e) { /* camada sumiu */ }
+    }
+    // "Ruas + prédios" num estilo sem extrusão (dark): prédios 3D próprios, na cor do tema
+    if (tipo === "predios" && !temExtrusao && fonte && !mapa.getLayer(PREDIOS_3D)) {
+      const escuro = C.tema && C.tema.efetivo && C.tema.efetivo() === "escuro";
+      try {
+        mapa.addLayer({ id: PREDIOS_3D, type: "fill-extrusion", source: fonte, "source-layer": "building", minzoom: 14,
+          paint: { "fill-extrusion-color": escuro ? "#3a4558" : "#d9d2c5", "fill-extrusion-opacity": 0.8,
+            "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6], "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0] } },
+        primeiraCamadaPropria(camadas));
+      } catch (e) { /* estilo sem a fonte */ }
+    }
+  }
+  // as camadas dos pacotes ficam por cima dos prédios
+  function primeiraCamadaPropria(camadas) {
+    if (!idsBase) return undefined;
+    const c = camadas.find((x) => !idsBase.camadas.has(x.id) && x.id !== PREDIOS_3D);
+    return c ? c.id : undefined;
+  }
+  // leva as camadas e fontes dos pacotes para o estilo novo, na mesma ordem, por cima do estilo base
+  let baseNova = null;
+  function levarCamadas(anterior, novo) {
+    const camadasNovas = (novo && novo.layers) || [];
+    baseNova = { camadas: new Set(camadasNovas.map((l) => l.id)), fontes: new Set(Object.keys((novo && novo.sources) || {})) };
+    if (!anterior || !idsBase) return novo;
+    const fontes = Object.assign({}, novo.sources);
+    for (const [id, f] of Object.entries(anterior.sources || {})) if (!idsBase.fontes.has(id) && !fontes[id]) fontes[id] = f;
+    const proprias = (anterior.layers || []).filter((l) => !idsBase.camadas.has(l.id) && l.id !== PREDIOS_3D
+      && !baseNova.camadas.has(l.id) && (!l.source || fontes[l.source]));
+    return Object.assign({}, novo, { sources: fontes, layers: camadasNovas.concat(proprias) });
+  }
+  // Trocar o estilo (tema) NUNCA deixa o mapa sem estilo: o JSON do estilo novo é buscado ANTES (pelo service worker, que o guarda
+  // com o sprite e os glifos dos dois temas: ui/offline.js) e só então vai ao setStyle como objeto. Sem conseguir buscar (sem
+  // internet e sem o estilo guardado, servidor fora, tempo esgotado), o mapa continua com o estilo atual, com a rota e as camadas
+  // dos pacotes, e o app avisa uma vez; quando a internet volta, tenta de novo. Antes, o setStyle(url) tirava o estilo antigo e,
+  // com o pedido falhando, o mapa ficava vazio (sem rota, sem relatos) e `trocando` nunca voltava a false.
+  const TEMPO_ESTILO_MS = 10000, TEMPO_APLICAR_MS = 15000;
+  let seqTroca = 0, avisouTroca = false;
+  function absolutizarEstilo(est, base) {
+    // as chaves dos modelos ({z}/{x}/{y}, {fontstack}/{range}) precisam continuar como estão: o URL() as escreve como %7B %7D
+    const abs = (u) => { try { return new URL(u, base).href.replace(/%7B/gi, "{").replace(/%7D/gi, "}"); } catch (e) { return u; } };
+    if (typeof est.sprite === "string") est.sprite = abs(est.sprite);
+    else if (Array.isArray(est.sprite)) est.sprite = est.sprite.map((x) => (x && typeof x.url === "string" ? Object.assign({}, x, { url: abs(x.url) }) : x));
+    if (typeof est.glyphs === "string") est.glyphs = abs(est.glyphs);
+    for (const f of Object.values(est.sources || {})) {
+      if (!f) continue;
+      if (typeof f.url === "string") f.url = abs(f.url);
+      if (Array.isArray(f.tiles)) f.tiles = f.tiles.map(abs);
+    }
+    return est;
+  }
+  async function buscarEstilo(url) {
+    const ctl = typeof AbortController === "function" ? new AbortController() : null;
+    const t = setTimeout(() => { if (ctl) ctl.abort(); }, TEMPO_ESTILO_MS);
+    try {
+      const r = await fetch(url, { mode: "cors", signal: ctl ? ctl.signal : undefined });
+      if (!r.ok) throw new Error("estilo " + r.status);
+      const est = await r.json();
+      if (!est || typeof est !== "object" || !Array.isArray(est.layers) || !est.version) throw new Error("estilo inválido");
+      return absolutizarEstilo(est, url);
+    } finally { clearTimeout(t); }
+  }
+  function avisarTrocaFalhou() {
+    if (avisouTroca) return;
+    avisouTroca = true;
+    C.mensagem("Sem conseguir carregar o mapa do outro tema agora (precisa de internet na primeira vez). O mapa continua como estava; tento de novo quando a internet voltar.", 9000);
+  }
+  function trocarEstilo(url) {
+    const mapa = C.mapa;
+    if (!mapa) return;
+    const minha = ++seqTroca;
+    if (url === estiloUrl) { aplicarPredios(); return; }
+    buscarEstilo(url).then((est) => {
+      if (minha !== seqTroca) return; // outra troca (ou a volta ao estilo de antes) foi pedida depois
+      aplicarEstilo(url, est);
+    }, () => {
+      if (minha !== seqTroca) return;
+      trocando = false; // nada foi trocado: nada espera
+      avisarTrocaFalhou();
+    });
+  }
+  function aplicarEstilo(url, est) {
+    const mapa = C.mapa, anterior = estiloUrl;
+    estiloUrl = url; C.mapaEstiloUrl = url;
+    avisouTroca = false;
+    if (!carregou && !trocando) { // primeiro estilo ainda carregando: troca direto
+      try { mapa.setStyle(est); } catch (e) { estiloUrl = anterior; C.mapaEstiloUrl = anterior; }
+      return;
+    }
+    trocando = true;
+    if (!idsBase) guardarBase();
+    let instantaneo = null;
+    try { instantaneo = mapa.getStyle(); } catch (e) { instantaneo = null; }
+    let timer = null;
+    const terminou = () => {
+      clearTimeout(timer);
+      trocando = false;
+      if (baseNova) idsBase = baseNova; else guardarBase();
+      baseNova = null;
+      aplicarPredios();
+      aplicarModo();
+      for (const fn of naFila.splice(0)) { try { fn(); } catch (e) { setTimeout(() => { throw e; }, 0); } }
+      C.emit("mapa-estilo", { url });
+    };
+    mapa.once("style.load", terminou);
+    // estilo recusado (inválido) ou que nunca termina de carregar: volta ao de antes, com as camadas dos pacotes
+    const desistir = () => {
+      mapa.off("style.load", terminou);
+      clearTimeout(timer);
+      estiloUrl = anterior; C.mapaEstiloUrl = anterior; baseNova = null;
+      trocando = false;
+      if (instantaneo) {
+        mapa.once("style.load", () => { aplicarPredios(); aplicarModo(); for (const fn of naFila.splice(0)) { try { fn(); } catch (e) { setTimeout(() => { throw e; }, 0); } } });
+        try { mapa.setStyle(instantaneo, { diff: false }); } catch (e) { /* sem como voltar */ }
+      }
+      for (const fn of naFila.splice(0)) { try { fn(); } catch (e) { setTimeout(() => { throw e; }, 0); } }
+      avisarTrocaFalhou();
+    };
+    timer = setTimeout(() => { if (trocando) desistir(); }, TEMPO_APLICAR_MS);
+    try { mapa.setStyle(est, { diff: false, transformStyle: levarCamadas }); } catch (e) { desistir(); }
+  }
+  // internet de volta: se o tema pedido ainda não é o do mapa (a troca tinha falhado), tenta de novo
+  function reconferirEstilo() {
+    if (!C.mapa || !C.tema || trocando) return;
+    const quer = C.tema.estiloMapa();
+    if (quer !== estiloUrl) trocarEstilo(quer);
+  }
 
   // ------------------------------------------------------------ A1: botões do mapa no espaço livre
   // Coluna por coluna, da direita para a esquerda; em cada coluna, de baixo para cima (o último botão, Falar, fica
@@ -271,12 +448,13 @@
   // exige que fique visível e tocável) e o velocímetro. Só a primeira coluna desce até o pé (a atribuição fica à esquerda
   // dela, estilos/comandos.css). As colunas não passam da borda esquerda da tela.
   // Sem espaço para todos (iPhone SE com navegação, alerta e instrução longa; celular deitado), esconde primeiro os não
-  // essenciais, nesta ordem; o "!" (relatar) e o "Falar" nunca saem (o SOS fica na barra inferior).
+  // essenciais, nesta ordem; o "!" (relatar) e o "Falar" nunca saem (o SOS fica no menu de Configurações e no formulário do "!").
   const VAO = 10, BASE = 14, MARGEM = 8;
-  const DISPENSAVEIS = ["btn-tela", "e3-btn-baixar", "btn-orientacao", "btn-destino", "btn-postos"];
+  // redesenho: ☀, ⚑ e ⛽ saíram da coluna; "e3-btn-baixar" fica só até o ramo da equipe B (que o remove) entrar
+  const DISPENSAVEIS = ["e3-btn-baixar", "btn-orientacao"];
   function visivel(e) { return !!e && !e.hidden && e.offsetParent !== null && getComputedStyle(e).display !== "none"; }
-  const SEL_PE = ".maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *, .painel-mapa > .velocidade, .painel-mapa > .btn-recentralizar";
-  const SEL_TOPO = "#nav-painel, #alerta, .maplibregl-ctrl-top-right > *, .maplibregl-ctrl-top-left > *, .painel-mapa > .chip-veiculo";
+  const SEL_PE = ".maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *, .painel-mapa > .velocidade, .painel-mapa > .btn-recentralizar, .painel-mapa > .nav-rodape";
+  const SEL_TOPO = "#nav-painel, #alerta, .maplibregl-ctrl-top-right > *, .maplibregl-ctrl-top-left > *, .painel-mapa > .barra-topo";
   function retangulos(sel) {
     const out = [];
     for (const e of document.querySelectorAll(sel)) {
@@ -324,9 +502,15 @@
     const largura = rec.classList.contains("compacta") ? 210 : Math.max(rec.offsetWidth || 0, 180);
     let teto = mr.top + MARGEM;
     for (const r of topos) if (r.left < vr.left + largura && r.right > vr.left && r.top < vr.top) teto = Math.max(teto, r.bottom + MARGEM);
-    const compacta = vr.top - 10 - 64 < teto;
+    // navegando (redesenho), a atribuição do mapa fica logo acima da barra do pé, ao lado da velocidade: a pílula sobe
+    // para cima dela (a atribuição tem de ficar visível e tocável)
+    let base = vr.top;
+    for (const r of retangulos(".maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *")) {
+      if (r.left < vr.left + largura && r.right > vr.left && r.top < base && r.bottom > base - 64 - 10) base = Math.min(base, r.top);
+    }
+    const compacta = base - 10 - 64 < teto;
     if (rec.classList.contains("compacta") !== compacta) rec.classList.toggle("compacta", compacta);
-    const b = Math.round(compacta ? mr.bottom - vr.bottom : mr.bottom - vr.top + 10) + "px";
+    const b = Math.round(compacta ? mr.bottom - vr.bottom : mr.bottom - base + 10) + "px";
     if (rec.style.bottom !== b) rec.style.bottom = b;
     const w = compacta ? Math.round(vr.width) + "px" : "";
     if (rec.style.width !== w) rec.style.width = w;
@@ -378,7 +562,7 @@
     const mo = new MutationObserver(agendarArrumar);
     // a atribuição muda de tamanho ao abrir/fechar (botão "i") e quando o texto das fontes chega
     for (const e of [document.querySelector("main"), $("nav-painel"), $("alerta"), document.querySelector(".velocidade"),
-      document.querySelector(".chip-veiculo"), document.querySelector(".maplibregl-ctrl-attrib"), $("btn-recentralizar")]) {
+      $("barra-topo"), $("nav-rodape"), document.querySelector(".maplibregl-ctrl-attrib"), $("btn-recentralizar")]) {
       if (!e) continue;
       if (ro) ro.observe(e);
       mo.observe(e, { attributes: true, attributeFilter: ["hidden", "class"] });
@@ -435,14 +619,16 @@
   C.mapaModo = mapaModo;
   C.seguindo = () => seguindo;
   C.mapaPronto = mapaPronto;
-  C.mapaEstiloUrl = ESTILO; // ui/offline.js (E3) guarda o estilo no cache para o mapa abrir sem internet
+  C.mapaEstiloUrl = estiloUrl; // ui/offline.js (E3) guarda o estilo no cache para o mapa abrir sem internet (muda com o tema: evento "mapa-estilo")
+  C.mapaEstilo = { url: () => estiloUrl, trocar: trocarEstilo, aplicarPredios, trocando: () => trocando, reconferir: reconferirEstilo };
 
   C.aoIniciar(() => {
     const mapa = new maplibregl.Map({
-      container: "mapa", style: ESTILO, center: [-49.25, -16.68], zoom: 6, attributionControl: { compact: true },
+      container: "mapa", style: estiloUrl, center: [-49.25, -16.68], zoom: 6, attributionControl: { compact: true },
     });
     C.mapa = mapa;
-    mapa.once("load", () => { carregou = true; });
+    mapa.once("style.load", guardarBase); // antes de os pacotes acrescentarem camadas (eles esperam o "load")
+    mapa.once("load", () => { carregou = true; aplicarPredios(); });
     window.copiloto = { mapa: mapa, nuvem: C.nuvem }; // atalho usado pelos testes de navegador
     // B4 (QA): sem girar nem inclinar o mapa pelo toque. Sem a bússola do MapLibre (ficava embaixo do painel de
     // navegação): quem gira é o "rumo para cima", e o botão de orientação mostra o norte.
@@ -462,7 +648,26 @@
       avisouErro = true;
       C.mensagem("O mapa não carregou. Confira a internet e recarregue a página.", 8000);
     });
-    mapa.on("click", (e) => C.emit("mapa-clique", { lngLat: e.lngLat }));
+    mapa.on("click", (e) => {
+      // toque num marcador (relato, posto, destino), popup ou controle do mapa não é "toque no mapa"
+      const alvo = e.originalEvent && e.originalEvent.target;
+      const sobreMarcador = !!(alvo && alvo.closest && alvo.closest(".maplibregl-marker, .maplibregl-popup, .maplibregl-ctrl"))
+        || !!document.querySelector(".maplibregl-popup");
+      let camada = null;
+      try {
+        for (const f of mapa.queryRenderedFeatures(e.point)) {
+          const id = f.layer && f.layer.id;
+          if (id && idsBase && !idsBase.camadas.has(id) && id !== PREDIOS_3D) { camada = id; break; }
+        }
+      } catch (err) { /* estilo trocando */ }
+      C.emit("mapa-clique", { lngLat: e.lngLat, point: e.point, sobreMarcador, camada });
+    });
+    C.on("tema", () => trocarEstilo(C.tema.estiloMapa()));
+    window.addEventListener("online", reconferirEstilo);
+    C.on("mapa-tipo", () => {
+      if (C.mapa.getLayer(PREDIOS_3D)) try { C.mapa.removeLayer(PREDIOS_3D); } catch (e) { /* ignora */ }
+      aplicarPredios();
+    });
     $("btn-orientacao").addEventListener("click", alternarOrientacao);
     $("btn-recentralizar").addEventListener("click", () => definirSeguir(true));
     C.on("posicao", aoPosicao);
@@ -478,6 +683,7 @@
     criarAvisoPaisagem();
     // camadas novas (postos, estilo recarregado) também seguem o modo
     mapa.on("styledata", () => { if (modo === "simples") aplicarModo(); });
+    mapa.on("style.load", () => { if (!trocando) aplicarPredios(); });
     aplicarModo();
     C.on("comando:mapa-modo", (d) => {
       if (!d || (d.modo !== "simples" && d.modo !== "completo")) return;

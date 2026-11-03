@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.fbcdn.net https://*.mapillary.com; font-src 'self' data:; connect-src 'self' https://tiles.openfreemap.org https://wircixwonazhqmprwtqv.supabase.co https://valhalla1.openstreetmap.de https://photon.komoot.io https://nominatim.openstreetmap.org https://graph.mapillary.com; worker-src 'self' blob:; child-src blob:; manifest-src 'self'; media-src 'self' blob: data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -19,6 +20,7 @@
 <link rel="stylesheet" href="estilos/relatos.css">
 <link rel="stylesheet" href="estilos/alerta.css">
 <link rel="stylesheet" href="estilos/conta.css">
+<link rel="stylesheet" href="estilos/interface.css">
 </head>
 <body>
 <div id="app">
@@ -28,7 +30,11 @@
     <div id="mapa" aria-label="Mapa"></div>
 
     <div class="painel-mapa" id="painel-mapa">
-      <div class="chip-veiculo" id="chip-veiculo">Nenhum veículo ativo</div>
+      <!-- Tela inicial enxuta (redesenho): busca "Para onde?" e Configurações no alto; "!" e "Falar" embaixo, à direita -->
+      <div class="barra-topo" id="barra-topo">
+        <button class="busca-campo" id="btn-destino" aria-pressed="false" aria-label="Para onde? Buscar destino, recentes e postos"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span>Para onde?</span></button>
+        <button class="btn-config" id="btn-config" aria-label="Configurações" title="Configurações"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      </div>
       <div class="msg-mapa" id="msg-mapa" hidden></div>
 
       <div class="velocidade" aria-live="off">
@@ -36,9 +42,7 @@
       </div>
 
       <div class="acoes">
-        <button class="btn-redondo" id="btn-reportar" aria-label="Reportar um problema ou restrição aqui" title="Reportar aqui"><b>!</b></button>
-        <button class="btn-redondo destino" id="btn-destino" aria-pressed="false" aria-label="Escolher destino no mapa" title="Escolher destino">⚑</button>
-        <button class="btn-redondo" id="btn-tela" aria-pressed="false" aria-label="Manter a tela ligada" title="Manter a tela ligada">☀</button>
+        <button class="btn-redondo btn-relatar" id="btn-reportar" aria-label="Reportar um problema ou restrição aqui" title="Reportar aqui"><b>!</b></button>
         <button class="btn-redondo btn-orientacao" id="btn-orientacao" aria-pressed="false" aria-label="Norte para cima. Tocar para rumo para cima" title="Norte para cima / rumo para cima"><span class="orient-icone" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 1 L17.5 13 L12 10.5 L6.5 13 Z"/><text x="12" y="23" text-anchor="middle" font-size="9" font-weight="800" fill="currentColor">N</text></svg></span><span class="orient-rotulo">Norte</span></button>
       </div>
 
@@ -46,7 +50,7 @@
 
       <div class="cartao-gps" id="cartao-gps">
         <h2>Ativar o GPS</h2>
-        <p id="cartao-gps-texto">O Copiloto usa a sua localização para o mapa, a velocidade e os alertas. Para buscar postos e relatos perto de você, a posição exata vai ao servidor (postos: também o rumo, mesmo com os alertas desligados; relatos: a cada minuto e a cada 2 km, com a conta); não guardamos esse trajeto. Vai também num relato ou voto seu e, na rota, ao servidor de rotas (Valhalla). Mude em Conta → Privacidade.</p>
+        <p id="cartao-gps-texto">Mostra onde você está no mapa, a velocidade e os alertas. Escolhas em Configurações → Privacidade.</p>
         <button class="btn btn-principal" id="btn-gps">Ativar GPS</button>
       </div>
     </div>
@@ -63,6 +67,63 @@
     </div>
 
     <div class="folha" id="folha" hidden></div>
+
+    <!-- Voltar ao mapa: aparece em qualquer tela (Configurações, Busca, Veículo, Conta, Emergência…) -->
+    <button class="tela-voltar" id="nav-mapa" hidden aria-label="Voltar ao mapa"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7"/></svg><span>Mapa</span></button>
+
+    <section id="tela-busca" class="tela tela-busca" hidden aria-label="Buscar destino">
+      <form class="busca-form" id="busca-form" role="search" novalidate>
+        <label class="busca-rotulo" for="busca-texto"><span class="so-leitor">Destino</span>
+          <input id="busca-texto" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Endereço, lugar, empresa ou lat, lon">
+        </label>
+      </form>
+      <div class="busca-atalhos">
+        <button type="button" class="busca-atalho" id="busca-postos"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 21V5a2 2 0 012-2h7a2 2 0 012 2v16M3 21h13M15 9h2a2 2 0 012 2v6a1.5 1.5 0 003 0V8l-3-3"/></svg><span>Postos à frente</span></button>
+        <button type="button" class="busca-atalho" id="busca-base"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg><span>Casa / base</span></button>
+      </div>
+      <div class="busca-resultados" id="busca-resultados" aria-live="polite"></div>
+      <h2 class="busca-secao" id="busca-recentes-titulo">Recentes</h2>
+      <ul class="busca-lista" id="busca-recentes"></ul>
+      <p class="dica busca-dica" id="busca-dica">Ou toque no mapa e escolha "Ir para cá".</p>
+    </section>
+
+    <section id="tela-config" class="tela tela-config" hidden aria-label="Configurações">
+      <h1>Configurações</h1>
+      <div class="cfg-grupo">
+        <h2 class="cfg-titulo" id="cfg-tema-titulo">Tema</h2>
+        <div class="cfg-seg cfg-seg-3" role="radiogroup" aria-labelledby="cfg-tema-titulo">
+          <button type="button" role="radio" aria-checked="false" id="cfg-tema-claro" data-tema="claro">Claro</button>
+          <button type="button" role="radio" aria-checked="false" id="cfg-tema-escuro" data-tema="escuro">Escuro</button>
+          <button type="button" role="radio" aria-checked="false" id="cfg-tema-auto" data-tema="auto">Automático</button>
+        </div>
+        <p class="dica" id="cfg-tema-dica"></p>
+      </div>
+      <div class="cfg-grupo">
+        <h2 class="cfg-titulo" id="cfg-mapa-titulo">Tipo de mapa</h2>
+        <div class="cfg-seg cfg-seg-2" role="radiogroup" aria-labelledby="cfg-mapa-titulo">
+          <button type="button" role="radio" aria-checked="false" id="cfg-mapa-ruas" data-tipo="ruas">Ruas</button>
+          <button type="button" role="radio" aria-checked="false" id="cfg-mapa-predios" data-tipo="predios">Ruas + prédios</button>
+        </div>
+      </div>
+      <!-- Orientação do mapa (equipe D): fora da navegação não há botão no mapa (tela enxuta); navegando, também #btn-orientacao -->
+      <div class="cfg-grupo">
+        <h2 class="cfg-titulo" id="cfg-orient-titulo">Orientação do mapa</h2>
+        <div class="cfg-seg cfg-seg-2" role="radiogroup" aria-labelledby="cfg-orient-titulo">
+          <button type="button" role="radio" aria-checked="false" id="cfg-orient-rumo" data-orient="rumo">Rumo para cima</button>
+          <button type="button" role="radio" aria-checked="false" id="cfg-orient-norte" data-orient="norte">Norte para cima</button>
+        </div>
+      </div>
+      <!-- Menu: as telas (Veículo, Conta, Emergência e as dos pacotes) abrem daqui; os pacotes entram por Copiloto.abas.registrar -->
+      <nav class="cfg-menu" aria-label="Menu">
+        <button id="nav-veiculo"><span class="cfg-item">Veículo</span><small class="cfg-valor chip-veiculo" id="chip-veiculo">Nenhum veículo ativo</small></button>
+        <button id="cfg-voz" data-ir="conta" data-alvo="cartao-voz"><span class="cfg-item">Voz</span><small class="cfg-valor" id="cfg-voz-valor"></small></button>
+        <button id="cfg-fachada" role="switch" aria-checked="false"><span class="cfg-item">Fachada na chegada</span><small class="cfg-valor" id="cfg-fachada-valor">Desligada</small></button>
+        <button id="btn-tela" aria-pressed="false"><span class="cfg-item">Manter a tela ligada</span><small class="cfg-valor cfg-ligado">Ligada</small><small class="cfg-valor cfg-desligado">Desligada</small></button>
+        <button id="cfg-privacidade" data-ir="conta" data-alvo="e5-privacidade"><span class="cfg-item">Privacidade</span><small class="cfg-valor">Ver</small></button>
+        <button id="cfg-diagnostico" data-ir="conta" data-alvo="cmd-diag"><span class="cfg-item">Diagnóstico de voz</span><small class="cfg-valor">Ver</small></button>
+        <button id="nav-conta"><span class="cfg-item">Conta</span><small class="cfg-valor" id="cfg-conta-valor"></small></button>
+      </nav>
+    </section>
 
     <section id="tela-veiculo" class="tela" hidden aria-label="Veículos">
       <h1>Veículos</h1>
@@ -100,6 +161,10 @@
           <label for="f-pbtc">PBTC (t)
             <input id="f-pbtc" inputmode="decimal" autocomplete="off" placeholder="45">
             <span class="erro" id="e-pbtc"></span>
+          </label>
+          <label for="f-tara">Peso vazio (t)
+            <input id="f-tara" inputmode="decimal" autocomplete="off" placeholder="15">
+            <span class="erro" id="e-tara"></span>
           </label>
           <label for="f-eixos">Eixos
             <input id="f-eixos" inputmode="numeric" autocomplete="off" placeholder="6">
@@ -157,17 +222,12 @@
           <select id="voz-perfil"></select>
         </label>
         <p class="dica">O alerta é sempre curto e igual em todos os jeitos. Muda só o agradecimento depois do seu voto.</p>
-        <p class="dica" id="voz-microfone">Comando de voz (botão "Falar"): o microfone só liga depois do seu toque. No iPhone, o áudio vai ao reconhecimento de fala da Apple, que devolve o texto; o Copiloto não grava o áudio.</p>
+        <p class="dica" id="voz-microfone">Comando de voz (botão "Falar"): o microfone só liga depois do seu toque. No modo mãos-livres (opcional), fica ouvindo enquanto o app está na tela. No iPhone, o áudio vai ao reconhecimento de fala da Apple, que devolve o texto; o Copiloto não grava o áudio.</p>
         <p class="dica" id="voz-msg" role="status"></p>
       </div>
     </section>
   </main>
 
-  <nav aria-label="Navegação">
-    <button id="nav-mapa" aria-current="page">Mapa</button>
-    <button id="nav-veiculo">Veículo</button>
-    <button id="nav-conta">Conta</button>
-  </nav>
 </div>
 
 <!-- Bibliotecas e lógica pura (sem DOM, testadas no Node) -->
@@ -175,6 +235,7 @@
 <script src="validacao.js"></script>
 <script src="velocidade.js"></script>
 <script src="rota.js"></script>
+<script src="alternativas.js"></script>
 <script src="relatos.js"></script>
 <script src="config.js"></script>
 <script src="nuvem.js"></script>
@@ -186,9 +247,13 @@
 <script src="offline.js"></script>
 <script src="comandos.js"></script>
 <script src="consentimento.js"></script>
+<script src="interface.js"></script>
+<script src="endereco.js"></script>
+<script src="fachada.js"></script>
 
 <!-- Interface: núcleo primeiro (window.Copiloto), depois os módulos. Ver ARQUITETURA.md -->
 <script src="ui/nucleo.js"></script>
+<script src="ui/tema.js"></script>
 <script src="ui/mapa.js"></script>
 <script src="ui/gps.js"></script>
 <script src="ui/veiculos.js"></script>
@@ -198,6 +263,8 @@
 <script src="ui/voz.js"></script>
 <script src="ui/alerta.js"></script>
 <script src="ui/conta.js"></script>
+<script src="ui/configuracoes.js"></script>
+<script src="ui/busca.js"></script>
 
 <!-- MÓDULOS DE PACOTE: uma linha por pacote -->
 <script src="ui/navegacao.js"></script>
@@ -205,6 +272,11 @@
 <script src="ui/offline.js"></script>
 <script src="ui/comandos.js"></script>
 <script src="ui/privacidade.js"></script>
+<script src="ui/endereco.js"></script>
+<script src="ui/fachada.js"></script>
+<script src="limite.js"></script><script src="ui/limite.js"></script>
+<script src="custos.js"></script><script src="ui/custos.js"></script>
+<script src="rotalonga.js"></script><script src="viaqualidade.js"></script><script src="ui/rotalonga.js"></script><script src="ui/via.js"></script>
 <!-- FIM DOS MÓDULOS DE PACOTE -->
 
 <script src="ui/inicio.js"></script>

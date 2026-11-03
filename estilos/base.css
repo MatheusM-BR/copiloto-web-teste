@@ -1,4 +1,4 @@
-/* Base: cores, layout, mapa, barra inferior, botões, formulários e folha inferior. Pacotes NÃO editam este arquivo: cada um usa o seu (ver ARQUITETURA.md). */
+/* Base: cores, layout, mapa, botões, formulários e folha inferior (tela inicial, Configurações, busca, tema claro: interface.css). Pacotes NÃO editam este arquivo: cada um usa o seu (ver ARQUITETURA.md). */
 /* Layout: mapa em tela cheia, faixa de aviso fixa no topo, velocidade no canto, navegação embaixo. */
 :root {
   --bg: #14181f;
@@ -67,13 +67,6 @@ main { position: relative; flex: 1; min-height: 0; }
 }
 .btn-redondo[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
 
-.chip-veiculo {
-  position: absolute; top: 10px; left: max(12px, env(safe-area-inset-left, 0px));
-  background: var(--painel); border: 1px solid var(--linha); border-radius: 999px;
-  padding: 6px 12px; font-size: 14px; max-width: calc(100% - 24px);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
 .cartao-gps {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: min(88%, 360px); background: var(--painel); border: 1px solid var(--linha);
@@ -92,7 +85,7 @@ main { position: relative; flex: 1; min-height: 0; }
 .btn-pequeno { min-height: 40px; padding: 0 12px; font-size: 14px; }
 
 .msg-mapa {
-  position: absolute; top: 52px; left: 50%; transform: translateX(-50%);
+  position: absolute; top: 84px; left: 50%; transform: translateX(-50%);
   background: var(--painel); border: 1px solid var(--acento); color: var(--texto);
   border-radius: 10px; padding: 8px 12px; font-size: 14px; width: max-content; max-width: 90%;
   pointer-events: none; /* só informa: nunca tapa um botão */
@@ -118,16 +111,6 @@ input, select {
 input[aria-invalid="true"] { border-color: #ff8b84; }
 .erro { color: #ff8b84; font-size: 13px; min-height: 0; }
 .dica { color: var(--suave); font-size: 13px; margin: 0; }
-
-nav {
-  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--painel); border-top: 1px solid var(--linha);
-  padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); z-index: 7;
-}
-nav button {
-  border: 0; background: transparent; min-height: 64px; color: var(--suave); font-weight: 600; font-size: 15px;
-  display: grid; place-items: center; gap: 0;
-}
-nav button[aria-current="page"] { color: var(--acento); }
 
 .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { z-index: 2; }
 .maplibregl-ctrl-bottom-right { bottom: 0; }

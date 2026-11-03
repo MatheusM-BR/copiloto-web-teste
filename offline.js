@@ -299,7 +299,62 @@
   }
   function ultimaValidaAte(r) { return r && r.ultima && isFinite(r.ultima.chegouEm) ? r.ultima.chegouEm + ULTIMA_VALIDADE_MS : null; }
 
+  // ------------------------------------------------------------ mapa da rota em cache automático (corredores)
+  // Ao traçar uma rota, o corredor dela é baixado sozinho (ui/offline.js) para um cache próprio
+  // ("copiloto-mapa-rota-<id>"; o antigo "copiloto-mapa-rota", de um corredor só, continua sendo lido).
+  // Cada corredor vale CORREDOR_VALIDADE_MS (30 dias, igual à última rota) a partir de quando terminou de baixar.
+  // Registro de um corredor: { id, cache, rotaId, destino, iniciado, em, validoAte, completo, total, baixados, bytes }.
+  const CORREDOR_VALIDADE_MS = ULTIMA_VALIDADE_MS;
+  const CACHE_CORREDOR = "copiloto-mapa-rota";
+  // Pouco espaço: livre (cota − uso) abaixo de 15 % da cota OU abaixo de 200 MB, contando o corredor novo.
+  // Nesse caso os corredores mais antigos saem antes de vencer (validade encurtada), nunca o da rota ativa.
+  const LIMIAR_ESPACO = { fracaoLivreMin: 0.15, bytesLivresMin: 200e6 };
+  const MAX_CORREDORES = 8; // teto mesmo sem a estimativa do aparelho
+  function nomeCacheCorredor(id) { return CACHE_CORREDOR + "-" + id; }
+  function ehCacheDeCorredor(nome) { return nome === CACHE_CORREDOR || String(nome).indexOf(CACHE_CORREDOR + "-") === 0; }
+  function corredorVencido(c, agora) { return !c || !isFinite(c.validoAte) || (agora == null ? Date.now() : agora) > c.validoAte; }
+  // Pronto: completo e ainda valendo (não baixa de novo a mesma rota)
+  function corredorPronto(c, agora) { return !!(c && c.completo && !corredorVencido(c, agora)); }
+  // null = o aparelho não informa o espaço
+  function espacoBaixo(estimativa, bytesNovo, limiar) {
+    const l = Object.assign({}, LIMIAR_ESPACO, limiar);
+    if (!estimativa || !isFinite(estimativa.quota) || !isFinite(estimativa.usage) || estimativa.quota <= 0) return null;
+    const livre = estimativa.quota - estimativa.usage - (bytesNovo || 0);
+    return livre < l.fracaoLivreMin * estimativa.quota || livre < l.bytesLivresMin;
+  }
+  // O que apagar antes de baixar o corredor novo. o = { agora, ativo (id que nunca sai), estimativa, bytesNovo, limiar, max }.
+  // 1) vencidos; 2) acima do teto de quantidade; 3) com pouco espaço, o mais antigo primeiro, até sair do "pouco espaço".
+  // Devolve { remover: [ids], baixo (depois da limpeza; null sem estimativa), cabe (o corredor novo cabe) }.
+  function planejarLimpeza(corredores, o) {
+    o = o || {};
+    const agora = o.agora == null ? Date.now() : o.agora;
+    const max = o.max == null ? MAX_CORREDORES : o.max;
+    const tam = (c) => (isFinite(c.bytes) && c.bytes > 0 ? c.bytes : 0);
+    const quando = (c) => (isFinite(c.em) && c.em ? c.em : isFinite(c.iniciado) ? c.iniciado : 0);
+    const lista = (Array.isArray(corredores) ? corredores : []).filter((c) => c && c.id != null).slice().sort((a, b) => quando(a) - quando(b));
+    const remover = [];
+    let est = o.estimativa && isFinite(o.estimativa.quota) && isFinite(o.estimativa.usage) ? { quota: o.estimativa.quota, usage: o.estimativa.usage } : null;
+    const tirar = (c) => { remover.push(c.id); if (est) est.usage = Math.max(0, est.usage - tam(c)); };
+    const podeSair = (c) => String(c.id) !== String(o.ativo) && remover.indexOf(c.id) < 0;
+    for (const c of lista) if (podeSair(c) && corredorVencido(c, agora)) tirar(c);
+    // o corredor novo conta no teto (a não ser que seja o ativo que já está na lista)
+    const novoNaLista = lista.some((c) => String(c.id) === String(o.ativo));
+    for (const c of lista) if (lista.length - remover.length + (novoNaLista ? 0 : 1) > max && podeSair(c)) tirar(c);
+    for (const c of lista) if (est && espacoBaixo(est, o.bytesNovo, o.limiar) && podeSair(c)) tirar(c);
+    const baixo = est ? espacoBaixo(est, o.bytesNovo, o.limiar) : null;
+    const cabe = est ? cabeNoAparelho(est, o.bytesNovo || 0).cabe : true;
+    return { remover, baixo, cabe };
+  }
+  // Corredores com o mesmo destino que ficaram para trás (recálculo da mesma viagem): saem quando o novo termina.
+  function corredoresSubstituidos(corredores, novo) {
+    if (!novo || !novo.destino) return [];
+    return (Array.isArray(corredores) ? corredores : []).filter((c) => c && String(c.id) !== String(novo.id) && c.destino === novo.destino).map((c) => c.id);
+  }
+  function chaveDestino(r) { return r && r.destino && isFinite(r.destino.lat) && isFinite(r.destino.lon) ? Number(r.destino.lat).toFixed(5) + "," + Number(r.destino.lon).toFixed(5) : null; }
+
   const api = {
+    CORREDOR_VALIDADE_MS, CACHE_CORREDOR, LIMIAR_ESPACO, MAX_CORREDORES, nomeCacheCorredor, ehCacheDeCorredor, corredorVencido,
+    corredorPronto, espacoBaixo, planejarLimpeza, corredoresSubstituidos, chaveDestino,
     ULTIMA_VALIDADE_MS, ultimaValida, ultimaValidaAte,
     rotaParaGuardar, rotaDeGuardada, mesmaRota,
     BYTES_POR_ZOOM, PADRAO_CORREDOR, HOST_MAPA, SEM_INTERNET,

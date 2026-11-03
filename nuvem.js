@@ -6,6 +6,8 @@
 
   const CHAVE_SESSAO = "copiloto.sessao.v1";
   const CHAVE_FILA = "copiloto.fila.v1";
+  const PKCE_VALIDADE_MS = 10 * 60 * 1000;  // verificador esquecido (login abandonado) é descartado depois de 10 minutos
+  const CHAVE_PKCE = "copiloto.pkce.v1";   // verificador PKCE do login social, entre a ida ao Google e a volta
   const RENOVAR_ANTES_S = 60;      // renova o token 60 s antes de vencer
   const TEMPO_LIMITE_MS = 20000;   // sem resposta em 20 s conta como sem internet
 
@@ -115,6 +117,88 @@
     return c;
   }
 
+
+  // ------------------------------------------------------------ login social (OAuth do GoTrue, fluxo PKCE)
+  // Ida: <url>/auth/v1/authorize?provider=google&redirect_to=<app>&code_challenge=<S256 do verificador>&code_challenge_method=s256
+  // Volta: <app>?code=<auth_code> → POST /auth/v1/token?grant_type=pkce { auth_code, code_verifier } → mesma sessão do e-mail.
+  // Erro na volta: ?error=…&error_code=…&error_description=… (ou no #, no fluxo implícito).
+  const MSG_PROVEDOR_DESLIGADO = "Entrar com Google ainda não está ativado no servidor. Use e-mail e senha por enquanto.";
+  const MSG_OAUTH = {
+    provider_disabled: MSG_PROVEDOR_DESLIGADO,
+    access_denied: "Login com Google cancelado.",
+    verificador_vencido: "O login com Google demorou demais e foi descartado por segurança. Toque em \"Entrar com Google\" de novo.",
+    verificador_ausente: "O login com Google voltou para um navegador diferente de onde começou. Toque em \"Entrar com Google\" de novo, aqui mesmo, ou use e-mail e senha.",
+    flow_state_not_found: "O login com Google demorou demais. Toque em \"Entrar com Google\" de novo.",
+    flow_state_expired: "O login com Google demorou demais. Toque em \"Entrar com Google\" de novo.",
+    bad_code_verifier: "O login com Google não foi aceito. Toque em \"Entrar com Google\" de novo.",
+    signup_disabled: "Cadastro desligado no servidor.",
+  };
+  function mensagemErroOAuth(codigo, descricao) {
+    const d = String(descricao || "");
+    if (/provider is not enabled|unsupported provider|provider.*not.*enabled/i.test(d)) return MSG_PROVEDOR_DESLIGADO;
+    if (MSG_OAUTH[codigo]) return MSG_OAUTH[codigo];
+    if (MSG_AUTH[codigo]) return MSG_AUTH[codigo];
+    return "Não foi possível entrar com o Google" + (d ? ": " + d : ".");
+  }
+
+  const ALFABETO_PKCE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  function criptoPadrao() { return (raiz && raiz.crypto) || (typeof crypto !== "undefined" ? crypto : null); }
+  // Verificador PKCE (RFC 7636): 64 caracteres de [A-Za-z0-9-._~]. aleatorio(n) → Uint8Array(n) (injetável para teste).
+  function gerarVerificador(aleatorio) {
+    const gerar = aleatorio || ((n) => { const c = criptoPadrao(); if (!c || !c.getRandomValues) throw new Error("sem gerador aleatório seguro"); return c.getRandomValues(new Uint8Array(n)); });
+    const bytes = gerar(64);
+    let s = "";
+    for (let i = 0; i < 64; i++) s += ALFABETO_PKCE[bytes[i] % 66]; // 66 símbolos: 256 % 66 = 58, viés desprezível
+    return s;
+  }
+  function base64url(bytes) {
+    const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    let bin = ""; for (let i = 0; i < b.length; i++) bin += String.fromCharCode(b[i]);
+    const b64 = typeof btoa === "function" ? btoa(bin) : Buffer.from(bin, "binary").toString("base64");
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  // Desafio S256 = base64url(sha256(verificador)), sem "=".
+  async function desafioPkce(verificador, sutil) {
+    const s = sutil || (criptoPadrao() && criptoPadrao().subtle);
+    if (!s) throw new Error("sem crypto.subtle");
+    const hash = await s.digest("SHA-256", new TextEncoder().encode(String(verificador)));
+    return base64url(new Uint8Array(hash));
+  }
+  function urlAutorizar(base, provedor, redirectTo, desafio) {
+    const q = "provider=" + encodeURIComponent(provedor) + "&redirect_to=" + encodeURIComponent(redirectTo) +
+      "&code_challenge=" + encodeURIComponent(desafio) + "&code_challenge_method=s256";
+    return String(base || "").replace(/\/+$/, "") + "/auth/v1/authorize?" + q;
+  }
+  // Endereço de volta: a página do app sem consulta, sem # e sem "index.html" (o que vai na lista de Redirect URLs).
+  function urlDeRetorno(href) {
+    const u = new URL(href);
+    return u.origin + u.pathname.replace(/index\.html$/, "");
+  }
+  const PARAMS_RETORNO = ["code", "error", "error_code", "error_description", "state", "sb", "access_token", "refresh_token", "expires_in", "expires_at", "token_type", "provider_token", "provider_refresh_token", "type"];
+  // Lê a volta do OAuth na URL: { code } | { erro: { codigo, descricao } } | null (abertura normal).
+  function lerRetornoOAuth(href) {
+    let u; try { u = new URL(href); } catch (e) { return null; }
+    const hash = new URLSearchParams(u.hash.replace(/^#/, ""));
+    const pega = (k) => u.searchParams.get(k) || hash.get(k);
+    const erro = pega("error") || pega("error_code");
+    if (erro) return { erro: { codigo: pega("error_code") || pega("error"), descricao: pega("error_description") || "" } };
+    const code = u.searchParams.get("code");
+    if (code) return { code };
+    return null;
+  }
+  // A mesma URL sem os parâmetros da volta (para history.replaceState: recarregar não repete o login).
+  function urlSemRetorno(href) {
+    const u = new URL(href);
+    for (const k of PARAMS_RETORNO) u.searchParams.delete(k);
+    const hash = new URLSearchParams(u.hash.replace(/^#/, ""));
+    let mexeu = false;
+    for (const k of PARAMS_RETORNO) if (hash.has(k)) { hash.delete(k); mexeu = true; }
+    if (mexeu) u.hash = hash.toString();
+    let s = u.toString();
+    if (/[?#]$/.test(s)) s = s.replace(/[?#]+$/, "");
+    return s;
+  }
+
   // ------------------------------------------------------------ cliente
   function criarNuvem(opcoes) {
     const o = opcoes || {};
@@ -139,16 +223,18 @@
     }
 
     // ---------------------------------------------------------- HTTP
-    async function http(caminho, corpo, token) {
+    // metodo "GET" (sem corpo) só para /auth/v1/settings; o resto é POST.
+    async function http(caminho, corpo, token, metodo) {
       if (!fazerFetch) throw erroRede();
-      const cab = { "content-type": "application/json", apikey: CHAVE };
+      const get = metodo === "GET";
+      const cab = get ? { apikey: CHAVE } : { "content-type": "application/json", apikey: CHAVE };
       if (token) cab.authorization = "Bearer " + token;
       const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
       const t = ctl ? setTimeout(() => ctl.abort(), tempoLimite) : null;
       if (t && t.unref) t.unref();
       let resp;
       try {
-        resp = await fazerFetch(URL_BASE + caminho, {
+        resp = await fazerFetch(URL_BASE + caminho, get ? { method: "GET", headers: cab, signal: ctl ? ctl.signal : undefined } : {
           method: "POST", headers: cab, body: JSON.stringify(corpo == null ? {} : corpo), signal: ctl ? ctl.signal : undefined,
         });
       } catch (e) {
@@ -246,6 +332,57 @@
       return s;
     }
 
+    // ---------------------------------------------------------- login social (Google), PKCE
+    // O provedor está ligado no servidor? GET /auth/v1/settings → { external: { google: true|false } }.
+    // true/false; null = não deu para saber (servidor antigo, resposta estranha). Sem internet: lança erro de rede.
+    async function provedorAtivo(provedor) {
+      const r = await http("/auth/v1/settings", null, null, "GET");
+      if (!r.ok || !r.json || !r.json.external || typeof r.json.external[provedor] !== "boolean") return null;
+      return r.json.external[provedor];
+    }
+    // Prepara a ida ao provedor: confere se está ligado (desligado → erro "provider_disabled", sem sair do app), gera e
+    // guarda o verificador (copiloto.pkce.v1) e devolve a URL de /auth/v1/authorize. Quem chama faz location.assign(url).
+    async function iniciarOAuth(provedor, redirectTo) {
+      const p = provedor || "google";
+      const ativo = await provedorAtivo(p);
+      if (ativo === false) throw new ErroNuvem("provider_disabled", MSG_PROVEDOR_DESLIGADO, { status: 400 });
+      const verificador = gerarVerificador(o.aleatorio);
+      const desafio = await desafioPkce(verificador, o.sutil);
+      gravar(CHAVE_PKCE, { verificador, provedor: p, criadoEm: agora() });
+      return urlAutorizar(URL_BASE, p, redirectTo, desafio);
+    }
+    // Descarta o verificador esquecido há mais de 10 minutos (login abandonado). true se descartou.
+    function descartarPkceVencido() {
+      const g = ler(CHAVE_PKCE, null);
+      if (g && !(agora() - Number(g.criadoEm) <= PKCE_VALIDADE_MS)) { gravar(CHAVE_PKCE, null); return true; }
+      return false;
+    }
+    // Trata a volta (href = location.href). Sem nada de OAuth na URL: null. Com erro: lança com a mensagem em português.
+    // Com ?code=: troca pelo token (grant_type=pkce) e grava a sessão como no login por e-mail (mesma renovação).
+    async function concluirOAuth(href) {
+      // verificador abandonado (foi ao Google e não voltou): sai do aparelho depois de 10 minutos, volte ou não
+      const vencido = descartarPkceVencido();
+      const guardado = vencido ? null : ler(CHAVE_PKCE, null);
+      const ret = lerRetornoOAuth(href);
+      if (!ret) return null;
+      gravar(CHAVE_PKCE, null); // um uso só
+      if (ret.erro) throw new ErroNuvem(String(ret.erro.codigo || "oauth"), mensagemErroOAuth(ret.erro.codigo, ret.erro.descricao), { status: 400 });
+      if (!guardado || !guardado.verificador) {
+        if (vencido) throw new ErroNuvem("verificador_vencido", MSG_OAUTH.verificador_vencido);
+        throw new ErroNuvem("verificador_ausente", MSG_OAUTH.verificador_ausente);
+      }
+      const r = await http("/auth/v1/token?grant_type=pkce", { auth_code: ret.code, code_verifier: guardado.verificador });
+      if (!r.ok) {
+        const j = r.json || {};
+        const codigo = j.error_code || j.code || j.error || "oauth";
+        throw new ErroNuvem(String(codigo), mensagemErroOAuth(String(codigo), j.msg || j.message || j.error_description), { status: r.status });
+      }
+      const s = normalizarSessao(r.json);
+      if (!s) throw new ErroNuvem("auth", "Resposta inesperada do servidor de contas.");
+      definirSessao(s);
+      return s;
+    }
+
     // Sair: avisa o servidor se der, mas a sessão local some de qualquer jeito.
     async function sair() {
       const s = sessao;
@@ -263,6 +400,16 @@
         if (!token) throw new ErroNuvem("28000", MSG_FIXAS["28000"]);
         r = await http("/rest/v1/rpc/" + encodeURIComponent(nome), params || {}, token);
       }
+      if (r.ok) return r.json;
+      const j = r.json || {};
+      const code = r.status === 401 && !j.code ? "28000" : String(j.code || "http_" + r.status);
+      throw new ErroNuvem(code, mensagemErroRpc(code, j.message, r.status), { status: r.status });
+    }
+
+    // RPC pública (GRANT a anon): só a chave publicável, sem token, com ou sem conta (custos da rota, ui/custos.js).
+    // Mesmos erros da rpc(): .rede sem internet/demora; recusa (401 sem código) vira "28000".
+    async function rpcPublica(nome, params) {
+      const r = await http("/rest/v1/rpc/" + encodeURIComponent(nome), params || {}, null);
       if (r.ok) return r.json;
       const j = r.json || {};
       const code = r.status === 401 && !j.code ? "28000" : String(j.code || "http_" + r.status);
@@ -360,7 +507,7 @@
     if (salva && salva.access_token) { sessao = salva; agendarRenovacao(); }
 
     return {
-      on, cadastrar, entrar, sair, renovar, rpc, enfileirar, processarFila, liberar, retirar,
+      on, cadastrar, entrar, sair, renovar, provedorAtivo, iniciarOAuth, concluirOAuth, descartarPkceVencido, rpc, rpcPublica, enfileirar, processarFila, liberar, retirar,
       fila: filaAtual, filaDoUsuario,
       sessao: () => sessao,
       logado: () => !!sessao,
@@ -382,6 +529,8 @@
     criarNuvem, ErroNuvem, NIVEIS, textoNivel, indicadorNivel, detalheNivel, visivel,
     tipoParaServidor, tipoParaApp, APP_PARA_SERVIDOR, SERVIDOR_PARA_APP,
     mensagemErroRpc, mensagemErroAuth, MSG_REDE, CHAVE_SESSAO, CHAVE_FILA,
+    CHAVE_PKCE, PKCE_VALIDADE_MS, MSG_PROVEDOR_DESLIGADO, mensagemErroOAuth, gerarVerificador, base64url, desafioPkce, urlAutorizar,
+    urlDeRetorno, lerRetornoOAuth, urlSemRetorno,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoNuvem = api;

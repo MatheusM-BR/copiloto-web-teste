@@ -6,7 +6,11 @@
 //   votar          { voto: "confirm" | "deny", tipo? }            "continua lá", "não está mais"…
 //   proximo_posto, repetir, cancelar_rota
 //   mapa_modo      { modo: "simples" | "completo" }
+//   ir_para        { lugar, nome, cidade, uf, consulta }          "me leva para…", "ir para…", "navegar até…", "rota para…"
 //   desconhecido
+// Destino por voz: extrairDestino() (normaliza "pro/pra/para o/até", "cidade + UF", "posto X em Cidade"), lerEscolha() para
+// "um/dois/primeiro" na lista, decidirLugares() (um × vários × nenhum; a busca é a do app, Copiloto.busca.procurar) e
+// buscarNosRecentes() (sem internet). Mãos-livres: extrairChamada() ("Copiloto, …" e as variações do reconhecimento).
 // Também: simOuNao() para a pergunta "É o mesmo?", lerValor() para números falados em pt-BR e
 // criarEscuta() que envolve SpeechRecognition (injetável nos testes).
 (function (raiz) {
@@ -232,7 +236,7 @@
   const RE_MAPA_SIMPLES = /\b(mapa (simples|limpo|basico|simplificado)|modo simples|simplifica o mapa|simplificar o mapa|deixa o mapa simples)\b/;
   const RE_MAPA_COMPLETO = /\b(mapa (completo|detalhado|normal|cheio|inteiro)|modo completo|modo detalhado|mapa com tudo|mostra tudo no mapa)\b/;
   const RE_REPETIR = /\b(repete|repetir|repita|repeti|fala de novo|falar de novo|fala outra vez|diz de novo|de novo|outra vez|nao entendi|nao ouvi|o que (voce )?(disse|falou)|como e que e|hein|ahn)\b/;
-  const RE_POSTO = /\b(proximo posto|posto mais (perto|proximo)|posto (proximo|perto|a frente|na frente)|onde (tem|e o|fica o) posto|quero abastecer|preciso abastecer|vou abastecer|preciso de diesel|precisando de diesel|abastecer|posto de (combustivel|gasolina|diesel)|algum posto|tem posto|um posto|(acabou|acabando|sem|pouco) (o |meu )?(diesel|combustivel)|(diesel|combustivel) (acabando|no fim|na reserva))\b/;
+  const RE_POSTO = /\b(proximo posto|proximos postos|posto mais (perto|proximo)|postos? (proximos?|perto|a frente|na frente|adiante|mais (perto|proximos?))|onde (tem|e o|fica o) posto|quero abastecer|preciso abastecer|vou abastecer|preciso de diesel|precisando de diesel|abastecer|posto de (combustivel|gasolina|diesel)|algum posto|tem posto|um posto|(acabou|acabando|sem|pouco) (o |meu )?(diesel|combustivel)|(diesel|combustivel) (acabando|no fim|na reserva))\b/;
   // ---------- voto (A2, QA3). Negar o alerta ("deny") é o erro mais caro: derruba um relato real para os outros
   // motoristas. Então só vale negação EXPLÍCITA; na dúvida, a frase com tipo é relato (o servidor junta com o que já existe).
   // Forte: "não (tem|está|tá|há|existe|vi…) mais", "não tem nada/nenhum", "não está lá", "não procede", e o resto da frase
@@ -281,6 +285,226 @@
   const RE_SO_SIM = /^(sim|isso|positivo|confirmo|exato|claro|e sim|isso mesmo|sim senhor|sim sim)$/;
   const RE_SO_NAO = /^(nao|negativo)( (nao|senhor|mais|nada|esta|ta|tem|existe|ha))*$/;
 
+  // ------------------------------------------------------------ palavras com posição no texto original
+  // Para cortar o texto ORIGINAL (com acento, hífen e vírgula decimal) depois de N palavras: o nome do lugar vai à busca
+  // como foi dito ("Anápolis", "Embu-Guaçu"), e o resto de "copiloto, altura 4,30" continua "altura 4,30".
+  function palavras(texto) {
+    const s = String(texto == null ? "" : texto), lista = [];
+    const re = /[\p{L}\p{N}]+/gu;
+    let m;
+    while ((m = re.exec(s))) lista.push({ o: m[0], n: m[0].toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""), ini: m.index, fim: m.index + m[0].length });
+    return lista;
+  }
+  // Quantas palavras um trecho casado (texto normalizado, palavras separadas por um espaço) ocupa
+  const nPalavras = (trecho) => (String(trecho).trim() ? String(trecho).trim().split(/\s+/).length : 0);
+  // Texto original da palavra i até a palavra j (inclusive)
+  function trechoOriginal(texto, ps, i, j) { return i > j || !ps[i] ? "" : String(texto).slice(ps[i].ini, ps[j].fim); }
+
+  // ------------------------------------------------------------ "Copiloto, …" (modo mãos-livres)
+  // A frase só vale como comando se começa com a palavra de ativação. O reconhecimento escreve de vários jeitos:
+  // "Copiloto", "co-piloto", "co piloto", "copilot", "compiloto", "cupiloto", "copilota". Antes dela pode vir "ei", "oi",
+  // "ok", "ô"… Devolve { chamou, resto } (resto = o texto ORIGINAL depois da palavra, sem a pontuação do começo).
+  const RE_CHAMADA = /^(?:(?:ei|oi|ok|ola|alo|hey|hei|e|eh|o|ah|ai)\s+)*(?:co\s*m?\s*pilot[oa]?|cum?\s*pilot[oa]?|kopilot[oa]?)(?=\s|$)/;
+  function extrairChamada(texto) {
+    const ps = palavras(texto);
+    const ns = ps.map((p) => p.n).join(" ");
+    const m = RE_CHAMADA.exec(ns);
+    if (!m) return { chamou: false, resto: String(texto == null ? "" : texto).trim() };
+    const k = nPalavras(m[0]);
+    const resto = k < ps.length ? String(texto).slice(ps[k].ini).trim() : "";
+    return { chamou: true, resto };
+  }
+  // Várias alternativas do reconhecedor: a primeira que tem a chamada
+  function chamadaEmAlternativas(lista) {
+    const textos = (Array.isArray(lista) ? lista : [lista]).filter((t) => t != null && String(t).trim());
+    for (const t of textos) { const c = extrairChamada(t); if (c.chamou) return { chamou: true, resto: c.resto, restos: textos.map((x) => extrairChamada(x)).filter((x) => x.chamou).map((x) => x.resto) }; }
+    return { chamou: false, resto: "", restos: [] };
+  }
+
+  // ------------------------------------------------------------ destino falado ("me leva para…")
+  // Siglas e nomes dos estados (para "Rio Verde GO", "Rio Verde, Goiás"). "se" e "to" ficam de fora como sigla solta no fim
+  // (são palavras comuns: "… se", "tô").
+  const UFS = { ac: "Acre", al: "Alagoas", ap: "Amapá", am: "Amazonas", ba: "Bahia", ce: "Ceará", df: "Distrito Federal",
+    es: "Espírito Santo", go: "Goiás", ma: "Maranhão", mt: "Mato Grosso", ms: "Mato Grosso do Sul", mg: "Minas Gerais", pa: "Pará",
+    pb: "Paraíba", pr: "Paraná", pe: "Pernambuco", pi: "Piauí", rj: "Rio de Janeiro", rn: "Rio Grande do Norte", rs: "Rio Grande do Sul",
+    ro: "Rondônia", rr: "Roraima", sc: "Santa Catarina", sp: "São Paulo", se: "Sergipe", to: "Tocantins" };
+  const SIGLA_SOLTA_NAO = new Set(["se", "to"]);
+  const NOME_UF = Object.fromEntries(Object.entries(UFS).map(([s, n]) => [n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""), s]));
+  // enchimento falado antes do pedido ("é…", "copiloto,", "por favor", "você pode")
+  const ENCHE_INICIO = "(?:e|eh|ah|ahn|hum|humm|hm|tipo|assim|entao|bom|olha|ei|oi|ok|ola|alo|copiloto|co piloto|por favor|pode|voce pode|voce podia|da pra|consegue|sera que (?:voce )?pode|agora)";
+  const PREP = "(?:para|pra|pro|pras|pros|pr|ate|ao|aos|a|as|na|no|nas|nos|em)";
+  const VERBO_DEST = [
+    "(?:me\\s+)?(?:leva|leve|levar|levem|levo)(?:\\s+eu)?",
+    "(?:eu\\s+)?(?:quero|queria|preciso|precisava|tenho que|vou ter que|gostaria de)\\s+(?:ir|chegar)",
+    "(?:vamos|vamo|bora|vambora|simbora)",
+    "(?:ir|va|vai|siga|segue|seguir)",
+    "(?:navegar|navega|navegue|naveguar|navegacao)",
+    "(?:(?:traca|tracar|trace|traça|faz|faca|fazer|calcula|calcular|calcule|monta|montar|abre|abrir|me da|me de|mostra|mostrar|qual e|qual a|quero|queria)\\s+(?:a\\s+|uma\\s+)?)?(?:rota|trajeto|caminho)",
+    "como\\s+(?:e\\s+que\\s+)?(?:eu\\s+)?(?:chego|faco pra chegar|faco para chegar|vou)",
+  ].join("|");
+  const RE_DEST = new RegExp("^(?:" + ENCHE_INICIO + "\\s+)*(?:" + VERBO_DEST + ")\\s+(?:(?:e|eh|ah|ahn|hum|por favor)\\s+)*" + PREP + "(?:\\s+(?:o|a|os|as))?\\s+(?=\\S)");
+  // "destino Goiânia", "muda o destino para Goiânia", "novo destino: Goiânia"
+  const RE_DEST2 = new RegExp("^(?:" + ENCHE_INICIO + "\\s+)*(?:(?:muda|mudar|mude|troca|trocar|troque|altera|alterar|coloca|colocar|bota|botar|poe|por)\\s+(?:o\\s+|um\\s+)?(?:novo\\s+)?destino|novo destino|destino)(?:\\s+(?:para|pra|pro|e|em|no|na|ate))?(?:\\s+(?:o|a))?\\s+(?=\\S)");
+  // fim da frase que não é lugar
+  const ENCHE_FIM = /(?:\s+(?:por favor|faz favor|fazendo favor|ai|agora|ja|rapidinho|pra mim|para mim|obrigado|valeu|beleza|ok|tchau))+$/;
+  // "posto" genérico: é o "Próximo posto" (E2), não uma busca de lugar
+  const RE_POSTO_GENERICO = /^(?:(?:o|um|uma|algum|o proximo|um bom)\s+)?postos?(?:\s+(?:de\s+)?(?:mais\s+)?(?:proximos?|perto|a frente|na frente|adiante|combustivel|gasolina|diesel|daqui|aqui))*$|^proximos? postos?(?:\s+(?:a frente|na frente|adiante|daqui))?$/;
+  // relato narrado ("vai pra Goiânia, tem um acidente aqui"): frase com tipo de relato e sinal de presença não é destino
+  const RE_PRESENCA_RELATO = /\b(tem|ta|tao|esta|estao|cuidado|olha|aqui|ali|ai)\b/;
+
+  // Extrai o destino de "me leva para…", "ir para…", "navegar até…", "rota para…". Devolve null ou
+  // { lugar (como foi dito, sem a UF), nome, cidade, uf, consulta (texto para a busca), posto: true (posto genérico) }.
+  function extrairDestino(texto) {
+    const ps = palavras(texto);
+    if (!ps.length) return null;
+    const ns = ps.map((p) => p.n).join(" ");
+    const m = RE_DEST.exec(ns + " ") || RE_DEST2.exec(ns + " ");
+    if (!m) return null;
+    let i = nPalavras(m[0]);
+    let j = ps.length - 1;
+    // "a cidade de Jataí" → "Jataí"
+    if (ps[i] && ps[i].n === "cidade" && ps[i + 1] && /^(de|do|da)$/.test(ps[i + 1].n) && i + 2 <= j) i += 2;
+    if (i > j) return null;
+    // tira o enchimento do fim ("… por favor", "… aí")
+    const resto = ps.slice(i).map((p) => p.n).join(" ");
+    const f = ENCHE_FIM.exec(resto);
+    if (f && f.index > 0) j -= nPalavras(f[0]);
+    if (i > j) return null;
+    const lugarN = ps.slice(i, j + 1).map((p) => p.n).join(" ");
+    if (RE_POSTO_GENERICO.test(lugarN)) return { posto: true, lugar: trechoOriginal(texto, ps, i, j) };
+    if (tiposNoTexto(lugarN).length && RE_PRESENCA_RELATO.test(lugarN)) return null;
+    // UF no fim: sigla ("GO") ou nome do estado ("Goiás", "Mato Grosso do Sul"), só se sobrar o lugar antes dela
+    let uf = null;
+    for (const [nome, sigla] of Object.entries(NOME_UF).sort((a, b) => b[0].length - a[0].length)) {
+      const k = nPalavras(nome);
+      if (j - k < i) continue;
+      if (ps.slice(j - k + 1, j + 1).map((p) => p.n).join(" ") !== nome) continue;
+      // "Ponte Alta do Tocantins", "Bom Jesus de Goiás": com "de/do/da" antes, o estado é parte do nome da cidade
+      if (/^(de|do|da)$/.test(ps[j - k].n) && !(ps[j - k - 1] && ps[j - k - 1].n === "estado")) break;
+      uf = sigla; j -= k; break;
+    }
+    if (!uf && j > i && UFS[ps[j].n] && !SIGLA_SOLTA_NAO.has(ps[j].n)) { uf = ps[j].n; j--; }
+    // "… no estado de Goiás", "… em GO": a ligação solta antes da UF sai
+    if (uf && j > i && /^(de|do)$/.test(ps[j].n) && ps[j - 1] && ps[j - 1].n === "estado") j--;
+    while (uf && j > i && /^(em|no|na|estado)$/.test(ps[j].n)) j--;
+    // "posto Graal em Anápolis": nome + cidade (o último "em" com palavras dos dois lados)
+    let nome = trechoOriginal(texto, ps, i, j), cidade = null;
+    for (let k = j - 1; k > i; k--) {
+      if (ps[k].n === "em" || (ps[k].n === "de" && k + 1 <= j && ps[k - 1] && /^(cidade|perto)$/.test(ps[k - 1].n))) {
+        let fimNome = k - 1;
+        if (ps[k].n === "de") { fimNome = k - 2; if (fimNome > i && /^(na|da|a)$/.test(ps[fimNome].n)) fimNome--; }
+        if (fimNome < i) break;
+        nome = trechoOriginal(texto, ps, i, fimNome); cidade = trechoOriginal(texto, ps, k + 1, j);
+        break;
+      }
+    }
+    const lugar = cidade ? nome + " em " + cidade : nome;
+    const consulta = [nome, cidade, uf ? UFS[uf] : null].filter(Boolean).join(", ");
+    return { lugar, nome, cidade, uf, consulta };
+  }
+
+  // Resposta à lista de destinos: "um", "o dois", "opção três", "primeiro", "o de Anápolis". max = itens na tela.
+  // itens (opcional): [{ falado }] para escolher pelo nome. Devolve 0..max-1, "cancelar" ou null.
+  const ORDINAIS = [["um", "uma", "1", "primeiro", "primeira", "1o", "1a"], ["dois", "duas", "2", "segundo", "segunda", "2o", "2a"],
+    ["tres", "3", "terceiro", "terceira", "3o", "3a"], ["quatro", "4", "quarto", "quarta", "4o", "4a"], ["cinco", "5", "quinto", "quinta", "5o", "5a"]];
+  function lerEscolha(textos, max, itens) {
+    const lista = Array.isArray(textos) ? textos : [textos];
+    for (const t of lista) {
+      let n = palavras(extrairChamada(t).resto).map((p) => p.n).join(" ");
+      if (!n) continue;
+      if (/^(?:(?:nao|nenhum|nenhuma)\b.*|cancela|cancelar|cancele|esquece|deixa|deixa pra la|deixa quieto|outro lugar)$/.test(n) || /^(?:nenhum|nenhuma|cancela|cancelar|esquece)\b/.test(n)) return "cancelar";
+      n = n.replace(/^(?:(?:e|eh|o|a|ah|hum|quero|eu quero|vai|vai no|vai na|vamos|vamos no|vamos na|pode ser|pode|escolho|e o|e a)\s+)*/, "")
+        .replace(/^(?:(?:o|a)\s+)?(?:opcao|numero|item|lugar|resposta)\s+/, "");
+      const pal = n.split(" ");
+      const resto = pal.slice(1).join(" ");
+      const soEnchimento = !resto || /^(?:(?:mesmo|esse|essa|ai|por favor|ok|da lista|opcao|lugar|ali|isso)\s*)+$/.test(resto);
+      if (soEnchimento) {
+        for (let k = 0; k < Math.min(max, ORDINAIS.length); k++) if (ORDINAIS[k].includes(pal[0])) return k;
+        if (/^(ultimo|ultima)$/.test(pal[0]) && max > 0) return max - 1;
+      }
+      // pelo nome ("o de Anápolis", "o Graal da BR"): um item só tem todas as palavras ditas
+      if (itens && itens.length) {
+        const chave = n.replace(/^(?:(?:o|a|do|da|de|no|na|em|que fica em|que e em)\s+)+/, "").split(" ").filter((p) => p.length > 2 && !/^(que|fica|esse|essa|posto)$/.test(p));
+        if (chave.length) {
+          const achou = itens.map((it, k) => ({ k, n: palavras(it.falado || it.rotulo || "").map((p) => p.n) }))
+            .filter((x) => x.k < max && chave.every((p) => x.n.includes(p)));
+          if (achou.length === 1) return achou[0].k;
+        }
+      }
+    }
+    return null;
+  }
+
+  // ------------------------------------------------------------ busca de lugar (contrato de Copiloto.busca.procurar)
+  // Contrato: Copiloto.busca.procurar(texto) → Promise de [{ nome, detalhe, lat, lon }] — a busca do app (ui/busca.js,
+  // Photon; resultados de CopilotoInterface.resultadosBusca: detalhe "rua · bairro · Cidade, UF"). Uma só implementação de
+  // busca: a reserva própria (Photon direto daqui) saiu na integração. decidirLugares aceita também "Cidade - UF".
+  const semAcento = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  function distKm(a, b) {
+    const R = 6371, r = Math.PI / 180;
+    const dLa = (b.lat - a.lat) * r, dLo = (b.lon - a.lon) * r;
+    const h = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLo / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  // UF do detalhe ("Anápolis - GO", "Centro · Anápolis, GO" ou só "GO" → "go")
+  const UF_NO_FIM = /(?:^|- |, |· )([A-Z]{2})$/;
+  function ufDoDetalhe(d) { const m = UF_NO_FIM.exec(String(d || "").trim()); return m ? m[1].toLowerCase() : null; }
+  // Decide o que fazer com a lista do serviço de busca. pedido = extrairDestino(); pos = { lat, lon } ou null.
+  // { tipo: "nenhum" | "um" | "varios", itens: [{ nome, detalhe, lat, lon, rotulo, falado, km }] } (até 5 itens)
+  //  - repetidos (mesmo nome a < 300 m) saem; com UF dita, só os da UF; com cidade dita, os que citam a cidade primeiro
+  //  - "um": um resultado só, ou um só com o nome igual ao que foi dito (e na cidade/UF dita)
+  function decidirLugares(lista, pedido, pos) {
+    const p = pedido || {};
+    let itens = [];
+    for (const r of Array.isArray(lista) ? lista : []) {
+      if (!r || !isFinite(r.lat) || !isFinite(r.lon) || !r.nome) continue;
+      if (itens.some((x) => semAcento(x.nome) === semAcento(r.nome) && distKm(x, r) < 0.3)) continue;
+      const semUf = String(r.detalhe || "").trim().replace(UF_NO_FIM, "").replace(/[,·-]\s*$/, "").trim();
+      const falado = semUf ? r.nome + ", " + semUf.split(" · ").join(", ") : r.nome;
+      // cidade inteira: marcada pela busca ou detalhe só com a UF (o resultado é a própria cidade: "Goiânia" · "GO")
+      const cidadeInteira = !!r.cidadeInteira || /^[A-Z]{2}$/.test(String(r.detalhe || "").trim());
+      itens.push({ nome: r.nome, detalhe: r.detalhe || "", lat: Number(r.lat), lon: Number(r.lon), rotulo: r.detalhe ? r.nome + " · " + r.detalhe : r.nome,
+        falado, km: pos && isFinite(pos.lat) ? distKm(pos, r) : null, uf: ufDoDetalhe(r.detalhe), cidadeInteira });
+    }
+    if (p.uf) { const naUf = itens.filter((x) => x.uf === p.uf); if (naUf.length) itens = naUf; }
+    if (p.cidade) {
+      const c = semAcento(p.cidade);
+      const naCidade = itens.filter((x) => semAcento(x.detalhe + " " + x.nome).includes(c));
+      if (naCidade.length) itens = naCidade;
+    }
+    if (!itens.length) return { tipo: "nenhum", itens: [] };
+    if (itens.length === 1) return { tipo: "um", itens };
+    const alvo = semAcento(p.nome || p.lugar || "");
+    const iguais = itens.filter((x) => semAcento(x.nome) === alvo);
+    // nome igual ao dito: a cidade inteira vence ruas/lugares de mesmo nome ("Goiânia" × "Rua Goiânia" já cai fora pelo nome)
+    if (iguais.length === 1) return { tipo: "um", itens: iguais };
+    const cidades = iguais.filter((x) => x.cidadeInteira);
+    if (cidades.length === 1) return { tipo: "um", itens: cidades };
+    if (pos) itens.sort((a, b) => (a.km == null ? 1e9 : a.km) - (b.km == null ? 1e9 : b.km));
+    return { tipo: "varios", itens: itens.slice(0, 5) };
+  }
+  // Sem internet: destinos recentes ([{ rotulo, lat, lon }]) cujo rótulo tem todas as palavras do lugar dito
+  function buscarNosRecentes(pedido, recentes) {
+    const p = pedido || {};
+    const chave = palavras([p.nome, p.cidade].filter(Boolean).join(" ")).map((x) => x.n).filter((x) => x.length > 1 && !/^(de|do|da|em|o|a)$/.test(x));
+    if (!chave.length) return [];
+    const out = [];
+    for (const r of Array.isArray(recentes) ? recentes : []) {
+      if (!r || !isFinite(r.lat) || !isFinite(r.lon) || !r.rotulo) continue;
+      const ns = palavras(r.rotulo).map((x) => x.n);
+      if (!chave.every((c) => ns.includes(c))) continue;
+      if (out.some((x) => distKm(x, r) < 0.1)) continue;
+      const [nome, ...resto] = String(r.rotulo).split(" · ");
+      out.push({ nome, detalhe: resto.join(" · "), lat: Number(r.lat), lon: Number(r.lon) });
+    }
+    return out;
+  }
+  // "Um: Posto Graal, Anápolis; dois: …; três: …." (até 3, para a voz)
+  const NUM_FALADO = ["Um", "dois", "três", "quatro", "cinco"];
+  function textoOpcoesFalado(itens) {
+    return (itens || []).slice(0, 3).map((x, k) => NUM_FALADO[k] + ": " + x.falado).join("; ") + ".";
+  }
+
   // Interpreta UMA transcrição. opcoes: { alertaAberto: bool, faixas: { tipo: { min, max } } }
   function interpretar(texto, opcoes) {
     const o = opcoes || {};
@@ -289,6 +513,12 @@
     const base = { texto: n };
     const res = (x) => Object.assign(base, x);
     if (!n) return res({ intencao: "desconhecido", motivo: "vazio" });
+
+    // destino falado ("me leva para…", "ir para…", "navegar até…", "rota para…"): o verbo vem no começo, então vale antes
+    // do relato ("me leva pra Vaca Brava" é lugar). "me leva no posto mais próximo" é o "Próximo posto".
+    const dest = extrairDestino(texto);
+    if (dest && dest.posto) return res({ intencao: "proximo_posto" });
+    if (dest) return res({ intencao: "ir_para", lugar: dest.lugar, nome: dest.nome, cidade: dest.cidade, uf: dest.uf, consulta: dest.consulta });
 
     // A3 (QA2): o relato é testado antes; frase com tipo de relato nunca cancela a rota
     const tipos = tiposNoTexto(n);
@@ -328,20 +558,54 @@
     // "sim"/"não" soltos só valem como voto com alerta aberto (e só respostas curtas: "não para não" não é voto)
     if (o.alertaAberto && RE_SO_SIM.test(n)) return res({ intencao: "votar", voto: "confirm", tipo: null });
     if (o.alertaAberto && RE_SO_NAO.test(n)) return res({ intencao: "votar", voto: "deny", tipo: null });
+    // Integração (01/11, campo: "ao falar não transfere para busca"): frase solta sem verbo ("Goiânia", "posto Graal
+    // Anápolis", "CEAGESP") é um lugar PROVÁVEL: a interface procura (Copiloto.busca.procurar) e, sem resultado, mostra o
+    // que ouviu com "Buscar"/"Relatar". Nenhuma frase fica sem ação.
+    // assunto de relato que o app ainda não tem como tipo (polícia, blitz): abre o formulário para escolher, não vira busca
+    const sem = RE_RELATO_SEM_TIPO.exec(n);
+    if (sem) return res({ intencao: "relatar_sem_tipo", palavra: sem[1] });
+    const solto = lugarSolto(texto);
+    if (solto) return res({ intencao: "talvez_lugar", lugar: solto.lugar, nome: solto.nome, cidade: solto.cidade, uf: solto.uf, consulta: solto.consulta });
     return res({ intencao: "desconhecido", motivo: "sem_padrao" });
+  }
+
+  // Lugar dito sem verbo: tira o enchimento do começo e do fim e lê como "ir para <resto>" (cidade + UF, "posto X em
+  // Cidade"). null para conversa ("obrigado", "ok", "tudo bem"), só enchimento ou frase longa demais (> 8 palavras).
+  const RE_RELATO_SEM_TIPO = /\b(policia|policial|policiais|blitz|prf|viatura|guarda|fiscalizacao)\b/;
+  const SO_CONVERSA = new Set(["obrigado", "obrigada", "valeu", "ok", "okay", "beleza", "blz", "tchau", "oi", "ola", "alo", "sim", "nao",
+    "hum", "humm", "hm", "e", "eh", "ah", "ahn", "isso", "nada", "tudo", "bem", "bom", "dia", "tarde", "noite", "boa", "certo", "entendi",
+    "copiloto", "por", "favor", "agora", "ai", "aqui", "ali", "tipo", "assim", "entao", "olha", "ei", "teste", "testando", "um", "dois", "tres",
+    "pela", "ajuda", "me", "leva", "levar", "ir", "para", "pra", "pro", "ate", "rota", "navegar", "navega", "vai", "vamos", "quero", "destino", "caminho"]);
+  function lugarSolto(texto) {
+    const ps0 = palavras(texto);
+    const n0 = ps0.map((p) => p.n).join(" ");
+    const m = new RegExp("^(?:" + ENCHE_INICIO + "\\s+)+").exec(n0 + " ");
+    const i = m ? Math.min(nPalavras(m[0]), ps0.length) : 0;
+    if (i >= ps0.length) return null;
+    const n = ps0.slice(i).map((p) => p.n).join(" ").replace(ENCHE_FIM, "").trim();
+    if (!n || !/[a-z0-9]/.test(n)) return null;
+    // interjeição ("hã", "ééé", "hmmm"): sem nenhuma palavra de 3+ letras que não seja uma letra repetida
+    if (!n.split(" ").some((p) => p.replace(/[^a-z0-9]/g, "").length >= 3 && !/^(.)\1*$/.test(p) && !/^h?[aeiou]+h?$/.test(p) && !/^h*m+$/.test(p))) return null;
+    const ps = n.split(" ");
+    if (ps.length > 8 || ps.every((p) => SO_CONVERSA.has(p))) return null;
+    if (tiposNoTexto(n).length) return null;
+    const d = extrairDestino("ir para " + trechoOriginal(texto, ps0, i, ps0.length - 1));
+    return d && !d.posto ? d : null;
   }
 
   // Várias alternativas do reconhecedor: fica com a primeira que fez sentido (senão, a primeira).
   function interpretarAlternativas(lista, opcoes) {
     const textos = (Array.isArray(lista) ? lista : [lista]).filter((t) => t != null && String(t).trim());
     if (!textos.length) return interpretar("", opcoes);
-    let primeira = null;
+    // um pedido claro (relato, voto, destino com verbo…) vale mais que um lugar provável em outra alternativa
+    let primeira = null, provavel = null;
     for (const t of textos) {
       const r = interpretar(t, opcoes);
       if (!primeira) primeira = r;
+      if (r.intencao === "talvez_lugar") { if (!provavel) provavel = r; continue; }
       if (r.intencao !== "desconhecido") return r;
     }
-    return primeira;
+    return provavel || primeira;
   }
 
   // Resposta à pergunta "É o mesmo?": "sim" | "nao" | "cancelar" | null (sem resposta clara: a decisão fica na tela).
@@ -424,7 +688,7 @@
   };
 
   // ------------------------------------------------------------ escuta (SpeechRecognition)
-  // Uma frase por vez, sem escuta contínua. Reconhecedor injetável (testes).
+  // Uma frase por vez, sem escuta contínua. Reconhecedor e relógio ({ setTimeout, clearTimeout }) injetáveis (testes).
   // escutar({ maxMs, aoComecar, aoOuvindo, aoTerminar({ textos, motivo, codigo }) }) → { parar(motivo) }
   //  aoComecar: onstart (pedido aceito; no iPhone o microfone ainda pode levar ~2 s para abrir).
   //  aoOuvindo: onaudiostart (microfone REALMENTE aberto): bipe e "Ouvindo" vão aqui. maxMs conta a partir dele.
@@ -434,22 +698,35 @@
   // error "aborted"). audiostart sem soundstart/speechstart/result em surdoMs (6 s) → abort e motivo "surdo".
   // interimResults = true: guarda a melhor parcial e, se o final não vier, usa a parcial. Final (isFinal) → stop().
   // Depois do stop() pelo tempo, espera até esperaFinalMs (2,5 s) pelo resultado tardio do servidor.
+  // Fim da fala por silêncio (campo 01/11: "o áudio para sozinho ao não identificar mais áudio"), por sessão:
+  //  fimSilencioMs: depois do último resultado com texto (parcial ou final), esse tempo sem resultado novo → stop() e
+  //    termina NA HORA com o melhor texto (o final, se veio; senão a última parcial), sem esperar o final do servidor;
+  //    cada resultado novo rearma (pausa curta no meio da frase não corta);
+  //  semFalaMs: microfone aberto, com som, e nenhum texto nesse tempo → termina com motivo "silencio" ("Não ouvi nada").
+  //    Sem som nenhum continua valendo o "surdo" (surdoMs).
   function criarEscuta(opcoes) {
     const o = opcoes || {};
     const g = typeof window !== "undefined" ? window : {};
     const Rec = o.Reconhecedor !== undefined ? o.Reconhecedor : (g.SpeechRecognition || g.webkitSpeechRecognition || null);
     const ESPERA_FINAL_MS = o.esperaFinalMs || 2500;
     const SURDO_MS = o.surdoMs || 6000;
+    // relógio injetável (testes determinísticos); padrão: o do navegador
+    const st = (o.relogio && o.relogio.setTimeout) || ((fn, ms) => setTimeout(fn, ms));
+    const ct = (o.relogio && o.relogio.clearTimeout) || ((id) => clearTimeout(id));
     function disponivel() { return typeof Rec === "function"; }
     function escutar(p) {
       const q = p || {};
       const MAX_MS = q.maxMs || 8000;
       let terminou = false, finais = [], parcial = [], erro = null, codigo = null, rec = null;
-      let timer = null, timerFim = null, timerSurdo = null, ouviuSom = false, abriu = false, parando = false;
-      t0Escuta = Date.now(); registrar("start()", "pt-BR, máx " + MAX_MS + " ms");
+      let timer = null, timerFim = null, timerSurdo = null, timerSilencio = null, timerSemFala = null, ouviuSom = false, abriu = false, parando = false;
+      const FIM_SILENCIO = q.fimSilencioMs || 0, SEM_FALA = q.semFalaMs || 0;
+      // por sessão: surdoMs (mãos-livres usa um valor maior: silêncio na cabine não é sessão surda), estenderParcialMs
+      // (cada parcial rearma o fim para daqui a N ms: a frase que começou no fim da sessão não é cortada), rotulo (log)
+      const SURDO = q.surdoMs || SURDO_MS;
+      t0Escuta = Date.now(); registrar("start()", "pt-BR, máx " + MAX_MS + " ms" + (q.rotulo ? " " + q.rotulo : ""));
       function fim(motivo) {
         if (terminou) return;
-        terminou = true; clearTimeout(timer); clearTimeout(timerFim); clearTimeout(timerSurdo);
+        terminou = true; ct(timer); ct(timerFim); ct(timerSurdo); ct(timerSilencio); ct(timerSemFala);
         const textos = finais.length ? finais : parcial;
         if (rec) { rec.onresult = rec.onerror = rec.onend = rec.onstart = rec.onaudiostart = rec.onsoundstart = rec.onspeechstart = rec.onnomatch = null; }
         const m = motivo || (textos.length ? "ok" : erro || (abriu ? (ouviuSom ? "naoEntendeu" : "silencio") : "naoAbriu"));
@@ -459,16 +736,16 @@
       // pede para fechar com o que ouviu e espera o resultado tardio; se não fechar, encerra assim mesmo
       function pedirFim() {
         if (parando || terminou) return;
-        parando = true; clearTimeout(timer);
+        parando = true; ct(timer);
         try { rec.stop(); } catch (e) { /* ignora */ }
-        timerFim = setTimeout(() => {
+        timerFim = st(() => {
           registrar("sem end", "abort depois de " + ESPERA_FINAL_MS + " ms");
           try { rec.abort(); } catch (e) { /* ignora */ }
           fim(finais.length || parcial.length ? "ok" : (abriu ? "tempo" : "naoAbriu"));
         }, ESPERA_FINAL_MS);
       }
-      function armarTempo() { clearTimeout(timer); timer = setTimeout(() => { registrar("tempo", "stop()"); pedirFim(); }, MAX_MS); }
-      if (!disponivel()) { registrar("indisponivel", "sem SpeechRecognition"); setTimeout(() => fim("indisponivel"), 0); return { parar() {} }; }
+      function armarTempo() { ct(timer); timer = st(() => { registrar("tempo", "stop()"); pedirFim(); }, MAX_MS); }
+      if (!disponivel()) { registrar("indisponivel", "sem SpeechRecognition"); st(() => fim("indisponivel"), 0); return { parar() {} }; }
       try {
         rec = new Rec();
         rec.lang = "pt-BR"; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 3;
@@ -477,12 +754,18 @@
           if (abriu) return;
           registrar("audiostart"); abriu = true;
           if (!parando) armarTempo();
-          timerSurdo = setTimeout(() => {
+          timerSurdo = st(() => {
             if (ouviuSom || terminou) return;
-            registrar("surdo", "sem som em " + SURDO_MS + " ms");
+            registrar("surdo", "sem som em " + SURDO + " ms");
             try { rec.abort(); } catch (e) { /* ignora */ }
             fim("surdo");
-          }, SURDO_MS);
+          }, SURDO);
+          if (SEM_FALA) timerSemFala = st(() => {
+            if (terminou || finais.length || parcial.length || !ouviuSom) return; // sem som: quem decide é o "surdo"
+            registrar("sem fala", "nada dito em " + SEM_FALA + " ms");
+            try { rec.abort(); } catch (e) { /* ignora */ }
+            fim("silencio");
+          }, SEM_FALA);
           if (q.aoOuvindo) q.aoOuvindo();
         };
         rec.onsoundstart = () => { ouviuSom = true; registrar("soundstart"); };
@@ -499,11 +782,25 @@
           const final = ult.isFinal === true;
           if (final) finais = alt; else parcial = alt;
           registrar("result", (final ? "final" : "parcial") + " " + alt[0].length + " letras");
-          if (!final) return;
+          ct(timerSemFala);
+          if (FIM_SILENCIO) {
+            ct(timerSilencio);
+            timerSilencio = st(() => {
+              if (terminou) return;
+              registrar("silêncio", "fim da frase depois de " + FIM_SILENCIO + " ms, stop()");
+              try { rec.stop(); } catch (er) { /* ignora */ }
+              fim("ok");
+            }, FIM_SILENCIO);
+          }
+          if (!final) {
+            if (q.estenderParcialMs && !parando) { ct(timer); timer = st(() => { registrar("tempo", "fim da frase, stop()"); pedirFim(); }, q.estenderParcialMs); }
+            if (q.aoParcial) q.aoParcial(alt);
+            return;
+          }
           if (parando) { try { rec.abort(); } catch (er) { /* ignora */ } fim("ok"); return; } // final tardio, depois do stop()
-          parando = true; clearTimeout(timer);
+          parando = true; ct(timer);
           try { rec.stop(); } catch (er) { /* ignora */ }
-          timerFim = setTimeout(() => fim("ok"), ESPERA_FINAL_MS); // o end pode não vir
+          timerFim = st(() => fim("ok"), ESPERA_FINAL_MS); // o end pode não vir
         };
         rec.onerror = (e) => {
           codigo = (e && e.error) || "desconhecido";
@@ -523,7 +820,7 @@
       } catch (e) {
         codigo = String((e && e.name) || "excecao");
         registrar("excecao", codigo);
-        setTimeout(() => fim("erro"), 0);
+        st(() => fim("erro"), 0);
         return { parar() {} };
       }
       armarTempo();
@@ -533,6 +830,14 @@
           registrar("parar", motivo || "cancelado");
           try { rec.abort(); } catch (e) { /* ignora */ }
           fim(motivo || "cancelado");
+        },
+        // toque de novo em "Falar" com algo já ouvido: fecha e usa o que ouviu (antes descartava); sem nada, cancela
+        concluir() {
+          if (terminou) return;
+          if (!finais.length && !parcial.length) { this.parar("cancelado"); return; }
+          registrar("concluir", "toque");
+          try { rec.stop(); } catch (e) { /* ignora */ }
+          fim("ok");
         },
       };
     }
@@ -574,7 +879,8 @@
 
   const api = { TIPOS_VOZ, FAIXAS_PADRAO, MSG, normalizar, lerValor, tiposNoTexto, interpretar, interpretarAlternativas, simOuNao,
     nomeFalado, textoPergunta, fraseFinal, textoPedirValor, criarEscuta, diagnostico, MSG_ESCUTA, mensagemEscuta, sugerirSafari,
-    versaoIOS };
+    versaoIOS, palavras, extrairChamada, chamadaEmAlternativas, extrairDestino, lerEscolha, UFS,
+    decidirLugares, buscarNosRecentes, textoOpcoesFalado, distKm, lugarSolto };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoComandos = api;
 })(typeof window !== "undefined" ? window : globalThis);
