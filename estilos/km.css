@@ -1,0 +1,18 @@
+/* "Em que km estou" (ui/km.js): pílula discreta na faixa da navegação, logo abaixo do "Depois…". Contraste ≥ 4,5 nos dois temas. */
+.nav-painel .km-atual {
+  justify-self: start; max-width: 100%; font-size: 14px; line-height: 1.2; color: #fff; background: var(--faixa-nav-2, #0d4a2c);
+  border-radius: 10px; padding: 4px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums;
+  display: inline-flex; align-items: baseline; gap: 6px;
+}
+.nav-painel .km-atual[hidden] { display: none; }
+.km-atual-texto { font-weight: 700; }
+.km-atual-est { font-size: 11px; color: #d6f5e3; }
+/* celular deitado e tela baixa com alerta: some como o "Depois…" (estilos/navegacao.css) */
+@media (orientation: landscape) and (max-height: 540px) { .nav-painel .km-atual { display: none; } }
+@media (orientation: portrait) and (max-height: 600px) { #app.nav-ativa:has(#alerta:not([hidden])) .nav-painel .km-atual { display: none; } }
+
+/* folha "Qual estado?" (destino por km em rodovia que passa por vários estados) */
+.km-ufs { display: grid; gap: 8px; }
+.km-ufs .km-uf { min-height: 64px; text-align: left; }
+.km-titulo { margin: 0 0 6px; }
+.km-aviso-destino { font-size: 14px; }

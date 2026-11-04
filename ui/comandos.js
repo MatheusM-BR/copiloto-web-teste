@@ -226,8 +226,9 @@
       case "repetir": return comando("comando:repetir", {}, repetirSozinho);
       case "cancelar_rota": return comando("comando:cancelar-rota", {}, semOuvinte);
       case "mapa_modo": return comando("comando:mapa-modo", { modo: r.modo }, semOuvinte);
-      case "ir_para": return irPara(r);
-      case "talvez_lugar": return talvezLugar(r, textos, toque);
+      case "qual_km": return comando("comando:qual-km", {}, semOuvinte); // "em que km estou" (ui/km.js atende)
+      case "ir_para": if (C.km && C.km.deVoz(r)) return; return irPara(r); // "BR-153 km 140" é destino por km (ui/km.js)
+      case "talvez_lugar": if (C.km && C.km.deVoz(r)) return; return talvezLugar(r, textos, toque);
       case "relatar_sem_tipo": // "polícia", "blitz": o app não tem esse tipo; o formulário abre no ponto do toque para escolher
         C.relatos.abrirFormulario(toque ? { toque } : undefined);
         return avisar("Esse assunto ainda não é um tipo de relato. Escolha o tipo na tela.", true);
@@ -824,6 +825,8 @@
   // a navegação usa para adiar a fala de manobra (o microfone ouviria a própria fala e ela se perderia).
   C.comandos = { ouvir: tocar, executar: (t) => executar([].concat(t), null), disponivel: () => escuta.disponivel(), ouvindo: () => !!ouvindo,
     alternativa: () => abrirAlternativa({}),
+    // pergunta por voz com resposta na tela (destino por km: "Qual estado?", ui/km.js): tratar(textos) → true se respondeu; id = elemento vivo da pergunta
+    perguntar,
     // mãos-livres: ligar() precisa vir de um toque; estado(): "desligado" | "ouvindo" | "esperando" | "pausado"
     maosLivres: { ligar: mlLigar, desligar: () => mlDesligar("pedido"), estado: () => ml.estado, ligado: () => ml.ligado } };
 

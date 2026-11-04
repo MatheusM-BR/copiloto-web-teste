@@ -24,6 +24,10 @@
   // voz (o nome do lugar e a posição vão ao serviço de busca de lugares).
   // 2026-11-01.1 (integração): as duas versões .4 (redesenho e voz) foram escritas em paralelo; o texto juntou as duas
   // (Photon na busca por texto e por voz, Nominatim, mãos-livres). Quem aceitou qualquer .4 é perguntado de novo.
+  // 2026-11-04 (dados na navegação): a forma da rota vai também ao servidor do Copiloto (avisos de curva/lombada/balança/trecho
+  // perigoso, restrições do caminhão, SNV) e, navegando, a posição a cada ~30 s para o km da rodovia; destino por km. Mesmo
+  // servidor que já recebia a posição (postos, relatos) e a forma da rota (custos); sem guardar: o SENTIDO do item de localização
+  // não mudou, então só o "Saiba mais" e a política foram atualizados (VERSAO igual).
   // 2026-11-01.2 (revisão 4): item NOVO "foto" (foto de rua do Mapillary na chegada; desligada por padrão); o endereço pelo
   // Nominatim só com a localização ligada (restringe, não amplia); texto curto com detalhe por item; o texto do microfone
   // passou para o primeiro toque em "Falar". Cada item guarda a versão em que foi respondido (versaoItens) e só é
@@ -43,6 +47,10 @@
         + "Rota: ao traçar uma rota, a origem (a sua posição exata) e o destino vão ao servidor público de rotas Valhalla "
         + "(mantido pela FOSSGIS e.V., com dados do OpenStreetMap); depois, a forma da rota (os pontos do desenho) vai de novo ao Valhalla "
         + "(trace_attributes) para achar limite de velocidade, tipo de pista e piso (viagem longa vai em vários pedidos) e, quando o custo da viagem usa o relevo, a altitude (height). "
+        + "A forma da rota vai também ao nosso servidor (Supabase), sem identificação, para avisar na estrada curvas fortes, lombadas, balanças, passagens de nível, "
+        + "trechos com muitos acidentes (PRF), obras e balanças das rodovias de SP (ARTESP), pista e pavimento oficiais (DNIT — SNV) e, com caminhão cadastrado, as "
+        + "pontes e restrições de altura, peso, comprimento e largura que ele não passa (OpenStreetMap); navegando, a sua posição vai a ele a cada ~30 s ou 500 m para "
+        + "dizer em que km da rodovia você está, e o km que você digita ou dita como destino (\"BR-153 km 140\") vai a ele para achar o ponto. Nada disso é guardado. "
         + "Busca e endereço: o que você digita vai ao Photon (Komoot, dados do OpenStreetMap) e o ponto que você toca no mapa vai ao "
         + "Nominatim (OpenStreetMap) para mostrar rua e cidade, mesmo com a localização desligada. Só com esta opção ligada a sua posição "
         + "vai também ao Photon (para mostrar primeiro o que está perto) e ao Nominatim (o endereço da Emergência); desligada, o endereço da "

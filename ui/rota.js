@@ -237,6 +237,7 @@
   // Ganchos de outros módulos para a folha da rota (ui/rotalonga.js: "Rota em N trechos"; ui/via.js: "Via do trajeto", terra e
   // piso ruim): C.rotaExtras.folha(rota, opcoes) → nó(s) e C.rotaExtras.cartao(rota, i) → nó (linha dentro do cartão da alternativa).
   C.rotaExtras = C.rotaExtras || { folha: [], cartao: [] };
+  C.rotaExtras.antesIniciar = C.rotaExtras.antesIniciar || []; // ui/avisos.js: cartão de restrições ANTES de "Iniciar navegação"
   function extras(tipo, a, b) {
     const out = [];
     for (const f of C.rotaExtras[tipo] || []) { try { const x = f(a, b); if (x) out.push(...[].concat(x)); } catch (e) { /* o extra não derruba a folha */ } }
@@ -392,6 +393,7 @@
       lista.setAttribute("role", "group"); lista.setAttribute("aria-label", "Opções de rota");
       for (let i = 0; i < opcoes.rotas.length; i++) lista.appendChild(cartao(i));
       itens.push(lista);
+      itens.push(...extras("antesIniciar", r, opcoes)); // restrições do caminhão (ui/avisos.js), antes de "Iniciar navegação"
       if (temNav) itens.push(botaoIniciar());
       itens.push(lugarCustos());
       itens.push(el("p", "rota-dica", "Toque num cartão ou numa linha cinza do mapa para escolher outra rota."));
@@ -403,6 +405,7 @@
       // "Traçar rota" cai no mesmo lugar de sempre (num aviso), não em "Iniciar navegação"; o detalhe vem depois
       itens.push(el("div", "grande", Rota.formatarKm(r.km) + " · " + Rota.formatarTempo(r.minutos)));
       for (const a of r.avisos) itens.push(el("p", "aviso-rota", a));
+      itens.push(...extras("antesIniciar", r, null));
       if (temNav) itens.push(botaoIniciar());
       itens.push(lugarCustos());
       const extra = [Alt.chegada(Date.now(), r.minutos)].concat(Alt.etiquetas(c, Alt.relatosNaRota(r.coords, relatosConhecidos(), Date.now())));

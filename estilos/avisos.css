@@ -1,0 +1,52 @@
+/* Dados da rota na navegação (ui/avisos.js): faixa de aviso no painel, cartão de restrições, contagens do Avançado, marcadores. */
+:root { --dados-viola: #ff9b94; --dados-viola-fundo: #3a1414; --dados-cond: #ffd27a; --dados-cond-fundo: #3a2a10; --dados-ok: #9be3bd; --dados-falha: #ffb4ae; }
+:root[data-tema="claro"] { --dados-viola: #a3231b; --dados-viola-fundo: #fde7e5; --dados-cond: #7a4b00; --dados-cond-fundo: #fff1d6; --dados-ok: #17603a; --dados-falha: #a3231b; }
+
+/* faixa dentro do painel da navegação: o quê e a distância (uma linha) */
+.nav-painel .aviso-dado {
+  display: flex; align-items: center; gap: 10px; justify-content: space-between; max-width: 100%; min-width: 0;
+  font-size: 16px; font-weight: 800; color: #fff; background: #7a2f0e; border-left: 4px solid var(--acento); border-radius: 10px; padding: 6px 10px;
+}
+.nav-painel .aviso-dado[hidden] { display: none; }
+.nav-painel .aviso-dado[data-tipo="restricao"], .nav-painel .aviso-dado[data-tipo="perigoso"] { background: #8a1c15; }
+.aviso-dado-texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aviso-dado-dist { flex: none; font-variant-numeric: tabular-nums; font-size: 18px; }
+@media (orientation: landscape) and (max-height: 540px) { .nav-painel .aviso-dado { font-size: 14px; padding: 4px 8px; } }
+
+/* folha da rota: restrições (antes de "Iniciar navegação") */
+.dados-restr-bloco { display: grid; gap: 8px; min-width: 0; }
+.dados-restr-bloco:empty, .dados-restr-estado:empty { display: none; }
+.dados-restr-estado { display: grid; min-width: 0; }
+.dados-restr-cartao { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; border: 2px solid; min-width: 0; }
+.dados-restr-cartao h3 { margin: 0; font-size: 16px; line-height: 1.25; }
+.dados-restr-cartao.viola { border-color: var(--dados-viola); background: var(--dados-viola-fundo); color: var(--texto); }
+.dados-restr-cartao.viola h3 { color: var(--dados-viola); }
+.dados-restr-cartao.condicional { border-color: var(--dados-cond); background: var(--dados-cond-fundo); }
+.dados-restr-cartao.condicional h3 { color: var(--dados-cond); }
+.dados-restr-cartao.desconhecida { border-color: var(--linha); background: var(--campo); }
+.dados-restr-item { display: grid; gap: 2px; padding: 6px 0; border-top: 1px solid var(--linha); min-width: 0; }
+.dados-restr-info { display: grid; gap: 2px; min-width: 0; }
+.dados-restr-info b { font-size: 15px; overflow-wrap: anywhere; }
+.dados-restr-info span { font-size: 13px; color: var(--suave); overflow-wrap: anywhere; }
+.dados-restr-motivo { font-size: 13px; }
+.dados-restr-perfil { display: block; width: 100%; min-height: 64px; text-align: left; padding: 8px 12px; font-size: 15px; line-height: 1.3; white-space: normal; }
+.dados-restr-verificando, .dados-restr-ok, .dados-restr-falha, .dados-restr-resumo { margin: 0; font-size: 14px; color: var(--suave); }
+.dados-restr-ok { color: var(--dados-ok); }
+.dados-restr-falha { color: var(--dados-falha); }
+.dados-restr-resumo.viola { color: var(--dados-viola); font-weight: 700; }
+.dados-fonte { margin: 0; font-size: 12px; color: var(--suave); overflow-wrap: anywhere; }
+
+/* modo Avançado: contagens + "Ver no mapa" */
+.dados-avancado { display: grid; gap: 6px; min-width: 0; }
+.dados-avancado-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.dados-contagens { font-size: 14px; color: var(--texto); overflow-wrap: anywhere; }
+.dados-contagens.falha { color: var(--dados-falha); }
+.dados-ver-mapa { min-height: 64px; }
+
+/* marcadores no mapa */
+.dados-marca {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; font-weight: 900; line-height: 1;
+  background: var(--acento); color: var(--acento-texto); border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4); cursor: default;
+}
+.dados-marca.viola { background: var(--perigo); color: #fff; width: 34px; height: 34px; font-size: 18px; }
+.dados-marca.perigoso { background: #b3261e; color: #fff; }

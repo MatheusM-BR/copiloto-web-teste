@@ -80,6 +80,8 @@
     const c = I.lerCoordenada(t);
     if (c) return [{ nome: I.textoCoordenada(c), detalhe: "Coordenada", lat: c.lat, lon: c.lon }];
     if (!online()) return deRecentes(t);
+    // "BR-153 km 140" (ui/km.js): o ponto do km pela referência do Copiloto, não pelo Photon
+    if (C.km && C.km.ehDestino(t)) return C.km.procurar(t);
     // educado com o serviço público: no máximo 1 pedido por segundo
     const falta = INTERVALO_MIN_MS - (Date.now() - ultimoPedido);
     if (falta > 0) await esperar(falta);
@@ -104,10 +106,11 @@
     const b = el("button", "busca-item busca-resultado"); b.type = "button";
     const txt = el("span", "busca-item-texto");
     txt.append(el("span", "busca-item-nome", r.nome));
-    const det = [r.detalhe, textoDist(r)].filter(Boolean).join(" · ");
+    const det = [r.detalhe, Number.isFinite(r.lat) && Number.isFinite(r.lon) ? textoDist(r) : ""].filter(Boolean).join(" · ");
     if (det) txt.append(el("small", "busca-item-detalhe", det));
     b.append(txt);
-    b.addEventListener("click", () => escolher(r));
+    // r.aoTocar: resultado que faz o próprio caminho (destino por km, sugestão de rodovia — ui/km.js)
+    b.addEventListener("click", () => (typeof r.aoTocar === "function" ? r.aoTocar() : escolher(r)));
     li.append(b);
     return li;
   }
@@ -139,6 +142,17 @@
     const c = I.lerCoordenada(t);
     if (c) { procurar(t).then((l) => { if (seq === seqBusca) mostrarResultados(l); }); return; }
     if (!online()) { mostrarResultados([], "Sem internet: a busca por endereço volta com a conexão. Por enquanto, só os destinos recentes."); return; }
+    // começo de rodovia ("BR-1", "SP-33"): sugere rodovias (ui/km.js, copiloto_km_highways) para completar com o km
+    const pref = C.km && C.km.prefixo ? C.km.prefixo(t) : null;
+    if (pref) {
+      mostrarResultados([], "Digite o km: " + pref.replace(/-$/, "") + " km 140");
+      C.km.sugerirRodovias(pref).then((l) => {
+        if (seq !== seqBusca) return;
+        mostrarResultados(l.map((x) => ({ nome: x.rodovia, detalhe: "Rodovia" + (x.ufs && x.ufs.length ? " · " + x.ufs.join(", ") : "") + " · toque e digite o km",
+          aoTocar: () => { const c = $("busca-texto"); c.value = x.rodovia + " km "; c.focus(); desenharBusca(); } })), "Digite o km: " + pref.replace(/-$/, "") + " km 140");
+      });
+      return;
+    }
     if (t.length < 3) { mostrarResultados([]); return; }
     mostrarResultados([], "Buscando…");
     timerBusca = setTimeout(async () => {
@@ -179,7 +193,7 @@
     mostrarResultados([], "Buscando…");
     procurar(t).then((l) => {
       if (seq !== seqBusca || C.abas.atual() !== "busca") return;
-      if (l.length) { mostrarResultados(l); escolher(l[0]); }
+      if (l.length) { mostrarResultados(l); if (typeof l[0].aoTocar === "function") l[0].aoTocar(); else escolher(l[0]); }
       else mostrarResultados([], "Nada encontrado para \"" + t + "\". Tente outro nome, a cidade junto ou toque no mapa.");
     }, (e) => {
       if (seq !== seqBusca) return;

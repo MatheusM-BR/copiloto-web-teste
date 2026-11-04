@@ -11,14 +11,14 @@
 //  copiloto-mapa-blocos   blocos vistos no mapa. Usa o guardado; atualiza por trás se tiver mais de 7 dias. Com limite.
 //  copiloto-mapa-rota-<id> blocos do corredor de cada rota, baixados sozinhos ao traçar (gravados pela página, ui/offline.js;
 //                         valem 30 dias; o antigo "copiloto-mapa-rota", de um corredor só, também é lido).
-const VERSAO = "2026-11-03.1";
+const VERSAO = "2026-11-04.1";
 const CACHE_APP = "copiloto-app-" + VERSAO;
 const CACHE_ESTILO = "copiloto-mapa-estilo";
 const CACHE_BLOCOS = "copiloto-mapa-blocos";
 const LIMITE_BLOCOS = { maxItens: 2500, maxBytes: 80e6 };
 const REVALIDAR_RECURSO_MS = 7 * 24 * 3600e3;
 // Fora do index.html: páginas abertas por link (privacidade.html, E5) também precisam abrir sem internet.
-const EXTRAS = ["./", "index.html", "manifest.webmanifest", "icon-180.png", "icon-512.png", "offline.js", "estilos/offline.css", "privacidade.html", "alternativas.js", "limite.js", "ui/limite.js", "estilos/limite.css", "custos.js", "ui/custos.js", "estilos/custos.css"];
+const EXTRAS = ["./", "index.html", "manifest.webmanifest", "icon-180.png", "icon-512.png", "offline.js", "estilos/offline.css", "privacidade.html", "alternativas.js", "limite.js", "ui/limite.js", "estilos/limite.css", "custos.js", "ui/custos.js", "estilos/custos.css", "dados.js", "ui/km.js", "ui/avisos.js", "estilos/km.css", "estilos/avisos.css"];
 
 importScripts("offline.js");
 const O = self.CopilotoOffline;

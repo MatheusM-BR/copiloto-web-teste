@@ -227,17 +227,28 @@
     const preencherCartao = () => {
       c.textContent = "";
       c.append(el("span", "via-titulo", "Via do trajeto"));
+      // dado oficial (DNIT — SNV) quando cobre mais da metade da rota (ui/avisos.js, dados.js); senão a heurística do OSM
+      const snv = C.dadosRota && C.dadosRota.snvDe ? C.dadosRota.snvDe(r) : null;
       if (e.estado === "ok") {
         const res = e.resumo;
-        c.append(barra(res));
-        const lp = V.textoPista(res);
-        if (lp) c.append(el("span", "via-l", lp));
+        c.append(snv ? barra({ kmDupla: snv.kmDupla, kmSimples: snv.kmSimples, kmTerra: snv.kmNaoPav }) : barra(res));
+        const lp = snv ? window.CopilotoDados.textoPistaSnv(snv) : V.textoPista(res);
+        if (lp) c.append(el("span", "via-l" + (snv ? " via-snv" : ""), lp));
+        if (snv) c.append(el("span", "via-l via-fonte-snv", window.CopilotoDados.textoFonteSnv(snv)));
         c.append(el("span", "via-l", V.textoRelevo(res)));
         const bur = V.buracosNaRota(e.coords, e.acum, relatosDeBuraco(), Date.now());
         c.append(el("span", "via-l", V.textoBuracos(bur)));
         c.append(linhaTerra(e, r, false));
         if (!e.completo) c.append(el("span", "via-l via-parcial", "Dados parciais: parte da rota não foi verificada."));
-      } else c.append(linhaTerra(e, r, false));
+      } else {
+        if (snv) { // sem o trace do Valhalla, o SNV ainda diz a pista e o pavimento
+          c.append(barra({ kmDupla: snv.kmDupla, kmSimples: snv.kmSimples, kmTerra: snv.kmNaoPav }));
+          const lp = window.CopilotoDados.textoPistaSnv(snv);
+          if (lp) c.append(el("span", "via-l via-snv", lp));
+          c.append(el("span", "via-l via-fonte-snv", window.CopilotoDados.textoFonteSnv(snv)));
+        }
+        c.append(linhaTerra(e, r, false));
+      }
       c.append(el("span", "via-ver", "Ver detalhes ›"));
     };
     registrar(e, c, preencherCartao); preencherCartao();
@@ -308,7 +319,9 @@
     if (!folhaAnterior) folhaAnterior = f ? Array.from(f.children) : null;
     const res = e.resumo;
     const nos = [el("h2", null, "Via do trajeto")];
-    nos.push(el("p", null, kmTxt(res.kmTotal) + " no total" + (V.textoPista(res) ? " · " + V.textoPista(res) : "") + "."));
+    const snv = C.dadosRota && C.dadosRota.snvDe ? C.dadosRota.snvDe(r) : null;
+    const lp = snv ? window.CopilotoDados.textoPistaSnv(snv) : V.textoPista(res);
+    nos.push(el("p", null, kmTxt(res.kmTotal) + " no total" + (lp ? " · " + lp : "") + "." + (snv ? " Pista e pavimento: " + window.CopilotoDados.textoFonteSnv(snv) + "." : "")));
     const t = V.textoTerraRuim(res);
     nos.push(el("p", null, t || "Sem terra e sem piso ruim no mapa."));
     const lista = [];
@@ -365,6 +378,8 @@
       if (e && e.estado === "ok") desenharTrechos(e); else limparTrechos();
     });
     C.on("rota-limpa", () => { selecionada = null; folhaAnterior = null; limparTrechos(); apagarDestaque(); });
+    // o SNV (ui/avisos.js) chegou: o cartão "Via do trajeto" passa a mostrar pista/pavimento oficiais
+    C.on("dados:rota", (d) => { if (d && d.parte === "snv") for (const e of entradas.values()) if (e.chave === selecionada) avisar(e); });
   });
 
   C.via = { obter, modo, tentarDeNovo, abrirDetalhe, resumoDe: (r) => { const e = obter(r); return e.estado === "ok" ? e.resumo : null; },

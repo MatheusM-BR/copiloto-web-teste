@@ -6,6 +6,7 @@
 //   votar          { voto: "confirm" | "deny", tipo? }            "continua lá", "não está mais"…
 //   proximo_posto, repetir, cancelar_rota
 //   mapa_modo      { modo: "simples" | "completo" }
+//   qual_km        "em que km estou", "que km é esse" (ui/km.js responde com a rodovia e o km)
 //   ir_para        { lugar, nome, cidade, uf, consulta }          "me leva para…", "ir para…", "navegar até…", "rota para…"
 //   desconhecido
 // Destino por voz: extrairDestino() (normaliza "pro/pra/para o/até", "cidade + UF", "posto X em Cidade"), lerEscolha() para
@@ -235,6 +236,7 @@
   const RE_CANCELAR_ROTA = /^(?:(?:por favor|ei|oi|ok|copiloto|pode|voce pode|quero|eu quero)\s+)*(?:(?:cancela|cancelar|cancele|encerra|encerrar|encerre|termina|terminar|termine|desliga|desligar|desligue|apaga|apagar|apague|limpa|limpar|limpe|tira|tirar|tire)\s+(?:(?:a|o|da|do|de|essa|esse|esta|este|dessa|desse|desta|deste|minha|meu|com a|com o)\s+)?(?:rota|navegacao|trajeto|percurso|caminho)|(?:para|parar|pare)\s+(?:a|o|essa|esse|esta|este|minha|meu)\s+(?:rota|navegacao|trajeto|percurso))\b(?!\s+(?:de|do|da|pra|pro|para|sentido|ate|ao|a)\b)/;
   const RE_MAPA_SIMPLES = /\b(mapa (simples|limpo|basico|simplificado)|modo simples|simplifica o mapa|simplificar o mapa|deixa o mapa simples)\b/;
   const RE_MAPA_COMPLETO = /\b(mapa (completo|detalhado|normal|cheio|inteiro)|modo completo|modo detalhado|mapa com tudo|mostra tudo no mapa)\b/;
+  const RE_QUAL_KM = /^(?:(?:copiloto|ei|oi|ok|ola|alo)\s+)*(?:(?:em|no)\s+)?(?:que|qual|qual e o|qual o|qual e)\s+(?:km|quilometro|kilometro)\b(?:\s+(?:eu\s+)?(?:estou|to|ta|e esse|e este|a gente ta|nos estamos|estamos|eu to|e|eh))?\s*$|^(?:(?:copiloto|ei|oi|ok)\s+)*(?:km|quilometro|kilometro)\s+(?:atual|de agora|daqui)\s*$|^(?:(?:copiloto|ei|oi|ok)\s+)*(?:onde|aonde)\s+(?:eu\s+)?(?:estou|to)\s+(?:em\s+)?(?:km|quilometro)\b/;
   const RE_REPETIR = /\b(repete|repetir|repita|repeti|fala de novo|falar de novo|fala outra vez|diz de novo|de novo|outra vez|nao entendi|nao ouvi|o que (voce )?(disse|falou)|como e que e|hein|ahn)\b/;
   const RE_POSTO = /\b(proximo posto|proximos postos|posto mais (perto|proximo)|postos? (proximos?|perto|a frente|na frente|adiante|mais (perto|proximos?))|onde (tem|e o|fica o) posto|quero abastecer|preciso abastecer|vou abastecer|preciso de diesel|precisando de diesel|abastecer|posto de (combustivel|gasolina|diesel)|algum posto|tem posto|um posto|(acabou|acabando|sem|pouco) (o |meu )?(diesel|combustivel)|(diesel|combustivel) (acabando|no fim|na reserva))\b/;
   // ---------- voto (A2, QA3). Negar o alerta ("deny") é o erro mais caro: derruba um relato real para os outros
@@ -513,6 +515,8 @@
     const base = { texto: n };
     const res = (x) => Object.assign(base, x);
     if (!n) return res({ intencao: "desconhecido", motivo: "vazio" });
+    // "em que km estou", "que km é esse", "qual o km" (dados da rodovia, ui/km.js)
+    if (RE_QUAL_KM.test(n)) return res({ intencao: "qual_km" });
 
     // destino falado ("me leva para…", "ir para…", "navegar até…", "rota para…"): o verbo vem no começo, então vale antes
     // do relato ("me leva pra Vaca Brava" é lugar). "me leva no posto mais próximo" é o "Próximo posto".
