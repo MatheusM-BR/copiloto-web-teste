@@ -23,6 +23,9 @@
   // alternativa escolhida (não a principal): { destino, coords, pontos } para o recálculo de carregado/vazio passar por ela
   let passagem = null;
   let toqueLigado = false, rotaToqueLigado = false;
+  // Desvio ativo (ui/desvio.js): { destino, alvos } — os quadrados a evitar valem para TODO cálculo ao mesmo destino (inclusive
+  // os recálculos da navegação, que não sabem do desvio) até o motorista escolher outra rota, limpar ou trocar o destino.
+  let desvioAtivo = null;
 
   // Redesenho: escolher destino é pela busca ("Para onde?": recentes, coordenada, postos) ou pelo toque no mapa
   // ("Ir para cá", ui/busca.js). O toque no mapa nunca vira destino sozinho. pedirDestino(true) abre a busca;
@@ -34,6 +37,7 @@
 
   // extra.rotulo: nome do lugar (busca, voz); aparece na folha e vai na rota (rota.rotulo → destinos recentes)
   function definirDestino(lngLat, extra) {
+    if (desvioAtivo && !mesmoPonto(desvioAtivo.destino, { lat: lngLat.lat, lon: lngLat.lng })) desvioAtivo = null;
     destino = { lat: lngLat.lat, lon: lngLat.lng };
     rotuloDestino = (extra && extra.rotulo) || null;
     if (marcadorDestino) marcadorDestino.remove();
@@ -73,7 +77,7 @@
   function limparRota() {
     const tinha = !!destino || !!rotaAtual;
     destino = null; rotuloDestino = null; rotaAtual = null; geracao++;
-    esconderAlternativas(); passagem = null;
+    esconderAlternativas(); passagem = null; desvioAtivo = null;
     if (marcadorDestino) { marcadorDestino.remove(); marcadorDestino = null; }
     const mapa = C.mapa;
     for (const id of ["rota-toque", "rota"]) if (mapa.getLayer(id)) mapa.removeLayer(id);
@@ -238,6 +242,25 @@
   // piso ruim): C.rotaExtras.folha(rota, opcoes) → nó(s) e C.rotaExtras.cartao(rota, i) → nó (linha dentro do cartão da alternativa).
   C.rotaExtras = C.rotaExtras || { folha: [], cartao: [] };
   C.rotaExtras.antesIniciar = C.rotaExtras.antesIniciar || []; // ui/avisos.js: cartão de restrições ANTES de "Iniciar navegação"
+  // Extras que dependem da rota escolhida (restrições, estado, via): com várias opções, trocam de lugar quando a escolha muda.
+  // Cada grupo tem uma âncora escondida; os nós ficam logo depois dela.
+  const grupos = {};
+  function trocaveis(tipo, r, op) {
+    const ancora = el("div"); ancora.hidden = true; ancora.dataset.extras = tipo;
+    const nos = extras(tipo, r, op);
+    grupos[tipo] = { ancora, nos };
+    return [ancora].concat(nos);
+  }
+  function trocarExtras(r) {
+    for (const tipo of Object.keys(grupos)) {
+      const g = grupos[tipo];
+      if (!g.ancora.isConnected) continue;
+      for (const n of g.nos) if (n.parentNode) n.remove();
+      g.nos = extras(tipo, r, opcoes);
+      let ref = g.ancora;
+      for (const n of g.nos) { ref.after(n); ref = n; }
+    }
+  }
   function extras(tipo, a, b) {
     const out = [];
     for (const f of C.rotaExtras[tipo] || []) { try { const x = f(a, b); if (x) out.push(...[].concat(x)); } catch (e) { /* o extra não derruba a folha */ } }
@@ -254,12 +277,16 @@
   async function calcular(o) {
     const dest = o.destino || destino;
     const perfil = o.perfil !== undefined ? o.perfil : C.veiculos.ativo();
-    let { pedido, faltando } = Rota.criarPedido(perfil, o.origem, dest);
+    let { pedido, faltando } = Rota.criarPedido(perfil, o.origem, dest, { semPedagio: !!o.semPedagio });
     let extras = [];
     if (o.ajustar) { const a = o.ajustar(pedido, faltando); pedido = a.pedido; faltando = a.faltando; extras = a.avisos || []; }
     const minha = geracao;
     const sinal = o.sinal || null;
+    // Desvio: o.poligonos (quadrados { anel, … } pedidos agora) ou o desvio ativo ao mesmo destino (o.desviar === false não usa)
+    const alvos = o.poligonos !== undefined ? o.poligonos : (o.desviar !== false && desvioAtivo && mesmoPonto(dest, desvioAtivo.destino) ? desvioAtivo.alvos : null);
     const pedidoBase = pedido;
+    if (alvos && alvos.length && window.CopilotoDesvio) pedido = window.CopilotoDesvio.aplicar(pedido, alvos);
+    const comDesvio = pedido !== pedidoBase;
     let pontos = null;
     if (o.alternativas) pedido = Alt.pedirAlternativas(pedido);
     else if (!o.consultar && o.passarPor !== false) {
@@ -269,12 +296,21 @@
     let json = await pedirComDivisao(pedido, o, sinal, minha);
     let r;
     try { r = Rota.resumirResposta(json); } catch (e) {
-      if (!pontos) { e.motivo = e.message; throw e; }
-      // a alternativa escolhida não serve com esta carga (ex.: peso): a melhor rota para ela, e o aviso diz isso
-      pontos = null; pedido = pedidoBase;
-      extras = extras.concat(["A rota escolhida não deu com esta carga: o servidor traçou a melhor rota para ela."]);
-      json = await pedirAoServidor(pedido, o, sinal, minha);
-      try { r = Rota.resumirResposta(json); } catch (e2) { e2.motivo = e2.message; throw e2; }
+      if (comDesvio && o.poligonos === undefined) {
+        // Desvio ativo de antes (recálculo da navegação) sem caminho que o respeite: traça a melhor rota e AVISA que ela pode
+        // passar pela restrição. Desvio pedido agora (o.poligonos): quem pediu decide o que dizer ("sem caminho").
+        pontos = null; pedido = pedidoBase; desvioAtivo = null;
+        extras = extras.concat(["Sem caminho que evite a restrição do mapa (OSM): esta rota pode passar por ela. Confirme a medida no local."]);
+        json = await pedirAoServidor(pedido, o, sinal, minha);
+        try { r = Rota.resumirResposta(json); } catch (e2) { e2.motivo = e2.message; throw e2; }
+      } else {
+        if (!pontos) { e.motivo = e.message; throw e; }
+        // a alternativa escolhida não serve com esta carga (ex.: peso): a melhor rota para ela, e o aviso diz isso
+        pontos = null; pedido = pedidoBase;
+        extras = extras.concat(["A rota escolhida não deu com esta carga: o servidor traçou a melhor rota para ela."]);
+        json = await pedirAoServidor(pedido, o, sinal, minha);
+        try { r = Rota.resumirResposta(json); } catch (e2) { e2.motivo = e2.message; throw e2; }
+      }
     }
     const avisos = extras.concat(Rota.avisos(perfil, faltando));
     const rotulo = o.rotulo !== undefined ? o.rotulo : (dest === destino ? rotuloDestino : null);
@@ -288,6 +324,8 @@
       nova = rotas[0];
     } else nova = montar(json, r);
     if (pontos) nova.passagem = pontos.length;
+    // recálculo com o desvio ativo (navegação): a rota nova leva a lista de desvios aplicados (resumo da viagem)
+    if (pedido !== pedidoBase && o.poligonos === undefined && desvioAtivo && desvioAtivo.registro && desvioAtivo.registro.length) nova.desvios = desvioAtivo.registro;
     // consultar: só calcula (conferência da rota offline pela navegação); quem pediu decide se usa (usar(rota))
     if (o.consultar) return nova;
     if (!pontos) passagem = null; // rota nova que não segue a escolhida: a escolha deixa de valer
@@ -325,23 +363,38 @@
       const n = Alt.relatosNaRota(r.coords, relatos, agora);
       return { km: r.km, minutos: r.minutos, pedagio: caract.pedagio, balsa: caract.balsa, terra: caract.terra, relatos: n, caract };
     });
-    const rot = Alt.rotular(base);
-    opcoes.infos = base.map((b, i) => ({ rotulo: rot[i].rotulo, comparacao: rot[i].comparacao, relatos: b.relatos,
-      etiquetas: Alt.etiquetas(b.caract, b.relatos).filter((t) => t !== rot[i].rotulo) }));
+    // o desvio (ui/desvio.js) não entra na comparação "Mais rápida/Mais curta": ele tem a etiqueta própria de diferença
+    const normais = base.map((b, i) => i).filter((i) => !opcoes.rotas[i].desvio);
+    const rotN = Alt.rotular(normais.map((i) => base[i]));
+    opcoes.infos = base.map((b, i) => {
+      const r = opcoes.rotas[i];
+      if (r.desvio) return { rotulo: "Desvio", comparacao: null, relatos: b.relatos, etiquetas: Alt.etiquetas(b.caract, b.relatos) };
+      const rot = rotN[normais.indexOf(i)];
+      return { rotulo: rot.rotulo, comparacao: rot.comparacao, relatos: b.relatos, etiquetas: Alt.etiquetas(b.caract, b.relatos).filter((t) => t !== rot.rotulo) };
+    });
+    // a rota que o desvio evita avisa no cartão: "Passa por 2 restrições" (vermelho)
+    const dv = opcoes.rotas.find((r) => r.desvio);
+    if (dv && dv.desvio.baseIndex != null && opcoes.infos[dv.desvio.baseIndex] && dv.desvio.total) {
+      const n = dv.desvio.total;
+      opcoes.infos[dv.desvio.baseIndex].etiquetas.unshift("Passa por " + n + (n === 1 ? " restrição" : " restrições"));
+    }
   }
 
   function escolher(i) {
     if (!opcoes || !(i >= 0 && i < opcoes.rotas.length) || i === opcoes.escolhida || navAtiva()) return false;
     opcoes.escolhida = i;
     const r = opcoes.rotas[i];
-    passagem = i === 0 ? null : { destino: r.destino, coords: r.coords,
-      pontos: Alt.pontosDePassagem(r.coords, opcoes.rotas.filter((_, j) => j !== i).map((x) => x.coords)) };
+    // desvio: os quadrados a evitar valem para os recálculos seguintes; as outras rotas soltam o desvio
+    desvioAtivo = r.desvio ? { destino: r.destino, alvos: r.desvio.alvos, registro: r.desvios || [] } : null;
+    passagem = i === 0 || r.desvio ? null : { destino: r.destino, coords: r.coords,
+      pontos: Alt.pontosDePassagem(r.coords, opcoes.rotas.filter((_, j) => j !== i && !opcoes.rotas[j].desvio).map((x) => x.coords)) };
     if (passagem && !passagem.pontos.length) passagem = null;
     rotaAtual = r;
     desenharRota(r.coords, false);
     desenharAlternativas();
     atualizarCartoes();
     C.emit("rota", rotaAtual);
+    trocarExtras(r);
     return true;
   }
 
@@ -352,15 +405,25 @@
     // 2 linhas: rótulo | tempo · distância; chegada, diferença para a mais rápida e etiquetas
     const topo = el("span", "rota-opcao-topo");
     const dados = Rota.formatarTempo(r.minutos) + " · " + Rota.formatarKm(r.km);
-    topo.append(el("span", "rota-opcao-rotulo", info.rotulo), el("span", "rota-opcao-dados", dados));
+    // R5: ícones de tempo e distância ao lado dos números (o texto continua o mesmo; o aria-label do cartão diz tudo)
+    const dadosEl = el("span", "rota-opcao-dados");
+    if (window.CopilotoIcones) dadosEl.append(window.CopilotoIcones.no("relogio"), Rota.formatarTempo(r.minutos), " · ", window.CopilotoIcones.no("distancia"), Rota.formatarKm(r.km));
+    else dadosEl.textContent = dados;
+    topo.append(el("span", "rota-opcao-rotulo", info.rotulo), dadosEl);
     const linha = el("span", "rota-opcao-linha");
     const chega = Alt.chegada(Date.now(), r.minutos);
     linha.append(el("span", "rota-opcao-chegada", chega));
     if (info.comparacao) linha.append(el("span", "rota-opcao-comp", info.comparacao));
-    for (const t of info.etiquetas) linha.appendChild(el("span", "rota-etiqueta" + (/^Sem /.test(t) ? " boa" : ""), t));
+    if (r.desvio) { const d = el("span", "rota-etiqueta rota-desvio-etiqueta" + (r.desvio.restantes ? "" : " boa"), r.desvio.etiqueta); linha.appendChild(d); }
+    for (const t of info.etiquetas) {
+      const et = el("span", "rota-etiqueta" + (/^Sem /.test(t) ? " boa" : /^Passa por /.test(t) ? " viola" : ""), t);
+      const ico = /edágio/.test(t) ? "pedagio" : /^(Terra|Porteira|\d+ relato)/.test(t) ? "aviso" : /Horário/.test(t) ? "relogio" : null; // R5: símbolo antes do texto
+      if (ico && window.CopilotoIcones) et.prepend(window.CopilotoIcones.no(ico));
+      linha.appendChild(et);
+    }
     b.append(topo, linha);
     for (const x of extras("cartao", r, i)) b.append(x);
-    b.setAttribute("aria-label", info.rotulo + ": " + dados + ", " + chega + (info.comparacao ? ", " + info.comparacao : "") +
+    b.setAttribute("aria-label", info.rotulo + ": " + dados + ", " + chega + (info.comparacao ? ", " + info.comparacao : "") + (r.desvio ? ", " + r.desvio.etiqueta : "") +
       (info.etiquetas.length ? ", " + info.etiquetas.join(", ") : ""));
     return b;
   }
@@ -372,6 +435,29 @@
     }
   }
 
+  // Desvio calculado por ui/desvio.js: entra como mais um cartão, já ESCOLHIDO (a original segue na lista, com o aviso).
+  // meta: { alvos, etiqueta, evitadas, total, restantes (n de restrições que ainda restam), baseIndex? }. Devolve true se entrou.
+  function adicionarDesvio(rota, meta) {
+    if (navAtiva() || !rota || !rotaAtual) return false;
+    if (!opcoes) opcoes = { rotas: [rotaAtual], escolhida: 0, infos: null };
+    const velho = opcoes.rotas.findIndex((x) => x.desvio);
+    const base = opcoes.escolhida !== velho && opcoes.escolhida >= 0 ? opcoes.escolhida : 0;
+    if (velho >= 0) { opcoes.rotas.splice(velho, 1); if (opcoes.escolhida > velho) opcoes.escolhida--; }
+    rota.desvio = Object.assign({ baseIndex: Math.min(base, opcoes.rotas.length - 1) }, meta);
+    opcoes.rotas.push(rota);
+    rota.desvios = meta.registro || [];
+    if (meta.preEscolher !== false) { // desvio parcial (ainda viola algo) entra na lista, mas quem escolhe é o motorista
+      opcoes.escolhida = opcoes.rotas.length - 1;
+      desvioAtivo = { destino: rota.destino, alvos: meta.alvos, registro: meta.registro || [] }; passagem = null;
+      rotaAtual = rota;
+      desenharRota(rota.coords, false);
+    }
+    desenharAlternativas();
+    if (meta.preEscolher !== false) C.emit("rota", rotaAtual);
+    const f = $("folha");
+    if (f && !f.hidden && f.dataset.decisao === "1") folhaRota(rotaAtual, rotaAtual.perfil);
+    return true;
+  }
   function rotuloVeiculo(perfil) { return perfil && Rota.ehCaminhao(perfil) ? perfil.nome : "carro"; }
   function botaoIniciar() {
     // ao iniciar, as alternativas somem (a escolhida fica)
@@ -385,7 +471,12 @@
   function folhaRota(r, perfil) {
     const botoes = el("div", "linha-botoes");
     botoes.append(botao("Limpar rota", "btn", limparRota));
-    const itens = [el("h2", null, "Rota para " + rotuloVeiculo(perfil))];
+    // Cabeçalho e "Iniciar navegação" FIXOS (estilos/toque.css): o título no alto e o botão no pé da folha (.folha-topo e
+    // .folha-rodape, sticky); os cartões e avisos rolam no meio. No iPhone SE o botão nunca sai da tela. O botão é o ÚLTIMO
+    // filho (o sticky do pé só segura o que está no fim do fluxo); as restrições do caminhão continuam ANTES dele no texto.
+    const topo = el("div", "folha-topo rota-topo");
+    topo.append(el("h2", null, "Rota para " + rotuloVeiculo(perfil)));
+    const itens = [topo];
     const temNav = C.navegacao && C.navegacao.iniciar;
     if (opcoes) {
       prepararInfos();
@@ -393,20 +484,17 @@
       lista.setAttribute("role", "group"); lista.setAttribute("aria-label", "Opções de rota");
       for (let i = 0; i < opcoes.rotas.length; i++) lista.appendChild(cartao(i));
       itens.push(lista);
-      itens.push(...extras("antesIniciar", r, opcoes)); // restrições do caminhão (ui/avisos.js), antes de "Iniciar navegação"
-      if (temNav) itens.push(botaoIniciar());
+      // restrições do caminhão (ui/avisos.js) antes de "Iniciar navegação" (que fica no pé fixo da folha); seguem a rota ESCOLHIDA
+      itens.push(...trocaveis("antesIniciar", r, opcoes));
       itens.push(lugarCustos());
       itens.push(el("p", "rota-dica", "Toque num cartão ou numa linha cinza do mapa para escolher outra rota."));
       for (const a of r.avisos) itens.push(el("p", "aviso-rota", a));
-      itens.push(...extras("folha", r, opcoes));
+      itens.push(...trocaveis("folha", r, opcoes));
     } else {
       const c = Alt.caracteristicas(r.resposta);
-      // a mesma ordem de antes das alternativas (resumo, avisos, "Iniciar navegação"): um toque que quica em
-      // "Traçar rota" cai no mesmo lugar de sempre (num aviso), não em "Iniciar navegação"; o detalhe vem depois
       itens.push(el("div", "grande", Rota.formatarKm(r.km) + " · " + Rota.formatarTempo(r.minutos)));
       for (const a of r.avisos) itens.push(el("p", "aviso-rota", a));
       itens.push(...extras("antesIniciar", r, null));
-      if (temNav) itens.push(botaoIniciar());
       itens.push(lugarCustos());
       const extra = [Alt.chegada(Date.now(), r.minutos)].concat(Alt.etiquetas(c, Alt.relatosNaRota(r.coords, relatosConhecidos(), Date.now())));
       itens.push(el("p", "rota-detalhe", extra.join(" · ")));
@@ -414,11 +502,38 @@
       itens.push(...extras("folha", r, null));
     }
     itens.push(botoes);
+    if (temNav) { const pe = el("div", "folha-rodape rota-rodape"); pe.append(botaoIniciar()); itens.push(pe); }
     C.folha.abrir(itens);
     atualizarCartoes();
     C.emit("rota:folha", { rota: r, perfil });
     marcarDecisao();
     C.mapaPronto(() => enquadrarRota());
+  }
+
+  // Voz (rodada 2): ao traçar, o Copiloto diz "Rota de 312 quilômetros, 4 horas e 20 minutos, chegada às 15:40, com pedágio e
+  // 2 restrições." As restrições do caminhão chegam do servidor depois: se chegarem com a folha ainda aberta, uma frase a mais.
+  let falouRota = null; // { rota, restricoes }
+  // soJa: só lê o que já está na memória (dentro de "dados:rota" pedir de novo emitiria o evento outra vez: laço infinito)
+  function restricoesNaRota(r, soJa) {
+    try { const x = C.dadosRota ? (soJa && C.dadosRota.restricoesJa ? C.dadosRota.restricoesJa(r) : C.dadosRota.restricoesDe ? C.dadosRota.restricoesDe(r) : null) : null; return x && Array.isArray(x.violadas) ? x.violadas.length : 0; } catch (e) { return 0; }
+  }
+  function falarRota(r) {
+    try {
+      const NavLib = window.CopilotoNavegacao;
+      if (!C.voz || !C.voz.falar || !NavLib || !NavLib.textoRotaTracada || !r) return;
+      const c = Alt.caracteristicas(r.resposta);
+      const nr = restricoesNaRota(r);
+      falouRota = { rota: r, restricoes: nr };
+      C.voz.falar(NavLib.textoRotaTracada({ km: r.km, minutos: r.minutos, agoraMs: Date.now(), pedagio: c.pedagio === true, restricoes: nr }), { naoInterromper: true });
+    } catch (e) { /* a voz nunca derruba o traçado */ }
+  }
+  function falarRestricoesTardias() {
+    const f = falouRota;
+    if (!f || f.rota !== rotaAtual || navAtiva() || !C.voz || !C.voz.falar) return;
+    const nr = restricoesNaRota(f.rota, true);
+    if (nr <= f.restricoes || nr < 1) return;
+    f.restricoes = nr;
+    C.voz.falar("A rota tem " + nr + (nr === 1 ? " restrição" : " restrições") + " para o seu caminhão.", { naoInterromper: true });
   }
 
   async function tracarRota() {
@@ -427,13 +542,18 @@
     if (!pos) { C.mensagem("Ative o GPS para saber de onde você sai.", 6000); return; }
     const origem = { lat: pos[1], lon: pos[0] };
     const perfil = C.veiculos.ativo();
-    esconderAlternativas(); passagem = null;
-    C.folha.abrir([el("h2", null, "Traçando a rota…"), el("p", null, "Calculando para " + (perfil ? perfil.nome : "carro") + ".")]);
+    esconderAlternativas(); passagem = null; desvioAtivo = null;
+    // "Cancelar" aborta o pedido ao servidor (AbortController) e volta para a folha do destino
+    const ctl = new AbortController();
+    const cancelarPedido = botao("Cancelar", "btn btn-grande", () => { ctl.abort(); folhaDestino(); });
+    cancelarPedido.id = "rota-cancelar";
+    C.folha.abrir([el("h2", null, "Traçando a rota…"), el("p", null, "Calculando para " + (perfil ? perfil.nome : "carro") + "."), cancelarPedido]);
     try {
-      const r = await calcular({ origem, perfil, alternativas: true });
+      const r = await calcular({ origem, perfil, alternativas: true, sinal: ctl.signal });
       folhaRota(r, perfil);
+      falarRota(r);
     } catch (e) {
-      if (e.cancelada) return;
+      if (e.cancelada || ctl.signal.aborted) return;
       const motivo = e.motivo || e.message;
       if (C.rotaLonga && C.rotaLonga.falha(e, { tentar: tracarRota, limpar: limparRota })) { C.emit("rota-erro", { motivo }); return; }
       const botoes = el("div", "linha-botoes");
@@ -446,10 +566,12 @@
   C.rota = { destino: () => destino, atual: () => rotaAtual, pedirDestino, definirDestino, tracar: tracarRota, limpar: limparRota, calcular, usar, reabrirFolha, enquadrar: () => C.mapaPronto(() => enquadrarRota()),
     // opções de rota mostradas agora (null fora da escolha): { rotas, escolhida, infos }
     alternativas: () => (opcoes ? { rotas: opcoes.rotas.slice(), escolhida: opcoes.escolhida, infos: opcoes.infos ? opcoes.infos.slice() : null } : null),
-    escolher };
+    escolher, adicionarDesvio, desvioAtivo: () => (desvioAtivo ? { destino: desvioAtivo.destino, alvos: desvioAtivo.alvos.slice(), registro: desvioAtivo.registro || [] } : null),
+    definirDesvio: (d) => { desvioAtivo = d && d.alvos && d.alvos.length ? { destino: d.destino, alvos: d.alvos.slice(), registro: d.registro || [] } : null; } };
 
   C.aoIniciar(() => {
     // navegação começou (por qualquer caminho: folha da rota, rota guardada, voz): as alternativas somem
     C.on("navegacao", (d) => { if (d && d.ativa && opcoes) esconderAlternativas(); });
+    C.on("dados:rota", (d) => { if (d && d.parte === "restricoes") falarRestricoesTardias(); });
   });
 })(window.Copiloto);

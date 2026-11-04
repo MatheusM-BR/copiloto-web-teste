@@ -129,13 +129,19 @@
     const escolhas = botao(novidade ? "Não permitir" : "Salvar escolhas", "btn btn-grande", () => {
       salvar(novidade ? {} : marcadas(), pend); fechar();
     }); escolhas.id = "e5-cons-salvar";
+    // "Salvar escolhas" sem marcar nada enganava (parecia que algo era salvo): sem nenhuma marca o rótulo diz o que acontece
+    if (!novidade) {
+      const rotular = () => { escolhas.textContent = pend.some((n) => lista.querySelector("#e5-c-" + n).checked) ? "Salvar escolhas" : "Continuar sem permissões"; };
+      lista.addEventListener("change", rotular); rotular();
+    }
+    // botões FORA da área rolável (iPhone SE 320×568): a caixa rola, os botões ficam fixos no pé da tela
     const acoes = el("div", "e5-cons-acoes"); acoes.append(tudo, escolhas);
     const pe = el("p", "e5-cons-pe", Consent.TEXTOS.rodape + " ");
     const link = el("a", null, Consent.TEXTOS.politica); link.href = "privacidade.html"; link.target = "_blank"; link.rel = "noopener";
     pe.append(link, document.createTextNode("."));
-    caixa.append(acoes, pe);
+    caixa.append(pe);
     tela.dataset.versao = Consent.VERSAO;
-    tela.append(caixa);
+    tela.append(caixa, acoes);
     document.getElementById("app").appendChild(tela);
   }
 

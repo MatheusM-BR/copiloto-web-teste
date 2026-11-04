@@ -93,7 +93,7 @@
   // sem jeito, vai para a esquerda das colunas de botões.
   function lugarDoVeiculo(W, H, topo) {
     const mr = C.mapa.getContainer().getBoundingClientRect(), R = 28;
-    const obst = retangulos(".acoes > *, .painel-mapa > .btn-recentralizar, .painel-mapa > .velocidade, .painel-mapa > .nav-rodape, .maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *")
+    const obst = retangulos(".acoes > *, .painel-mapa > .btn-recentralizar, .painel-mapa > .btn-sos, .painel-mapa > .velocidade, .painel-mapa > .nav-rodape, .maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *")
       .map((r) => ({ l: r.left - mr.left, r: r.right - mr.left, t: r.top - mr.top, b: r.bottom - mr.top }));
     const minY = topo + R + 4;
     const colide = (x, y) => y < minY || obst.some((o) => x + R > o.l && x - R < o.r && y + R > o.t && y - R < o.b);
@@ -453,7 +453,8 @@
   // redesenho: ☀, ⚑ e ⛽ saíram da coluna; "e3-btn-baixar" fica só até o ramo da equipe B (que o remove) entrar
   const DISPENSAVEIS = ["e3-btn-baixar", "btn-orientacao"];
   function visivel(e) { return !!e && !e.hidden && e.offsetParent !== null && getComputedStyle(e).display !== "none"; }
-  const SEL_PE = ".maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *, .painel-mapa > .velocidade, .painel-mapa > .btn-recentralizar, .painel-mapa > .nav-rodape";
+  // (a folha aberta também é "pé": os botões ficam acima dela, nunca por baixo — "Falar" e "!" continuam tocáveis; R5 toque)
+  const SEL_PE = ".maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *, .painel-mapa > .velocidade, .painel-mapa > .btn-recentralizar, .painel-mapa > .btn-sos, .painel-mapa > .nav-rodape, #folha";
   const SEL_TOPO = "#nav-painel, #alerta, .maplibregl-ctrl-top-right > *, .maplibregl-ctrl-top-left > *, .painel-mapa > .barra-topo";
   function retangulos(sel) {
     const out = [];
@@ -504,7 +505,9 @@
     for (const r of topos) if (r.left < vr.left + largura && r.right > vr.left && r.top < vr.top) teto = Math.max(teto, r.bottom + MARGEM);
     // navegando (redesenho), a atribuição do mapa fica logo acima da barra do pé, ao lado da velocidade: a pílula sobe
     // para cima dela (a atribuição tem de ficar visível e tocável)
-    let base = vr.top;
+    // o SOS (R5 toque) fica logo acima do velocímetro: a pílula sobe para cima dele
+    const sos = $("btn-sos"), sr = sos && visivel(sos) ? sos.getBoundingClientRect() : null;
+    let base = sr ? Math.min(vr.top, sr.top) : vr.top;
     for (const r of retangulos(".maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *")) {
       if (r.left < vr.left + largura && r.right > vr.left && r.top < base && r.bottom > base - 64 - 10) base = Math.min(base, r.top);
     }
@@ -562,7 +565,7 @@
     const mo = new MutationObserver(agendarArrumar);
     // a atribuição muda de tamanho ao abrir/fechar (botão "i") e quando o texto das fontes chega
     for (const e of [document.querySelector("main"), $("nav-painel"), $("alerta"), document.querySelector(".velocidade"),
-      $("barra-topo"), $("nav-rodape"), document.querySelector(".maplibregl-ctrl-attrib"), $("btn-recentralizar")]) {
+      $("barra-topo"), $("nav-rodape"), document.querySelector(".maplibregl-ctrl-attrib"), $("btn-recentralizar"), $("folha"), $("btn-sos")]) {
       if (!e) continue;
       if (ro) ro.observe(e);
       mo.observe(e, { attributes: true, attributeFilter: ["hidden", "class"] });

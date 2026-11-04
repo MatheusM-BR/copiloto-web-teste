@@ -1,7 +1,7 @@
 // Navegação guiada (pacote E1): "Iniciar navegação", carregado ou vazio, painel de condução, voz das manobras,
 // recálculo ao sair da rota, chegada, resumo pós-viagem e destinos recentes.
 // Lógica pura em navegacao.js. Dados locais em copiloto.nav.v1 (pesos vazios por veículo, viagens, destinos recentes).
-// Expõe Copiloto.navegacao: iniciar(), encerrar(), ativa(), recentes(), viagens(), mostrarViagens(),
+// Expõe Copiloto.navegacao: textoViagem(tipo) ("chegada" | "restante", frase para falar), iniciar(), encerrar(), ativa(), recentes(), viagens(), mostrarViagens(),
 // trocarDestino({ lat, lon, rotulo }) (recalcula a navegação em andamento para outro destino).
 // Emite "navegacao" ({ ativa, progresso_m, restante_m, coords }) a cada atualização.
 // Ouve "comando:repetir" e "comando:cancelar-rota" (pacote de voz, chama dado.atender()), "alerta"/"alerta-fechado".
@@ -40,6 +40,9 @@
   const RECALCULO_LIMITE_MS = 10000; // A6: tempo-limite do servidor de rotas no recálculo
   const VOLTOU_M = 40;               // A6: de volta à rota antiga (cancela o recálculo)
   const ANUNCIA_RECALCULANDO_M = 150; // A6: perto da rota antiga, as manobras dela continuam durante o recálculo
+  // Conversa pelo caminho: sem marco nem "Continue por…" até 15 s depois de uma manobra falada (window.COPILOTO_FOLGA_MANOBRA_MS
+  // encurta nos testes de navegador)
+  const folgaManobraMs = () => { const v = Number(window.COPILOTO_FOLGA_MANOBRA_MS); return v >= 0 && isFinite(v) && window.COPILOTO_FOLGA_MANOBRA_MS != null ? v : 15000; };
   const GRAVAR_MS = 3000;            // M4: gravação do andamento no máximo a cada 3 s
   const LONGE_DA_LINHA_M = 200;      // sem internet: tão longe da linha (saindo de fazenda) já orienta a reentrada
   const online = () => navigator.onLine !== false;
@@ -164,6 +167,8 @@
     n.progresso = null;
     n.rastreador = Nav.criarRastreador(n.geo);
     n.anunciador = Nav.criarAnunciador();
+    n.postDitos = new Set(); // "Continue por 40 quilômetros" já falados (por índice de manobra)
+    if (n.marcos) n.marcos.novaRota(); else n.marcos = Nav.criarMarcosViagem();
     n.detector.zerar();
     n.ultimo = null;
   }
@@ -272,6 +277,7 @@
     // Sem internet e longe da linha, as manobras dela não são faladas (a orientação é voltar para a linha).
     const longeOffline = n.fora && proj.distancia_m > ANUNCIA_RECALCULANDO_M;
     if (!longeOffline && (!n.recalculando || n.troca || (n.recalculo && proj.distancia_m <= ANUNCIA_RECALCULANDO_M))) anunciar(n, sit, velMs);
+    if (proj.considerada) conversar(n, sit);
     // rota sem manobras (volta pela mesma rota): avisos de distância restante (… 20, 10, 5 km)
     if (n.semCurvas && proj.considerada && !n.fora) {
       const r = restanteM(n);
@@ -423,17 +429,22 @@
 
   // Fala de manobra: enquanto a frase do alerta toca ou o microfone ouve, não fala (nem corta o alerta, nem entra na
   // escuta) e tenta de novo logo depois. forcar: pedido do motorista ("repete"), só o alerta segura.
-  function falar(texto, manobra, forcar) {
+  // critica ("agora", a manobra de agora): o microfone aberto ou surdo não a emudece. Só o alerta de segurança a segura;
+  // ui/voz.js aborta a escuta e fala.
+  function falar(texto, manobra, forcar, critica) {
     if (!texto) return false;
-    if (forcar ? vozEmAlerta() : vozOcupada(nav)) { agendarRetomada(); return false; }
+    if (forcar || critica ? vozEmAlerta() : vozOcupada(nav)) { agendarRetomada(); return false; }
     if (nav) nav.esperarFala = false;
     const fala = { texto, inicio: Date.now(), fimEm: null, manobra: manobra || null };
-    C.voz.falar(texto, { manobra: true, aoTerminar: () => { fala.fimEm = Date.now(); } });
+    C.voz.falar(texto, { manobra: true, critica: !!critica, aoTerminar: () => { fala.fimEm = Date.now(); } });
     if (nav) { nav.ultimaFala = texto; nav.falaAtual = fala; }
     return true;
   }
   // Falas que não são orientação (B7): esperam o alerta acabar, nunca o interrompem.
   function falarNaoCritico(texto) { C.voz.falar(texto, { naoInterromper: true }); }
+  // Chegada: segurança. Não é descartada por tempo na fila e aborta o microfone aberto.
+  function falarCritico(texto) { C.voz.falar(texto, { naoInterromper: true, critica: true }); }
+  function ehCaminhao(n) { return !!(n && n.perfil && Rota.ehCaminhao(n.perfil)); }
 
   function agendarRetomada() {
     if (timerRetomada) return;
@@ -482,24 +493,63 @@
 
   function anunciar(n, sit, velMs) {
     if (n.semSinal) return;
+    const cam = ehCaminhao(n);
     if (!n.falouInicio) {
       // início: fala só a primeira instrução e dá por dita a etapa em que a próxima manobra já está (menos o "agora")
       if (vozOcupada(n)) { agendarRetomada(); return; }
       n.falouInicio = true;
       let marcada = null;
       if (sit.proxima >= 0) {
-        const e = n.anunciador.avaliar(sit.proxima, sit.distancia_m, velMs, n.manobras[sit.proxima].destino);
+        const e = n.anunciador.avaliar(sit.proxima, sit.distancia_m, velMs, n.manobras[sit.proxima].destino, cam);
         if (e && e !== "agora") { marcada = { indice: sit.proxima, antes: n.anunciador.dito(sit.proxima), inicio: true }; n.anunciador.marcar(sit.proxima, e); }
       }
-      falar(n.manobras[0] ? n.manobras[0].pre : "Navegação iniciada.", marcada || { indice: -1, antes: null, inicio: true });
+      // "Navegação iniciada. Siga pela <via> por N quilômetros." (volta sem curvas: a frase própria dela)
+      const inicio = n.semCurvas && n.manobras[0] ? n.manobras[0].pre : Nav.textoInicio(n.manobras);
+      falar(inicio, marcada || { indice: -1, antes: null, inicio: true });
       return;
     }
     if (sit.proxima < 0) return;
     const m = n.manobras[sit.proxima];
-    const etapa = n.anunciador.avaliar(sit.proxima, sit.distancia_m, velMs, m.destino);
+    // destino com lado: a 2 km avisa "Em 2 quilômetros, destino à direita" (em qualquer velocidade, uma vez)
+    if (m.destino && m.lado && sit.distancia_m <= 2000 && n.anunciador.dito(sit.proxima) == null) {
+      if (falar(Nav.textoAnuncio(m, sit.distancia_m, "longe", 2000), { indice: sit.proxima, antes: null })) n.anunciador.marcar(sit.proxima, "longe");
+      return;
+    }
+    const etapa = n.anunciador.avaliar(sit.proxima, sit.distancia_m, velMs, m.destino, cam);
     if (!etapa) return;
     const antes = n.anunciador.dito(sit.proxima);
-    if (falar(Nav.textoAnuncio(m, sit.distancia_m, etapa, Nav.limiarEtapa(velMs, etapa)), { indice: sit.proxima, antes })) n.anunciador.marcar(sit.proxima, etapa);
+    // "agora" é crítica: o microfone aberto (ou surdo) não a emudece
+    if (falar(Nav.textoAnuncio(m, sit.distancia_m, etapa, Nav.limiarEtapa(velMs, etapa, cam)), { indice: sit.proxima, antes }, false, etapa === "agora")) n.anunciador.marcar(sit.proxima, etapa);
+  }
+
+  // Conversa pelo caminho (rodada 2 de voz): "Continue por 40 quilômetros" depois da manobra num trecho longo e o marco
+  // "Faltam N quilômetros, chegada às HH:MM" a cada 30 min ou 50 km. Só com a voz livre (sem alerta, manobra, resposta
+  // de comando ou microfone) e sem manobra falada há menos de 15 s; o que não coube fica para a próxima leitura.
+  function conversar(n, sit) {
+    if (!n.falouInicio || n.recalculando || n.semSinal || n.semCurvas || n.fora) return;
+    const agora = Date.now();
+    const livre = !alertaAberto && !vozOcupada(n) && !outraFalando() && !(n.falaAtual && agora - n.falaAtual.inicio < folgaManobraMs());
+    const prog = n.progresso || 0;
+    if (livre) {
+      const p = Nav.posTransicao(n.manobras, sit, prog, n.postDitos);
+      if (p) { n.postDitos.add(p.indice); falarNaoCritico(p.texto); return; }
+    }
+    const restS = Nav.tempoRestanteS(n.manobras, prog, n.geo.total, n.tempoTotalS);
+    const txt = n.marcos.avaliar({ agoraMs: agora, progressoM: prog, restanteM: restanteM(n), restanteS: restS,
+      proximaManobraM: sit.proxima >= 0 ? sit.distancia_m : null, ocupado: !livre });
+    if (txt) falarNaoCritico(txt);
+  }
+
+  // "Quando eu chego" / "quanto falta": navegando, pelo que falta; com a rota só traçada, pela rota; senão null.
+  function textoViagem(tipo) {
+    const n = nav;
+    if (n && n.geo) {
+      const restS = Nav.tempoRestanteS(n.manobras, n.progresso || 0, n.geo.total, n.tempoTotalS);
+      return Nav.textoViagem(tipo, restanteM(n), restS, Date.now());
+    }
+    const r = C.rota && C.rota.atual ? C.rota.atual() : null;
+    if (r && isFinite(r.km) && isFinite(r.minutos)) return "Pela rota traçada: " + Nav.textoViagem(tipo, r.km * 1000, r.minutos * 60, Date.now()).replace(/^./, (c) => c.toLowerCase());
+    return null;
   }
 
   // Devolve true se repetiu a orientação. Com alerta aberto, não atende: o pacote de voz repete o alerta.
@@ -558,6 +608,25 @@
     n.recalculo = null; n.recalculando = false;
     try { ctl.abort(); } catch (e) { /* ignora */ }
     status("");
+  }
+
+  // Adota uma rota já calculada para o MESMO destino (desvio por restrição, ui/desvio.js): sem mensagem de "destino trocado".
+  function adotarRota(rota) {
+    const n = nav;
+    if (!n || !rota || !rota.coords) return false;
+    cancelarRecalculo(n); pararConferencia(n);
+    if (n.troca) { try { n.troca.abort(); } catch (e) { /* ignora */ } n.troca = null; }
+    n.recalculando = false;
+    const gps = C.estado.gps;
+    if (C.rota && C.rota.usar) C.rota.usar(rota); // o mapa passa a mostrar (e C.rota.atual() a ser) a rota nova
+    carregarRota(n, rota);
+    n.fora = false; n.semRede = false; n.rotaOffline = false; n.volta = false;
+    if (gps) n.ultimoRecalculo = gps.t;
+    $("nav-reentrada").hidden = true; faixa(n);
+    gravarAndamento(n, true);
+    status("");
+    if (C.estado.gps && !gpsVelho()) aoPosicao(C.estado.gps);
+    return true;
   }
 
   // ------------------------------------------------------------ trocar o destino com a navegação andando (A2)
@@ -633,7 +702,7 @@
       veiculo: n.perfil ? n.perfil.nome : null, carga: n.escolha.carga, data: Date.now() }, r);
     const d = dados(); d.viagens = Nav.adicionarViagem(d.viagens, viagem, 20); gravar(d);
     C.emit("navegacao", { ativa: false, progresso_m: n.progresso || 0, restante_m: restanteM(n), coords: n.geo.coords });
-    if (chegada) falarNaoCritico("Você chegou.");
+    if (chegada) falarCritico("Você chegou.");
     // chegada: a rota guardada vira "última rota" ANTES de limpar a da sessão (assim o "rota-limpa" não a apaga)
     if (chegada) marcarUltima(n);
     if (limpar) C.rota.limpar();
@@ -885,11 +954,13 @@
   }
 
   C.navegacao = {
-    iniciar, encerrar: (opcoes) => finalizar(false, opcoes), ativa: () => !!nav, trocarDestino, voltar,
+    iniciar, encerrar: (opcoes) => finalizar(false, opcoes), ativa: () => !!nav, trocarDestino, adotarRota, voltar,
     // estado da rota offline (testes e outros pacotes) ou null sem navegação
     offline: () => (nav ? { rotaOffline: nav.rotaOffline, conferidaEm: nav.conferidaEm, semRede: nav.semRede, fora: nav.fora, volta: nav.volta,
       semCurvas: nav.semCurvas, conferindo: !!nav.conferencia } : null),
     recentes: () => dados().recentes.slice(), viagens: () => dados().viagens.slice(), mostrarViagens,
+    // "quando eu chego" / "quanto falta" (ui/comandos.js): frase falada, ou null sem rota
+    textoViagem,
   };
 
   C.aoIniciar(() => {

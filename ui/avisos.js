@@ -20,6 +20,8 @@
   const { $, el, botao } = C.util;
   const D = window.CopilotoDados;
   const Rota = window.CopilotoRota;
+  const R = window.CopilotoRuido; // r5: tira o ruído do dado bruto, pagina as feições, teto de falas (ruido.js)
+  const Dv = window.CopilotoDesvio;
   const MAX_ENTRADAS = 8, MAX_SIMULTANEOS = 4, ERRO_CACHE_MS = 10000;
   const KINDS = ["curva", "lombada", "balanca", "passagem_nivel", "balsa", "area_escape", "radar", "perigo"];
   C.carregarEstilo("estilos/avisos.css");
@@ -43,7 +45,7 @@
   function rpc(nome, params) { return naFila(() => C.nuvem.rpcPublica(nome, params)); }
 
   // ------------------------------------------------------------ dados por rota
-  function chaveDims(p) { return caminhao(p) ? ["c", p.altura, p.pbtc, p.comprimento, p.largura].map((x) => (typeof x === "number" ? x : "-")).join("/") : "a"; }
+  function chaveDims(p) { return caminhao(p) ? ["c", p.altura, p.pbtc, p.comprimento, p.largura, p.eixos].map((x) => (typeof x === "number" ? x : "-")).join("/") : "a"; }
   function obter(r) {
     const coords = r && r.coords;
     if (!Array.isArray(coords) || coords.length < 2) return null;
@@ -86,7 +88,7 @@
     if (p.artesp.dados) listas.push(D.avisosDeArtesp(p.artesp.dados));
     if (e.restricoes.dados) listas.push(D.avisosDeRestricoes(e.restricoes.dados));
     if (!listas.length) return;
-    e.avisos = D.juntarAvisos(listas);
+    e.avisos = R.finalizar(D.juntarAvisos(listas));
     e.guardado = false;
     if (p.feicoes.estado === "ok" && p.trechos.estado === "ok" && p.artesp.estado === "ok") D.guardar(storage(), { chave: e.chave, salvoEm: Date.now(), avisos: e.avisos });
     if (avisadorChave === e.chave) avisador = D.criarAvisador(e.avisos, Object.assign(opcoesAvisador(), avisador ? { feitos: avisador.feitosSet(), ultimaFala: avisador.ultimaFala() } : {}));
@@ -103,8 +105,8 @@
     avisar(e, nome);
   }
   function buscarPartes(e) {
-    pedirParte(e, "feicoes", () => rpc("copiloto_route_features", { p_route: geo(e), p_kinds: KINDS, p_buffer_m: 40, p_limit: 2000 }));
-    pedirParte(e, "trechos", () => rpc("copiloto_route_hot_spots", { p_route: geo(e), p_buffer_m: 100, p_min_level: 2 }));
+    pedirParte(e, "feicoes", () => R.buscarFeicoes(rpc, geo(e), { kinds: KINDS }));
+    pedirParte(e, "trechos", async () => R.limparTrechos(await rpc("copiloto_route_hot_spots", { p_route: geo(e), p_buffer_m: 100, p_min_level: 2 })));
     pedirParte(e, "artesp", () => rpc("copiloto_route_artesp", { p_route: geo(e) }));
     pedirParte(e, "snv", () => rpc("copiloto_route_snv", { p_route: geo(e) }));
   }
@@ -118,7 +120,7 @@
     if (r.estado === "falha" && Date.now() - r.erroEm < ERRO_CACHE_MS) return;
     r.estado = "carregando"; avisar(e, "restricoes");
     const params = D.paramsRestricoes(e.coords, perfil); params.p_route = geo(e);
-    try { r.dados = await rpc("copiloto_route_restrictions", params); r.estado = "ok"; }
+    try { r.dados = R.limparRestricoes(await rpc("copiloto_route_restrictions", params)); r.estado = "ok"; }
     catch (x) { r.estado = x && x.rede ? "offline" : "falha"; r.erroEm = Date.now(); }
     if (e.dims !== dims) return; // o veículo mudou no meio
     if (r.estado === "ok") montarAvisos(e);
@@ -131,8 +133,20 @@
       if (e.restricoes.estado === "offline" || e.restricoes.estado === "falha") { e.restricoes.estado = "nada"; buscarRestricoes(e, veiculo()); }
     }
   }
+  // Só as restrições de uma rota candidata (o desvio de ui/desvio.js confere a rota nova antes de oferecê-la): uma consulta,
+  // sem as outras RPCs. Reaproveita a entrada se a rota já foi consultada. Lança em falha de rede ou do servidor.
+  async function restricoesDeRota(r) {
+    const perfil = veiculo();
+    if (!caminhao(perfil) || !r || !Array.isArray(r.coords) || r.coords.length < 2) return null;
+    const e0 = entradas.get(D.chaveRota(r.coords));
+    if (e0 && e0.dims === chaveDims(perfil) && e0.restricoes.estado === "ok" && e0.restricoes.dados) return D.resumoRestricoes(e0.restricoes.dados);
+    if (!online()) { const x = new Error("Sem internet."); x.rede = true; throw x; }
+    return D.resumoRestricoes(await rpc("copiloto_route_restrictions", D.paramsRestricoes(r.coords, perfil)));
+  }
   const snvDe = (r) => { const e = obter(r); return e && e.partes.snv.dados ? D.usarSnv(e.partes.snv.dados, e.distanciaM) : null; };
   const avisosDe = (r) => { const e = obter(r); return e ? e.avisos.slice() : []; };
+  // Só lê o que já está na memória (não pede nada, não emite evento): ui/desvio.js chama de dentro de "dados:rota"
+  const restricoesJa = (r) => { const e = r && Array.isArray(r.coords) && r.coords.length > 1 ? entradas.get(D.chaveRota(r.coords)) : null; return e && e.restricoes.estado === "ok" && e.restricoes.dados ? D.resumoRestricoes(e.restricoes.dados) : null; };
   const restricoesDe = (r) => { const e = obter(r); return e && e.restricoes.dados ? D.resumoRestricoes(e.restricoes.dados) : null; };
 
   // ------------------------------------------------------------ navegando: avisos de proximidade
@@ -154,9 +168,17 @@
   function esconderFaixa() { clearTimeout(faixaTimer); if (faixa) faixa.hidden = true; }
   function falar(a, distM) {
     if (!C.voz || !C.voz.falar) return;
-    if (C.voz.emAlerta && C.voz.emAlerta()) return; // alerta de relato falando: a faixa fica, a fala não briga
-    C.voz.falar(D.falaAviso(a, distM), { naoInterromper: true, esperaMaxMs: 8000 });
+    // restrição do caminhão é segurança: espera o alerta/manobra acabar sem ser descartada por tempo e aborta o microfone aberto
+    const critica = a.tipo === "restricao";
+    if (!critica && C.voz.emAlerta && C.voz.emAlerta()) return; // alerta de relato falando: a faixa fica, a fala não briga
+    C.voz.falar(D.falaAviso(a, distM), { naoInterromper: true, esperaMaxMs: 8000, critica });
     C.emit("dados:aviso", { aviso: a, distanciaM: distM });
+  }
+  // Navegando: restrição violada a ≥ 3 km à frente → ui/desvio.js recalcula evitando-a (não, se o motorista tocou "Mesmo assim")
+  function pedirDesvioNavegando(e, progressoM) {
+    if (!C.desvio || !C.desvio.navegando || mesmoAssim.has(e.chave) || e.restricoes.estado !== "ok" || !e.restricoes.dados) return;
+    const viol = D.resumoRestricoes(e.restricoes.dados).violadas;
+    if (viol.length) C.desvio.navegando({ coords: e.coords, violadas: viol, progressoM });
   }
   function aoNavegar(d) {
     if (!d || d.ativa === false) { avisador = null; avisadorChave = null; esconderFaixa(); return; }
@@ -164,6 +186,7 @@
     const e = obter({ coords: d.coords }); if (!e) return;
     if (avisadorChave !== e.chave) { avisadorChave = e.chave; avisador = D.criarAvisador(e.avisos, opcoesAvisador()); selecionada = e.chave; }
     if (!avisador) return;
+    pedirDesvioNavegando(e, d.progresso_m);
     const g = C.estado.gps;
     const r = avisador.atualizar({ progressoM: d.progresso_m, kmh: g ? g.kmh : null });
     if (r.falar) { mostrarFaixa(r.falar, r.distanciaM); falar(r.falar, r.distanciaM); }
@@ -210,7 +233,7 @@
     const info = el("div", "dados-restr-info");
     info.append(el("b", null, D.textoRestricao(r)), el("span", null, "a " + D.fmtDistRota(r.ao_longo_m) + " da origem" + (r.uf ? " · " + r.uf : "")));
     const motivos = (classe === "viola" ? r.viola : classe === "condicional" ? r.condicional : r.desconhecido) || [];
-    if (motivos.length) info.append(el("span", "dados-restr-motivo", motivos.join("; ")));
+    if (motivos.length) info.append(el("span", "dados-restr-motivo", motivos.map(classe === "viola" && Dv ? Dv.textoLimites : String).join("; ")));
     it.append(info);
     return it;
   }
@@ -238,11 +261,21 @@
         c.append(el("h3", null, D.tituloRestricoes(res.violadas.length)));
         for (const x of res.violadas.slice(0, 12)) c.append(itemRestricao(x, e, "viola"));
         if (res.violadas.length > 12) c.append(el("p", "dica", "e mais " + (res.violadas.length - 12) + "."));
+        const dv = C.desvio ? C.desvio.estado(r) : null;
+        const msg = dv ? mensagemDesvio(dv, res.violadas) : null;
+        if (msg) { const m = el("p", "dados-desvio-msg " + dv.fase, msg); m.id = "dados-desvio-msg"; m.setAttribute("role", "status"); c.append(m); }
         const bot = el("div", "linha-botoes");
+        if (C.desvio && Dv) {
+          const buscando = !!dv && dv.fase === "buscando";
+          const grande = !!dv && dv.fase === "ok" && dv.facil === false;
+          const des = botao(buscando ? "Procurando desvio…" : grande ? "Desviar +" + dv.extraKm + " km" : "Desviar", "btn btn-principal dados-restr-desviar", () => C.desvio.desviar(r)); des.id = "dados-restr-desviar"; des.disabled = buscando;
+          bot.append(des);
+        }
         const ver = botao("Ver no mapa", "btn", () => verNoMapa(r, "restricoes")); ver.id = "dados-restr-ver";
-        const ok = botao("Mesmo assim", "btn", () => { mesmoAssim.add(e.chave); avisar(e, "restricoes"); }); ok.id = "dados-restr-mesmo";
+        const ok = botao("Mesmo assim", "btn dados-restr-mesmo", () => { mesmoAssim.add(e.chave); if (C.desvio && C.desvio.aceitar) C.desvio.aceitar(r); avisar(e, "restricoes"); }); ok.id = "dados-restr-mesmo";
         bot.append(ver, ok); c.append(bot);
-        c.append(el("p", "dados-fonte", "Dado do mapa aberto, estimado: " + (res.fonte || "© OpenStreetMap contributors (ODbL)") + ". A ausência de restrição no mapa não libera a via."));
+        // restrição do OSM é dado da comunidade: limite da via × veículo está em cada item; quem decide é o motorista
+        c.append(el("p", "dados-fonte", (Dv ? Dv.AVISO_FONTE : "Segundo o mapa (OSM), dado da comunidade, estimado.") + " " + (res.fonte || "© OpenStreetMap contributors (ODbL)") + ". A ausência de restrição no mapa não libera a via."));
         bloco.append(c);
       }
       if (res.condicionais.length) {
@@ -261,6 +294,17 @@
     e.ouvintes.set(bloco, montar); montar();
     return bloco;
   }
+  // Texto do estado do desvio dentro do cartão vermelho (nunca diz que a rota é segura)
+  function mensagemDesvio(dv, violadas) {
+    if (dv.fase === "buscando") return "Procurando um caminho que evite " + (violadas.length === 1 ? "a restrição" : "as restrições") + "…";
+    if (dv.fase === "sem") return Dv.textoSemDesvio(violadas);
+    if (dv.fase === "falha") return "Não deu para calcular o desvio agora (servidor de rotas). Toque em Desviar para tentar de novo.";
+    if (dv.fase === "ok") return "Há um desvio calculado (" + dv.etiqueta + ")" + (dv.facil === false ? ", maior que o normal: você decide." : ".") + " Toque em Desviar para usá-lo.";
+    if (dv.fase === "parcial") return "Há um desvio parcial (" + dv.etiqueta + "). " + Dv.textoParcial(dv.restantes);
+    return null;
+  }
+  // Estado das pontes e limites, UMA linha cinza por vez: verificando / não verificado / verificado (com violação: o cartão
+  // vermelho; "Mesmo assim": o resumo). Substitui o aviso fixo "Rota não verificada…" de rota.js, que contradizia o resultado.
   function linhaEstadoRestricoes(e) {
     const bloco = el("div", "dados-restr-estado"); bloco.id = "dados-restr-estado";
     const montar = () => {
@@ -270,12 +314,12 @@
       const falta = D.dimensoesFaltando(perfil);
       if (falta.length === 2) return;
       const st = e.restricoes.estado;
-      if (st === "carregando" || st === "nada") { bloco.append(el("p", "dados-restr-verificando", "Verificando pontes e restrições…")); return; }
-      if (st !== "ok") { const p = el("p", "dados-restr-falha", st === "offline" ? "Sem internet para checar pontes e restrições." : "Não deu para checar pontes e restrições agora."); p.id = "dados-restr-falha"; bloco.append(p); return; }
+      if (st === "carregando" || st === "nada") { bloco.append(el("p", "dados-restr-verificando", "Verificando pontes e restrições no mapa (OSM)…")); return; }
+      if (st !== "ok") { const p = el("p", "dados-restr-falha", st === "offline" ? "Sem internet para checar pontes e restrições. Pontes e limites não verificados; confira a sinalização." : "Não deu para checar pontes e restrições agora. Pontes e limites não verificados; confira a sinalização."); p.id = "dados-restr-falha"; bloco.append(p); return; }
       const res = D.resumoRestricoes(e.restricoes.dados);
       if (res.violadas.length && mesmoAssim.has(e.chave)) {
         const p = el("p", "dados-restr-resumo viola", res.violadas.length + (res.violadas.length === 1 ? " restrição que seu caminhão não passa" : " restrições que seu caminhão não passa") + " (seguindo mesmo assim)"); p.id = "dados-restr-resumo"; bloco.append(p);
-      } else if (!res.violadas.length && !res.condicionais.length && !falta.length) { const p = el("p", "dados-restr-ok", "Pontes e restrições cadastradas no mapa: nenhuma que o seu caminhão não passe (estimado)."); p.id = "dados-restr-ok"; bloco.append(p); }
+      } else if (!res.violadas.length && !res.condicionais.length && !falta.length) { const p = el("p", "dados-restr-ok", "Verificado no mapa (OSM): nenhuma ponte ou limite cadastrado que o seu caminhão não passe. O mapa pode estar incompleto; confira a sinalização."); p.id = "dados-restr-ok"; bloco.append(p); }
     };
     e.ouvintes.set(bloco, montar); montar();
     return bloco;
@@ -320,10 +364,11 @@
     C.on("rota", (r) => { if (!r || !r.coords) return; const e = obter(r); if (e) selecionada = e.chave; limparMarcadores(); });
     C.on("rota-limpa", () => { selecionada = null; folhaAnterior = null; limparMarcadores(); });
     C.on("navegacao", aoNavegar);
+    C.on("desvio:estado", (d) => { const e = d && entradas.get(d.chave); if (e) avisar(e, "desvio"); else if (selecionada) { const x = entradas.get(selecionada); if (x) avisar(x, "desvio"); } });
     C.on("veiculo", () => { for (const e of entradas.values()) if (e.chave === selecionada) buscarRestricoes(e, veiculo()); });
     window.addEventListener("online", tentarDeNovo);
   });
 
-  C.dadosRota = { obter, avisosDe, snvDe, restricoesDe, verNoMapa, estado: (r) => { const e = obter(r); return e ? { feicoes: e.partes.feicoes.estado, trechos: e.partes.trechos.estado, artesp: e.partes.artesp.estado, snv: e.partes.snv.estado, restricoes: e.restricoes.estado, guardado: e.guardado } : null; },
+  C.dadosRota = { obter, avisosDe, snvDe, restricoesDe, restricoesJa, restricoesDeRota, verNoMapa, estado: (r) => { const e = obter(r); return e ? { feicoes: e.partes.feicoes.estado, trechos: e.partes.trechos.estado, artesp: e.partes.artesp.estado, snv: e.partes.snv.estado, restricoes: e.restricoes.estado, guardado: e.guardado } : null; },
     entradas, faixa: () => (faixa && !faixa.hidden ? { texto: faixa.querySelector(".aviso-dado-texto").textContent, dist: faixa.querySelector(".aviso-dado-dist").textContent, tipo: faixa.dataset.tipo } : null) };
 })(window.Copiloto);

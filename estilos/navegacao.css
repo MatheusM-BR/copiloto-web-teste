@@ -17,10 +17,10 @@
 .nav-texto { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .nav-dist { font-size: 34px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
 /* A5 (QA): textos reais do Valhalla podem ser enormes ("Pegue a saída 334A … Aeroporto Internacional."). O painel tem
-   altura máxima: instrução em até 2 linhas, ruas em 1 (com "…"); a fala continua com o texto inteiro. */
+   altura máxima: instrução em até 2 linhas (R5: antes 1), ruas em 1 (com "…"); a fala continua com o texto inteiro. */
 .nav-instrucao {
   font-size: 17px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
 }
 .nav-rua { font-size: 15px; color: #d6f5e3; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* "Depois…" pequeno, numa aba logo abaixo da faixa */

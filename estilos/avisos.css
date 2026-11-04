@@ -31,8 +31,12 @@
 .dados-restr-motivo { font-size: 13px; }
 .dados-restr-perfil { display: block; width: 100%; min-height: 64px; text-align: left; padding: 8px 12px; font-size: 15px; line-height: 1.3; white-space: normal; }
 .dados-restr-verificando, .dados-restr-ok, .dados-restr-falha, .dados-restr-resumo { margin: 0; font-size: 14px; color: var(--suave); }
-.dados-restr-ok { color: var(--dados-ok); }
-.dados-restr-falha { color: var(--dados-falha); }
+.dados-restr-ok { color: var(--suave); } /* estado: uma linha cinza por vez, sem verde nem vermelho */
+.dados-restr-falha { color: var(--suave); }
+.dados-desvio-msg { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 600; overflow-wrap: anywhere; }
+.dados-desvio-msg.sem, .dados-desvio-msg.falha { color: var(--dados-viola); }
+.dados-restr-desviar { flex: 1 1 100%; min-height: 64px; font-size: 17px; }
+.dados-restr-mesmo { opacity: .85; }
 .dados-restr-resumo.viola { color: var(--dados-viola); font-weight: 700; }
 .dados-fonte { margin: 0; font-size: 12px; color: var(--suave); overflow-wrap: anywhere; }
 

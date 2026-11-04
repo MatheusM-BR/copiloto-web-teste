@@ -237,14 +237,38 @@
   }
 
   // ---------- tela ligada (iPhone só dá GPS com a tela ligada)
-  let travaTela = null;
-  async function pedirTelaLigada() {
-    if (!("wakeLock" in navigator)) return;
+  // Navegando, a tela fica ligada sozinha: o pedido sai no toque em "Iniciar navegação" / "Carregado" / "Vazio" /
+  // "Continuar" / "Retomar" (dentro do gesto) e de novo ao começar a navegação e ao voltar ao app (visibilitychange).
+  // O motorista pode desligar em Configurações → "Manter a tela ligada" (vale até a próxima navegação).
+  let travaTela = null, semTela = false, telaPorNavegacao = false, telaManual = false, navAntes = false, timerTela = null;
+  const MSG_TELA_FALHOU = "Não deu para manter a tela ligada. Deixe a tela sem bloquear nos Ajustes do iPhone (Tela e Brilho › Bloqueio automático › Nunca).";
+  const navegando = () => !!(C.navegacao && typeof C.navegacao.ativa === "function" && C.navegacao.ativa());
+  const telaLigada = () => !!travaTela && !travaTela.released;
+  function marcarTela(v) {
+    $("btn-tela").setAttribute("aria-pressed", v ? "true" : "false");
+    $("app").dataset.tela = v ? "ligada" : "";
+  }
+  async function pedirTelaLigada(avisar) {
+    if (telaLigada()) return true;
+    if (!("wakeLock" in navigator) || !navigator.wakeLock || typeof navigator.wakeLock.request !== "function") {
+      if (avisar) C.mensagem(MSG_TELA_FALHOU, 9000);
+      return false;
+    }
     try {
-      travaTela = await navigator.wakeLock.request("screen");
-      $("btn-tela").setAttribute("aria-pressed", "true");
-      travaTela.addEventListener("release", () => $("btn-tela").setAttribute("aria-pressed", "false"));
-    } catch (e) { /* recusado: tudo bem */ }
+      const t = await navigator.wakeLock.request("screen");
+      travaTela = t; marcarTela(true);
+      t.addEventListener("release", () => { if (travaTela === t) marcarTela(false); });
+      if (avisar) C.mensagem("Tela ligada.", 3000);
+      return true;
+    } catch (e) {
+      if (avisar && document.visibilityState === "visible") C.mensagem(MSG_TELA_FALHOU, 9000);
+      return false;
+    }
+  }
+  async function soltarTela() {
+    const t = travaTela; travaTela = null;
+    marcarTela(false);
+    try { if (t && !t.released) await t.release(); } catch (e) { /* já solta */ }
   }
 
   C.gps = {
@@ -258,9 +282,26 @@
     setInterval(vigiar, 1000);
     C.on("consentimento", (reg) => { if (Consent && !Consent.permite(reg, "localizacao")) desligar(); });
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && $("btn-tela").getAttribute("aria-pressed") === "true" && !travaTela) pedirTelaLigada();
-      if (document.visibilityState === "visible" && travaTela && travaTela.released) { travaTela = null; pedirTelaLigada(); }
+      if (document.visibilityState !== "visible" || semTela || telaLigada()) return;
+      if (navegando() || telaPorNavegacao) pedirTelaLigada(false);
+      else if (telaManual) pedirTelaLigada(false);
     });
+    // navegação começa/termina (qualquer caminho: folha da rota, voz, "Continuar"): tela ligada enquanto navega
+    C.on("navegacao", (d) => {
+      const ativa = !!(d && d.ativa);
+      if (ativa && !navAntes) { semTela = false; if (!telaLigada()) { telaPorNavegacao = true; pedirTelaLigada(true); } }
+      else if (!ativa && navAntes && telaPorNavegacao) { telaPorNavegacao = false; soltarTela(); }
+      navAntes = ativa;
+    });
+    // o toque que começa a navegação já pede a trava (iOS: pedido dentro do gesto)
+    document.addEventListener("click", (e) => {
+      if (e.target && e.target.closest && e.target.closest(".btn-iniciar-nav, #nav-carregado, #nav-vazio, #nav-continuar, #nav-retomar")) {
+        semTela = false; telaPorNavegacao = true; pedirTelaLigada(false);
+        // a navegação não começou (rota falhou, cancelou): não deixa a trava presa
+        clearTimeout(timerTela);
+        timerTela = setTimeout(() => { if (!navegando() && telaPorNavegacao) { telaPorNavegacao = false; soltarTela(); } }, 90000);
+      }
+    }, true);
     $("btn-gps").addEventListener("click", () => iniciarGps());
     document.addEventListener("click", (e) => {
       if (!e.target || !e.target.closest) return;
@@ -268,8 +309,8 @@
       else if (e.target.closest("#btn-orientacao, #cfg-orient-rumo")) pedirBussola(true); // botão (navegando) ou Configurações
     }, true);
     $("btn-tela").addEventListener("click", async () => {
-      if ($("btn-tela").getAttribute("aria-pressed") === "true" && travaTela) { await travaTela.release(); travaTela = null; }
-      else pedirTelaLigada();
+      if (telaLigada()) { semTela = true; telaPorNavegacao = false; telaManual = false; await soltarTela(); }
+      else { semTela = false; telaManual = true; pedirTelaLigada(true); }
     });
   });
 

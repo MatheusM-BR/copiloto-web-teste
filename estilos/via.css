@@ -15,7 +15,7 @@
 .via-terra[data-estado="terra"] { color: var(--via-terra); font-weight: 700; }
 .via-terra[data-estado="ruim"] { color: var(--via-ruim); font-weight: 700; }
 .via-terra[data-estado="boa"] { color: var(--via-boa); font-weight: 700; }
-.via-terra[data-estado="falha"] { color: var(--via-falha); }
+.via-terra[data-estado="falha"] { color: var(--suave); } /* não é alerta: cinza (nos cartões some, ver ui/via.js) */
 .via-terra-btn {
   display: block; width: 100%; min-height: 64px; padding: 8px 12px; text-align: left; font: inherit; font-size: 15px; cursor: pointer;
   background: var(--campo); border: 2px solid var(--linha); border-radius: 12px; touch-action: manipulation; -webkit-tap-highlight-color: transparent;

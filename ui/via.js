@@ -48,13 +48,7 @@
     });
   }
   async function postar(url, corpo) {
-    return naFila(async () => {
-      const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 30000);
-      try {
-        const resp = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(corpo), signal: ctl.signal });
-        return { json: await resp.json().catch(() => null) };
-      } catch (e) { return { rede: true }; } finally { clearTimeout(t); }
-    });
+    return naFila(() => window.CopilotoTrace.compartilhado.postar(url, corpo)); // r5: um só pedido por forma, junto com ui/limite.js (tracecache.js)
   }
 
   // ------------------------------------------------------------ dados da rota
@@ -194,6 +188,8 @@
     }) : el("span", "via-terra");
     const atualizar = () => {
       const x = textoTerra(e);
+      // falha ao checar o piso não é aviso acionável: some dos cartões (só a linha da folha, cinza, deixa tentar de novo)
+      b.hidden = !interativa && x.c === "falha";
       b.dataset.estado = x.c;
       b.textContent = x.t;
       if (interativa) {

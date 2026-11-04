@@ -17,6 +17,7 @@
 .rota-opcao-chegada, .rota-opcao-comp { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rota-etiqueta { font-size: 12px; padding: 1px 7px; border-radius: 999px; background: var(--linha); color: var(--texto); }
 .rota-etiqueta.boa { background: rgba(63, 182, 122, .22); color: #9be3bd; }
+.rota-etiqueta.viola { background: rgba(235, 87, 87, .25); color: #ff9b94; font-weight: 700; }
 .folha .rota-dica, .folha .rota-detalhe { font-size: 13px; }
 .pino-destino { width: 22px; height: 22px; background: var(--perigo); border: 3px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
 /* tema claro (redesenho): azul e verde escuros o bastante sobre o fundo claro */
@@ -24,3 +25,5 @@
 :root[data-tema="claro"] .rota-opcao.escolhida .rota-opcao-rotulo::before { color: #1f6fd6; }
 :root[data-tema="claro"] .rota-etiqueta { background: #e6eaf0; color: #1f2733; }
 :root[data-tema="claro"] .rota-etiqueta.boa { background: #dff3e8; color: #17603a; }
+:root[data-tema="claro"] .rota-etiqueta.viola { background: #fde7e5; color: #a3231b; }
+.rota-desvio-linha { margin: 0; font-size: 14px; color: var(--suave); }

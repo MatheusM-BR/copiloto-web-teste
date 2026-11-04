@@ -21,6 +21,7 @@
 <link rel="stylesheet" href="estilos/alerta.css">
 <link rel="stylesheet" href="estilos/conta.css">
 <link rel="stylesheet" href="estilos/interface.css">
+<link rel="stylesheet" href="estilos/toque.css">
 </head>
 <body>
 <div id="app">
@@ -45,6 +46,9 @@
         <button class="btn-redondo btn-relatar" id="btn-reportar" aria-label="Reportar um problema ou restrição aqui" title="Reportar aqui"><b>!</b></button>
         <button class="btn-redondo btn-orientacao" id="btn-orientacao" aria-pressed="false" aria-label="Norte para cima. Tocar para rumo para cima" title="Norte para cima / rumo para cima"><span class="orient-icone" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 1 L17.5 13 L12 10.5 L6.5 13 Z"/><text x="12" y="23" text-anchor="middle" font-size="9" font-weight="800" fill="currentColor">N</text></svg></span><span class="orient-rotulo">Norte</span></button>
       </div>
+
+      <!-- SOS (revisão 5): canto inferior esquerdo, acima do velocímetro; abre a Emergência (ui/toque.js) -->
+      <button class="btn-sos" id="btn-sos" aria-label="SOS: abrir Emergência (191, 192, 193 e sua posição)" title="SOS · Emergência">SOS</button>
 
       <button class="btn-recentralizar" id="btn-recentralizar" hidden aria-label="Recentralizar no caminhão"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.8"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg><span>Recentralizar</span></button>
 
@@ -116,11 +120,11 @@
       <!-- Menu: as telas (Veículo, Conta, Emergência e as dos pacotes) abrem daqui; os pacotes entram por Copiloto.abas.registrar -->
       <nav class="cfg-menu" aria-label="Menu">
         <button id="nav-veiculo"><span class="cfg-item">Veículo</span><small class="cfg-valor chip-veiculo" id="chip-veiculo">Nenhum veículo ativo</small></button>
-        <button id="cfg-voz" data-ir="conta" data-alvo="cartao-voz"><span class="cfg-item">Voz</span><small class="cfg-valor" id="cfg-voz-valor"></small></button>
+        <button id="cfg-voz"><span class="cfg-item">Voz</span><small class="cfg-valor" id="cfg-voz-valor"></small></button>
         <button id="cfg-fachada" role="switch" aria-checked="false"><span class="cfg-item">Fachada na chegada</span><small class="cfg-valor" id="cfg-fachada-valor">Desligada</small></button>
         <button id="btn-tela" aria-pressed="false"><span class="cfg-item">Manter a tela ligada</span><small class="cfg-valor cfg-ligado">Ligada</small><small class="cfg-valor cfg-desligado">Desligada</small></button>
         <button id="cfg-privacidade" data-ir="conta" data-alvo="e5-privacidade"><span class="cfg-item">Privacidade</span><small class="cfg-valor">Ver</small></button>
-        <button id="cfg-diagnostico" data-ir="conta" data-alvo="cmd-diag"><span class="cfg-item">Diagnóstico de voz</span><small class="cfg-valor">Ver</small></button>
+        <button id="cfg-diagnostico"><span class="cfg-item">Diagnóstico de voz</span><small class="cfg-valor">Ver</small></button>
         <button id="nav-conta"><span class="cfg-item">Conta</span><small class="cfg-valor" id="cfg-conta-valor"></small></button>
       </nav>
     </section>
@@ -242,8 +246,8 @@
 <script src="proximidade.js"></script>
 <script src="rumo.js"></script>
 <script src="voz.js"></script>
-<script src="navegacao.js"></script>
-<script src="postos.js"></script><script src="autonomia.js"></script>
+<script src="traducao.js"></script><script src="navegacao.js"></script>
+<script src="icones.js"></script><script src="postos.js"></script><script src="autonomia.js"></script>
 <script src="offline.js"></script>
 <script src="comandos.js"></script>
 <script src="consentimento.js"></script>
@@ -274,12 +278,13 @@
 <script src="ui/privacidade.js"></script>
 <script src="ui/endereco.js"></script>
 <script src="ui/fachada.js"></script>
-<script src="limite.js"></script><script src="ui/limite.js"></script>
+<script src="tracecache.js"></script><script src="limite.js"></script><script src="ui/limite.js"></script>
 <script src="custos.js"></script><script src="ui/custos.js"></script>
 <script src="rotalonga.js"></script><script src="viaqualidade.js"></script><script src="ui/rotalonga.js"></script><script src="ui/via.js"></script>
-<script src="dados.js"></script><script src="ui/km.js"></script><script src="ui/avisos.js"></script>
+<script src="desvio.js"></script><script src="dados.js"></script><script src="ruido.js"></script><script src="kmcache.js"></script><script src="ui/km.js"></script><script src="ui/avisos.js"></script><script src="ui/desvio.js"></script>
 <!-- FIM DOS MÓDULOS DE PACOTE -->
 
+<script src="ui/toque.js"></script>
 <script src="ui/inicio.js"></script>
 </body>
 </html>

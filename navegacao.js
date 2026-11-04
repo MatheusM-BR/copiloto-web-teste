@@ -4,7 +4,7 @@
 // - manobras do Valhalla (instruções pt-BR) com posição em metros na rota;
 // - detecção de saída da rota com tolerância a ruído; limite de recálculo;
 // - quando falar cada manobra conforme a velocidade, sem repetir;
-// - formatação (distância, duração, hora de chegada "sem trânsito");
+// - formatação (distância, duração, hora de chegada "(estimada)");
 // - peso para a rota (carregado/vazio) sem inventar: o que não foi informado vai sem peso e com aviso;
 // - registro da viagem pelo GPS (resumo pós-viagem, PRD 17.1), viagens e destinos recentes;
 // - rota offline: volta pela mesma rota (desenho invertido, sem inventar manobras), ponto de reentrada à frente,
@@ -14,6 +14,7 @@
 
   const RotaLib = typeof module !== "undefined" && module.exports ? require("./rota.js") : raiz.CopilotoRota;
   const VozLib = typeof module !== "undefined" && module.exports ? require("./voz.js") : raiz.CopilotoVoz;
+  const Traducao = typeof module !== "undefined" && module.exports ? require("./traducao.js") : raiz.CopilotoTraducao; // r5: "Enter the roundabout…" → pt-BR
 
   const CHAVE = "copiloto.nav.v1";
   const R = 6371008.8;
@@ -187,7 +188,7 @@
     for (let iPerna = 0; iPerna < pernas.length; iPerna++) {
       const leg = pernas[iPerna], ultimaPerna = iPerna === pernas.length - 1;
       const n = typeof leg.shape === "string" ? RotaLib.decodificarPolyline6(leg.shape).length : 0;
-      for (const m of leg.maneuvers || []) {
+      for (const m of Traducao.manobras(leg.maneuvers)) {
         const ini = Math.min(geo.acum.length - 1, deslocamento + (Number(m.begin_shape_index) || 0));
         const ehDestino = DESTINO.has(Number(m.type));
         lista.push({
@@ -195,6 +196,9 @@
           instrucao: ehDestino ? (ultimaPerna ? TEXTO_DESTINO : TEXTO_PARADA) : m.instruction || "",
           pre: ehDestino ? (ultimaPerna ? FALA_DESTINO : FALA_PARADA) : m.verbal_pre_transition_instruction || m.instruction || "",
           alerta: ehDestino ? (ultimaPerna ? FALA_DESTINO : FALA_PARADA) : m.verbal_transition_alert_instruction || m.verbal_pre_transition_instruction || m.instruction || "",
+          // fala depois da manobra ("Continue por 40 quilômetros"), só em trecho longo; lado do destino (tipos 5 e 6 do Valhalla)
+          post: ehDestino ? "" : String(m.verbal_post_transition_instruction || "").trim(),
+          lado: Number(m.type) === 5 ? "direita" : Number(m.type) === 6 ? "esquerda" : null,
           ruas: (m.street_names && m.street_names.length ? m.street_names : (m.begin_street_names || [])).slice(),
           indice_forma: ini,
           inicio_m: geo.acum[ini] || 0,
@@ -270,9 +274,16 @@
   // ------------------------------------------------------------ voz das manobras
   const ORDEM = { longe: 0, perto: 1, agora: 2 };
   // Distâncias de anúncio conforme a velocidade (m/s). "agora" ≈ 5 s antes, entre 30 e 150 m.
-  function etapasAnuncio(velMs) {
+  // caminhao: antecedência maior (a carreta precisa de mais espaço para mudar de faixa e frear): "perto" a 800 m e,
+  // acima de 72 km/h, "longe" a 3 km.
+  function etapasAnuncio(velMs, caminhao) {
     const v = typeof velMs === "number" && isFinite(velMs) && velMs > 0 ? velMs : 0;
     const agora = Math.round(Math.max(30, Math.min(150, v * 5)));
+    if (caminhao) {
+      if (v >= 20) return [{ id: "longe", m: 3000 }, { id: "perto", m: 800 }, { id: "agora", m: agora }];
+      if (v >= 12) return [{ id: "longe", m: 1500 }, { id: "perto", m: 800 }, { id: "agora", m: agora }];
+      return [{ id: "perto", m: 800 }, { id: "agora", m: agora }];
+    }
     if (v >= 20) return [{ id: "longe", m: 2000 }, { id: "perto", m: 500 }, { id: "agora", m: agora }]; // rodovia (≥ 72 km/h)
     if (v >= 12) return [{ id: "longe", m: 1000 }, { id: "perto", m: 300 }, { id: "agora", m: agora }];
     return [{ id: "perto", m: 300 }, { id: "agora", m: agora }];
@@ -283,10 +294,10 @@
     const ditos = new Map(); // índice da manobra → maior ORDEM já dita
     return {
       // devolve a etapa a falar agora ("longe" | "perto" | "agora") ou null
-      avaliar(indice, distancia_m, velMs, destino) {
+      avaliar(indice, distancia_m, velMs, destino, caminhao) {
         if (indice < 0 || distancia_m == null) return null;
         let alvo = null;
-        for (const e of etapasAnuncio(velMs)) {
+        for (const e of etapasAnuncio(velMs, caminhao)) {
           if (destino && e.id === "agora") continue; // a chegada tem a própria fala
           if (distancia_m <= e.m) alvo = e.id;
         }
@@ -310,9 +321,113 @@
     if (!manobra) return "";
     if (etapa === "agora") return comPonto(manobra.pre || manobra.instrucao);
     const d = typeof limiar_m === "number" && distancia_m >= 0.8 * limiar_m ? limiar_m : distancia_m;
+    if (manobra.destino && manobra.lado) return "Em " + VozLib.distanciaFalada(d) + ", destino à " + manobra.lado + ".";
     return "Em " + VozLib.distanciaFalada(d) + ", " + comPonto(minuscula(manobra.alerta || manobra.pre || manobra.instrucao));
   }
-  function limiarEtapa(velMs, etapa) { const e = etapasAnuncio(velMs).find((x) => x.id === etapa); return e ? e.m : null; }
+  function limiarEtapa(velMs, etapa, caminhao) { const e = etapasAnuncio(velMs, caminhao).find((x) => x.id === etapa); return e ? e.m : null; }
+
+  // ------------------------------------------------------------ conversa: frases curtas faladas (rodada 2 de voz)
+  // Quilômetros falados: a partir de 10 km, inteiro ("312 quilômetros"); abaixo, a distância falada de sempre.
+  function kmFalado(m) {
+    const d = Math.max(0, Number(m) || 0);
+    return d >= 10000 ? Math.round(d / 1000) + " quilômetros" : VozLib.distanciaFalada(d);
+  }
+  // 80 min → "1 hora e 20 minutos"; 120 → "2 horas"; 45 → "45 minutos"
+  function duracaoFalada(minutos) {
+    const t = Math.max(1, Math.round(Number(minutos) || 0)), h = Math.floor(t / 60), m = t % 60;
+    const hh = h + (h === 1 ? " hora" : " horas"), mm = m + (m === 1 ? " minuto" : " minutos");
+    return h > 0 ? (m > 0 ? hh + " e " + mm : hh) : mm;
+  }
+  // "às 15:40" ("à 01:05"); no dia seguinte "amanhã às 03:10"; mais longe "dia 07 às 03:10"
+  function horaFalada(chegada, agora) {
+    const c = chegada instanceof Date ? chegada : new Date(chegada), a = agora instanceof Date ? agora : new Date(agora);
+    const hh = formatarHora(c), prep = c.getHours() === 1 ? "à " : "às ";
+    const dias = Math.round((new Date(c.getFullYear(), c.getMonth(), c.getDate()) - new Date(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000);
+    if (dias <= 0) return prep + hh;
+    if (dias === 1) return "amanhã " + prep + hh;
+    return "dia " + String(c.getDate()).padStart(2, "0") + " " + prep + hh;
+  }
+  function chegadaFalada(agoraMs, restanteS) {
+    return typeof restanteS === "number" && isFinite(restanteS) ? "chegada " + horaFalada(new Date(agoraMs + restanteS * 1000), new Date(agoraMs)) : null;
+  }
+  // Ao traçar: "Rota de 312 quilômetros, 4 horas e 20 minutos, chegada às 15:40, com pedágio e 2 restrições."
+  function textoRotaTracada(r) {
+    const o = r || {};
+    const partes = ["Rota de " + kmFalado((Number(o.km) || 0) * 1000), duracaoFalada(o.minutos)];
+    const ch = chegadaFalada(o.agoraMs != null ? o.agoraMs : Date.now(), (Number(o.minutos) || 0) * 60);
+    if (ch) partes.push(ch);
+    const extras = [];
+    if (o.pedagio === true) extras.push("com pedágio");
+    const nr = Math.floor(Number(o.restricoes) || 0);
+    if (nr > 0) extras.push((extras.length ? "" : "com ") + nr + (nr === 1 ? " restrição" : " restrições"));
+    if (extras.length) partes.push(extras.join(" e "));
+    return partes.join(", ") + ".";
+  }
+  // "pela BR-153", "pelo Anel Viário", "por <outro>": o artigo certo para o nome da via
+  function viaFalada(nome) {
+    const v = String(nome || "").trim();
+    if (!v) return "";
+    if (/^(?:r\.|av\.|rod\.|est\.)/i.test(v) || /^(?:rua|avenida|rodovia|estrada|alameda|travessa|via|marginal|ponte|passarela|ladeira|pra[cç]a|vila|vicinal)\b/i.test(v) || /^[A-Z]{2,3}[- ]?\d/.test(v)) return "pela " + v;
+    if (/^(?:anel|contorno|viaduto|trevo|acesso|largo|caminho|corredor|eixo|t[uú]nel|km|retorno|trecho)\b/i.test(v)) return "pelo " + v;
+    return "por " + v;
+  }
+  // Ao iniciar: "Navegação iniciada. Siga pela Avenida X por 3,5 quilômetros." (1ª manobra e o trecho até a 2ª)
+  function textoInicio(manobras) {
+    const m0 = manobras && manobras[0];
+    if (!m0) return "Navegação iniciada.";
+    const via = m0.ruas && m0.ruas[0] ? viaFalada(m0.ruas[0]) : "";
+    const fim = manobras[1] ? manobras[1].inicio_m : m0.fim_m;
+    const len = typeof fim === "number" && isFinite(fim) ? fim - (m0.inicio_m || 0) : NaN;
+    if (via && len >= 200) return "Navegação iniciada. Siga " + via + " por " + kmFalado(len) + ".";
+    const pre = comPonto(m0.pre || m0.instrucao || "");
+    return pre ? "Navegação iniciada. " + pre : "Navegação iniciada.";
+  }
+  // Depois de uma manobra num trecho longo: o "Continue por 40 quilômetros" do servidor de rotas. sit = situacaoManobras;
+  // ditos = Set de índices já falados. Devolve { indice, texto } ou null.
+  function posTransicao(manobras, sit, progresso, ditos) {
+    if (!manobras || !sit) return null;
+    const i = sit.atual;
+    if (i < 1) return null; // a partida tem o "Siga por…"
+    const m = manobras[i];
+    if (!m || !m.post || m.destino || (ditos && ditos.has(i))) return null;
+    if (m.fim_m - m.inicio_m < 2000) return null;                       // só trecho longo
+    if (progresso < m.inicio_m + 60 || progresso > m.inicio_m + 1500) return null; // logo depois da manobra
+    if (sit.proxima >= 0 && sit.distancia_m != null && sit.distancia_m < 1200) return null; // próxima manobra perto
+    return { indice: i, texto: comPonto(m.post) };
+  }
+  // "Faltam 212 quilômetros, chegada às 15:40."
+  function textoMarcoViagem(restanteM, restanteS, agoraMs) {
+    const ch = chegadaFalada(agoraMs != null ? agoraMs : Date.now(), restanteS);
+    return "Faltam " + kmFalado(restanteM) + (ch ? ", " + ch : "") + ".";
+  }
+  // Resposta a "quando eu chego" / "quanto falta"
+  function textoViagem(tipo, restanteM, restanteS, agoraMs) {
+    const t = agoraMs != null ? agoraMs : Date.now();
+    const ch = typeof restanteS === "number" && isFinite(restanteS) ? horaFalada(new Date(t + restanteS * 1000), new Date(t)) : null;
+    const falta = kmFalado(restanteM);
+    if (tipo === "chegada") return ch ? "Chegada " + ch + ", faltam " + falta + "." : "Faltam " + falta + ".";
+    const dur = typeof restanteS === "number" && isFinite(restanteS) ? duracaoFalada(restanteS / 60) : null;
+    return "Faltam " + falta + (dur ? ", " + dur : "") + (ch ? ", chegada " + ch : "") + ".";
+  }
+  // Marco de viagem: a cada 30 min OU 50 km desde o último aviso (ou desde o início). Não fala com a chegada a menos de 5 km,
+  // com manobra a menos de 2 km, nem logo depois de outra fala (o chamador diz em `ocupado`); fica devido até poder falar.
+  function criarMarcosViagem(op) {
+    const o = op || {};
+    const intervaloMs = o.intervaloMs || 30 * 60000, intervaloM = o.intervaloM || 50000, chegadaPertoM = o.chegadaPertoM || 5000, manobraPertoM = o.manobraPertoM || 2000;
+    let t0 = null, m0 = null;
+    return {
+      novaRota() { m0 = null; },
+      avaliar(d) {
+        if (t0 == null) t0 = d.agoraMs;
+        if (m0 == null) m0 = d.progressoM;
+        const devido = d.agoraMs - t0 >= intervaloMs || d.progressoM - m0 >= intervaloM;
+        if (!devido) return null;
+        if (d.ocupado || d.restanteM < chegadaPertoM || (d.proximaManobraM != null && d.proximaManobraM < manobraPertoM)) return null;
+        t0 = d.agoraMs; m0 = d.progressoM;
+        return textoMarcoViagem(d.restanteM, d.restanteS, d.agoraMs);
+      },
+    };
+  }
 
   // ------------------------------------------------------------ formatação
   function virgula(n, casas) { return n.toFixed(casas).replace(".", ","); }
@@ -334,7 +449,7 @@
   // Sem trânsito em tempo real: a hora de chegada é estimativa do motor de rota, e o texto diz isso.
   function textoChegada(agoraMs, restanteS) {
     if (typeof restanteS !== "number" || !isFinite(restanteS)) return "Chegada: desconhecida";
-    return "Chegada " + formatarHora(new Date(agoraMs + restanteS * 1000)) + " · sem trânsito";
+    return "Chegada " + formatarHora(new Date(agoraMs + restanteS * 1000)) + " (estimada)";
   }
 
   // ------------------------------------------------------------ peso (carregado/vazio)
@@ -637,6 +752,7 @@
     icone, extrairManobras, situacaoManobras, tempoRestanteS,
     criarDetectorDesvio, podeRecalcular, chegou,
     etapasAnuncio, criarAnunciador, textoAnuncio, limiarEtapa,
+    kmFalado, duracaoFalada, horaFalada, textoRotaTracada, viaFalada, textoInicio, posTransicao, textoMarcoViagem, textoViagem, criarMarcosViagem,
     formatarDistancia, formatarDuracao, formatarHora, textoChegada,
     lerToneladas, pesoParaRota, aplicarPeso,
     criarRegistro, linhasResumo, lerDados, gravarDados, adicionarViagem, adicionarRecente,

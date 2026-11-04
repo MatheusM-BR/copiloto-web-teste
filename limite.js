@@ -292,7 +292,7 @@
   function textoAviso(limite, estimado) { return estimado ? "Acima de " + limite + ", limite estimado." : "Acima do limite de " + limite + "."; }
 
   const api = {
-    URL_TRACE_PADRAO, CHAVE_DADOS, CHAVE_CONFIG, CTB, CONFIG_PADRAO, PEDACO_MAX_KM, RURAL_DENSIDADE_MAX, INTERVALO_MIN_MS,
+    URL_TRACE_PADRAO, ATRIBUTOS, CHAVE_DADOS, CHAVE_CONFIG, CTB, CONFIG_PADRAO, PEDACO_MAX_KM, RURAL_DENSIDADE_MAX, INTERVALO_MIN_MS,
     normalizarConfig, toleranciaKmh, emExcesso, tipoViaRural, limiteCtb, limiteDaAresta,
     codificarPolyline6, dividir, pedidoTrace, trechosDaResposta, juntar,
     chaveRota, paraGuardar, deGuardado, lerDados, buscarGuardado, guardar, lerConfig, gravarConfig,

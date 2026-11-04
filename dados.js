@@ -198,7 +198,7 @@
     curva: ["Curva forte à frente", "Curva forte à frente."], passagem_nivel: ["Passagem de nível", "Passagem de nível à frente."],
     area_escape: ["Área de escape à frente", "Área de escape à frente."], perigo: ["Ponto de perigo à frente", "Atenção, ponto de perigo à frente."],
     lombada: ["Lombada", "Lombada à frente."], lombadas: ["Trecho com lombadas", "Trecho com lombadas."],
-    radar: ["Radar", "Radar à frente."], praca_pedagio: ["Praça de pedágio", "Praça de pedágio à frente."],
+    radar: ["Radar", "Radar reportado à frente."], praca_pedagio: ["Praça de pedágio", "Praça de pedágio à frente."],
     obra: ["Obra recorrente", "Obra recorrente à frente."],
   };
   const KINDS_FEICOES = ["curva", "lombada", "balanca", "passagem_nivel", "balsa", "area_escape", "radar", "perigo"];
@@ -232,7 +232,7 @@
       const det = [t.rodovia, t.uf, t.km != null ? "km " + t.km : null, t.acidentes != null ? t.acidentes + " acidentes em 5 anos" : null, t.mortos ? t.mortos + " mortos" : null].filter(Boolean).join(" · ");
       out.push(aviso({ id: "prf:" + t.id, tipo: "perigoso", chave: t.nivel >= 3 ? "perigoso3" : "perigoso2", ao_longo_m: t.ao_longo_m, lat: t.lat, lon: t.lon,
         texto: "Trecho com muitos acidentes", fala: "Trecho com muitos acidentes", detalhe: det, fonte: resp.attribution || resp.fonte || null, nivel: t.nivel }));
-      out[out.length - 1].nivel = t.nivel;
+      out[out.length - 1].nivel = t.nivel; out[out.length - 1].acidentes = t.acidentes;
     }
     return out;
   }
@@ -366,11 +366,13 @@
         const d = a.ao_longo_m - p;
         if (d < -PASSOU_M) { feitos.add(a.id); continue; } // ficou para trás sem ser falado (fila cheia): não fala
         if (d > ant) break;
+        if (a.minKmh && typeof e.kmh === "number" && e.kmh < a.minKmh) continue; // ex.: curva só acima de 50 km/h (r5)
         cand.push({ a, d });
       }
       if (!cand.length) return { falar: null, mostrar: null, distanciaM: null };
-      cand.sort((x, y) => y.a.prioridade - x.a.prioridade || x.d - y.d);
+      cand.sort((x, y) => (x.a.semVoz ? 1 : 0) - (y.a.semVoz ? 1 : 0) || y.a.prioridade - x.a.prioridade || x.d - y.d); // r5: o que é só de tela (semVoz) vem depois
       const esc = cand[0];
+      if (esc.a.semVoz) { feitos.add(esc.a.id); return { falar: null, mostrar: esc.a, distanciaM: Math.max(0, esc.d) }; } // só na tela
       if (agora - ultimaFala < (op.intervaloMs || FALA_INTERVALO_MS)) return { falar: null, mostrar: esc.a, distanciaM: Math.max(0, esc.d), esperando: true };
       feitos.add(esc.a.id); ultimaFala = agora;
       return { falar: esc.a, mostrar: esc.a, distanciaM: Math.max(0, esc.d) };
@@ -380,6 +382,8 @@
   // Fala do aviso com a distância quando vale a pena ("Trecho com muitos acidentes, 800 metros")
   function falaAviso(a, distM) {
     if (!a) return "";
+    if (a.agrupado) return a.fala;                                    // r5: "Trecho crítico, próximos 8 quilômetros."
+    if (a.tipo === "curva" && a.estimado !== false && a.minKmh) return "Pode haver curva forte à frente."; // r5: dado heurístico
     if (a.tipo === "perigoso" && typeof distM === "number" && distM >= 150) return a.fala + ", " + textoDistanciaFalada(distM) + ".";
     return a.fala;
   }
@@ -412,11 +416,17 @@
 
   // ------------------------------------------------------------ restrições: parâmetros e resumo
   // perfil do veículo → parâmetros da RPC (só números dentro da faixa da API; o resto vai null = "não informado")
+  // carga por eixo: eixoT se existir, senão a média PBTC ÷ eixos (mesma conta de rota.js cargaPorEixoT; estimativa)
+  function cargaPorEixoT(p) {
+    const num = (v) => typeof v === "number" && isFinite(v);
+    if (num(p.eixoT) && p.eixoT > 0) return p.eixoT;
+    return num(p.pbtc) && num(p.eixos) && p.eixos >= 2 && p.pbtc > 0 ? Math.round(p.pbtc / p.eixos * 10) / 10 : null;
+  }
   function paramsRestricoes(coords, perfil) {
     const p = perfil || {};
     const faixa = (v, lo, hi) => (typeof v === "number" && isFinite(v) && v >= lo && v <= hi ? v : null);
     return { p_route: rotaGeoJSON(coords), p_height_m: faixa(p.altura, 1, 6), p_weight_t: faixa(p.pbtc, 0.5, 200), p_length_m: faixa(p.comprimento, 3, 40),
-      p_width_m: faixa(p.largura, 1, 4), p_axle_t: faixa(p.eixoT, 0.5, 30) };
+      p_width_m: faixa(p.largura, 1, 4), p_axle_t: faixa(cargaPorEixoT(p), 0.5, 30) };
   }
   function dimensoesFaltando(perfil) {
     const p = perfil || {};

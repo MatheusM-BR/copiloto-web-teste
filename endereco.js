@@ -231,8 +231,17 @@
     } else return null;
     return partes.join(", ") + ".";
   }
+  // r5: km vindo do "em que km estou" (ui/km.js, evento km:atual): { rodovia: "BR-153", km: 140.5 }. Preenche rodovia/km quando o
+  // endereço não traz o marco (ele nunca traz) e a rodovia é a mesma (ou o endereço não tem rodovia). Sem km válido, igual a antes.
+  const normRod = (r) => String(r || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  function comKm(e, k) {
+    if (!e || !k || !k.rodovia || typeof k.km !== "number" || !isFinite(k.km) || e.km != null) return e;
+    if (e.rodovia && normRod(e.rodovia) !== normRod(k.rodovia)) return e;
+    return Object.assign({}, e, { rodovia: e.rodovia || k.rodovia, km: k.km });
+  }
   // Põe o texto; sem nada útil → null
   function completar(e, o) {
+    e = comKm(e, o && o.km);
     const texto = montarTexto(e, o);
     if (!texto) return null;
     const out = { rodovia: e.rodovia || null, km: e.km != null && isFinite(e.km) ? e.km : null, rua: e.rua || null, bairro: e.bairro || null,
@@ -287,7 +296,7 @@
 
   const api = {
     PADRAO, UFS, NOMINATIM, distanciaM, normalizarSigla, siglaDaVia, via, escolherVia, escolherLugares, ufDeNome,
-    doMapa, deNominatim, combinar, sentido, montarTexto, doCache, podePedir, decidir, guardar, urlNominatim,
+    comKm, doMapa, deNominatim, combinar, sentido, montarTexto, doCache, podePedir, decidir, guardar, urlNominatim,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoEndereco = api;

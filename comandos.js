@@ -7,6 +7,8 @@
 //   proximo_posto, repetir, cancelar_rota
 //   mapa_modo      { modo: "simples" | "completo" }
 //   qual_km        "em que km estou", "que km é esse" (ui/km.js responde com a rodovia e o km)
+//   chegada        "quando eu chego", "qual a chegada", "que horas eu chego"   restante  "quanto falta", "falta muito"
+//   silenciar      "silencia", "cala a boca", "fica quieto" (corta a fala de agora)
 //   ir_para        { lugar, nome, cidade, uf, consulta }          "me leva para…", "ir para…", "navegar até…", "rota para…"
 //   desconhecido
 // Destino por voz: extrairDestino() (normaliza "pro/pra/para o/até", "cidade + UF", "posto X em Cidade"), lerEscolha() para
@@ -237,6 +239,12 @@
   const RE_MAPA_SIMPLES = /\b(mapa (simples|limpo|basico|simplificado)|modo simples|simplifica o mapa|simplificar o mapa|deixa o mapa simples)\b/;
   const RE_MAPA_COMPLETO = /\b(mapa (completo|detalhado|normal|cheio|inteiro)|modo completo|modo detalhado|mapa com tudo|mostra tudo no mapa)\b/;
   const RE_QUAL_KM = /^(?:(?:copiloto|ei|oi|ok|ola|alo)\s+)*(?:(?:em|no)\s+)?(?:que|qual|qual e o|qual o|qual e)\s+(?:km|quilometro|kilometro)\b(?:\s+(?:eu\s+)?(?:estou|to|ta|e esse|e este|a gente ta|nos estamos|estamos|eu to|e|eh))?\s*$|^(?:(?:copiloto|ei|oi|ok)\s+)*(?:km|quilometro|kilometro)\s+(?:atual|de agora|daqui)\s*$|^(?:(?:copiloto|ei|oi|ok)\s+)*(?:onde|aonde)\s+(?:eu\s+)?(?:estou|to)\s+(?:em\s+)?(?:km|quilometro)\b/;
+  // Viagem: "quando eu chego", "que horas eu chego", "qual a chegada", "previsão de chegada" / "quanto falta", "quantos
+  // quilômetros faltam", "falta muito" / "silencia", "cala a boca", "fica quieto". Ancoradas no começo e curtas.
+  const ABERT = "^(?:(?:copiloto|ei|oi|ok|ola|alo|por favor)\\s+)*";
+  const RE_CHEGADA = new RegExp(ABERT + "(?:(?:quando|a que horas|que horas|qual (?:o )?horario)\\s+(?:que\\s+)?(?:eu\\s+|a gente\\s+|nos\\s+)?(?:vou\\s+)?(?:chego|chegamos|chegar|chega)|qual\\s+(?:e\\s+)?(?:a|o)\\s+(?:minha\\s+)?(?:chegada|previsao(?:\\s+de\\s+chegada)?|horario\\s+de\\s+chegada)|previsao\\s+de\\s+chegada|horario\\s+de\\s+chegada|eta)(?:\\s+(?:la|ai|la no destino|no destino|ao destino))?\\s*$");
+  const RE_RESTANTE = new RegExp(ABERT + "(?:quanto\\s+(?:tempo\\s+|ainda\\s+|mais\\s+)*falta|quanto\\s+falta\\s+(?:pra|para)\\s+(?:chegar|chegada|o destino|acabar)|quantos?\\s+(?:km|quilometros?|kilometros?)\\s+(?:faltam|falta|ainda faltam|ainda falta)|falta\\s+(?:muito|quanto)|(?:quanto|qual)\\s+(?:e\\s+)?(?:a\\s+)?distancia\\s+(?:que\\s+)?(?:falta|ainda falta|restante)|tempo\\s+restante|distancia\\s+restante|quanto\\s+falta\\s+ainda)(?:\\s+(?:pra|para)\\s+(?:chegar|chegada|o destino|acabar|la))?\\s*$");
+  const RE_SILENCIAR = new RegExp(ABERT + "(?:silencia|silenciar|silencie|silencio|cala(?:\\s+a\\s+boca)?|calar|cale(?:-se)?|fica\\s+quieto|fique\\s+quieto|chega\\s+de\\s+falar|(?:para|pare|parar)\\s+de\\s+falar|nao\\s+fala\\s+mais|mudo)(?:\\s+(?:por favor|ai|ja))?\\s*$");
   const RE_REPETIR = /\b(repete|repetir|repita|repeti|fala de novo|falar de novo|fala outra vez|diz de novo|de novo|outra vez|nao entendi|nao ouvi|o que (voce )?(disse|falou)|como e que e|hein|ahn)\b/;
   const RE_POSTO = /\b(proximo posto|proximos postos|posto mais (perto|proximo)|postos? (proximos?|perto|a frente|na frente|adiante|mais (perto|proximos?))|onde (tem|e o|fica o) posto|quero abastecer|preciso abastecer|vou abastecer|preciso de diesel|precisando de diesel|abastecer|posto de (combustivel|gasolina|diesel)|algum posto|tem posto|um posto|(acabou|acabando|sem|pouco) (o |meu )?(diesel|combustivel)|(diesel|combustivel) (acabando|no fim|na reserva))\b/;
   // ---------- voto (A2, QA3). Negar o alerta ("deny") é o erro mais caro: derruba um relato real para os outros
@@ -517,6 +525,10 @@
     if (!n) return res({ intencao: "desconhecido", motivo: "vazio" });
     // "em que km estou", "que km é esse", "qual o km" (dados da rodovia, ui/km.js)
     if (RE_QUAL_KM.test(n)) return res({ intencao: "qual_km" });
+    // "quando eu chego", "qual a chegada", "quanto falta", "silencia" (frases curtas, ancoradas: não pegam relato nem lugar)
+    if (RE_SILENCIAR.test(n)) return res({ intencao: "silenciar" });
+    if (RE_CHEGADA.test(n)) return res({ intencao: "chegada" });
+    if (RE_RESTANTE.test(n)) return res({ intencao: "restante" });
 
     // destino falado ("me leva para…", "ir para…", "navegar até…", "rota para…"): o verbo vem no começo, então vale antes
     // do relato ("me leva pra Vaca Brava" é lugar). "me leva no posto mais próximo" é o "Próximo posto".

@@ -6,7 +6,8 @@
 //     cache por ~100 m / 5 min; só quando alguém pede (tela de Emergência), nunca em lote. Falhou: fica o do mapa.
 // A posição vai ao Nominatim (OpenStreetMap) só nesse pedido; a Emergência (ui/privacidade.js), o consentimento e a política dizem isso.
 // Posição DO MOTORISTA (opcao propria: true, a Emergência) só com a localização permitida; o ponto tocado no mapa vai sempre.
-// km de rodovia: null (nenhuma das fontes traz o marco quilométrico; não é inventado).
+// km de rodovia: o endereço não traz o marco; vem do "em que km estou" (evento km:atual de ui/km.js, SNV/PRF), só se tem menos de
+// 2 min e o ponto é o do motorista (propria) ou está a até 300 m de onde o km foi medido. Sem isso, null (não é inventado).
 (function (C) {
   "use strict";
   const E = window.CopilotoEndereco;
@@ -70,10 +71,21 @@
     } finally { clearTimeout(t); }
   }
 
+  // r5: último "em que km estou" (ui/km.js emite km:atual com { atual: { rodovia, km, … } })
+  let kmUlt = null;       // { atual, lat, lon, em }
+  C.aoIniciar(() => C.on("km:atual", (d) => { const g = C.estado && C.estado.gps; kmUlt = d && d.atual && g && isFinite(g.lat) ? { atual: d.atual, lat: g.lat, lon: g.lon, em: Date.now() } : null; }));
+  function kmPara(p, propria) {
+    if (!kmUlt || Date.now() - kmUlt.em > 120000) return null;
+    const k = kmUlt.atual;
+    if (!k || !k.rodovia || typeof k.km !== "number") return null;
+    const kx = 111320 * Math.cos(p.lat * Math.PI / 180), d = Math.hypot((kmUlt.lon - p.lon) * kx, (kmUlt.lat - p.lat) * 110540);
+    return propria === true || d <= 300 ? { rodovia: k.rodovia, km: k.km } : null;
+  }
+
   async function perto(pos) {
     const p = pos && { lat: Number(pos.lat), lon: Number(pos.lon != null ? pos.lon : pos.lng) };
     if (!p || !isFinite(p.lat) || !isFinite(p.lon) || Math.abs(p.lat) > 90 || Math.abs(p.lon) > 180) return null;
-    const opcoes = { rumo: pos.rumo };
+    const opcoes = { rumo: pos.rumo, km: kmPara(p, pos.propria) };
     const mapa = doMapa(p, opcoes);
     const agora = Date.now();
     // a posição DO MOTORISTA (SOS: pos.propria) só vai ao Nominatim com a localização permitida; o ponto que ele toca no mapa

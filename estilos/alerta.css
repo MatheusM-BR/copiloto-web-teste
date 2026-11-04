@@ -56,3 +56,10 @@
    folha nunca vira voto sem querer. O que sobra à vista continua avisando (tipo e distância); a voz não muda. */
 #app:has(#folha:not([hidden])) .alerta { z-index: 4; }
 #app:has(#folha:not([hidden])) .alerta .botoes { display: none; }
+
+/* Voz perdida: aviso fixo, grande, tocável (iPhone mudo/bloqueado) */
+#aviso-sem-som { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 64px); z-index: 60;
+  min-height: 52px; padding: 12px 14px; border: 2px solid #fff; border-radius: 14px; background: #b45309; color: #fff;
+  font: 700 16px/1.25 system-ui, sans-serif; box-shadow: 0 6px 18px rgba(0,0,0,.45); text-align: center; }
+#aviso-sem-som[hidden] { display: none; }
+#voz-testar { margin-top: 10px; min-height: 48px; width: 100%; }

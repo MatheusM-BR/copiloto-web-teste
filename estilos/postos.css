@@ -1,5 +1,5 @@
 /* Postos e autonomia (pacote E2). */
-.postos-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 42vh; overflow-y: auto; }
+.postos-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .postos-item {
   width: 100%; min-height: 64px; text-align: left; display: flex; flex-direction: column; gap: 2px;
   background: var(--campo); border: 1px solid var(--linha); border-radius: 12px; padding: 10px 12px;
@@ -19,3 +19,89 @@
 .postos-atributos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 14px; }
 .postos-atributos .nao-informado { color: var(--suave); font-style: italic; }
 .folha p.postos-credito { font-size: 12px; }
+
+/* ------------------------------------------------------------ R5: lista com ícones e card do posto */
+.ico { width: 20px; height: 20px; flex: none; vertical-align: middle; }
+.postos-titulo { display: flex; align-items: center; gap: 8px; }
+.postos-titulo .ico { width: 24px; height: 24px; color: var(--acento); }
+.postos-filtros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.postos-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; font-size: 12px; line-height: 1.1; min-width: 0; }
+.postos-chip .ico { width: 22px; height: 22px; }
+.folha .postos-chip[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
+.postos-item { flex-direction: row; align-items: center; gap: 10px; position: relative; color: var(--texto); }
+.postos-corpo { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.postos-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; min-width: 0; }
+.postos-topo .postos-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.postos-dist { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.postos-dist .ico { color: var(--acento-escuro); width: 18px; height: 18px; }
+.postos-marca { font-size: 13px; color: var(--suave); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.postos-icones { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ok-texto); min-height: 22px; }
+.postos-icones .ico { width: 22px; height: 22px; }
+.postos-icones .ico-desc, .postos-sem { color: var(--suave); }
+.postos-sem { font-size: 12px; }
+.postos-proximo { border-color: var(--ok); border-width: 2px; }
+.postos-selo { position: absolute; top: -9px; right: 10px; display: inline-flex; align-items: center; gap: 3px; background: var(--ok); color: #04210f; font-size: 11px; font-weight: 800; padding: 1px 8px 1px 5px; border-radius: 999px; }
+.postos-selo .ico { width: 13px; height: 13px; stroke-width: 3; }
+.postos-item .postos-fora, .postos-item .postos-limite { position: absolute; right: 10px; bottom: 6px; display: inline-flex; align-items: center; gap: 3px; font-size: 12px; }
+.postos-item.alcance-fora, .postos-item.alcance-limite { padding-bottom: 26px; }
+:root[data-tema="claro"] .postos-fora { color: #b3261e; }
+.pc-logo { width: 44px; height: 44px; flex: none; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px; letter-spacing: .02em; border: 2px solid rgba(255, 255, 255, .25); }
+.pc-logo-grande { width: 52px; height: 52px; font-size: 18px; }
+
+.posto-card { display: grid; gap: 10px; }
+.pc-cab { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.pc-tit { min-width: 0; }
+.folha .pc-tit h2 { font-size: 19px; overflow-wrap: anywhere; }
+.folha .pc-tit h2:focus { outline: none; }
+.folha .pc-bandeira { font-size: 14px; }
+.folha .pc-dist { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; color: var(--texto); font-size: 16px; }
+.pc-dist .ico { color: var(--acento-escuro); }
+.pc-fora { color: var(--suave); font-size: 13px; }
+.pc-sub { margin: 0; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--suave); display: flex; align-items: center; gap: 6px; }
+.pc-sub .ico { width: 18px; height: 18px; }
+.pc-preco, .pc-comod { display: grid; gap: 4px; background: var(--campo); border: 1px solid var(--linha); border-radius: 12px; padding: 10px 12px; }
+.pc-preco-linhas { display: grid; gap: 2px; }
+.folha .pc-linha { font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.folha .pc-valor { color: var(--texto); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.folha .pc-sem, .folha .pc-data { font-size: 13px; }
+.pc-grade { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px 4px; }
+.pc-amen { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; min-width: 0; }
+.pc-amen-ico { position: relative; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; border: 2px solid var(--linha); }
+.pc-amen-ico .ico { width: 26px; height: 26px; }
+.pc-amen-rot { font-size: 11px; line-height: 1.1; color: var(--suave); overflow-wrap: anywhere; }
+.pc-selo { position: absolute; right: -6px; bottom: -6px; width: 17px; height: 17px; border-radius: 50%; padding: 2px; stroke-width: 3.5; background: var(--painel); border: 1.5px solid currentColor; }
+.pc-selo-q { display: grid; place-items: center; font-size: 11px; font-weight: 800; line-height: 1; padding: 0; }
+.pc-sim .pc-amen-ico { color: var(--ok-texto); border-color: var(--ok-texto); }
+.pc-sim .pc-amen-rot { color: var(--texto); font-weight: 700; }
+.pc-nao .pc-amen-ico { color: var(--suave); border-color: var(--linha); }
+.pc-nao .pc-amen-ico > .ico:first-child { opacity: .45; }
+.pc-nao .pc-amen-rot { text-decoration: line-through; }
+.pc-desc .pc-amen-ico { color: var(--suave); border-style: dashed; }
+.pc-desc .pc-amen-ico > .ico:first-child { opacity: .6; }
+.folha .pc-horario { color: var(--texto); }
+.pc-semfonte { display: grid; gap: 4px; margin: 0; font-size: 12px; color: var(--suave); }
+.pc-semfonte-icos { display: flex; flex-wrap: wrap; gap: 8px; }
+.pc-semfonte-icos .ico { width: 20px; height: 20px; opacity: .65; }
+.folha .pc-legenda { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 12px; }
+.pc-legenda .ico { width: 14px; height: 14px; stroke-width: 3; }
+.pc-selo-q-leg { font-weight: 800; border: 1.5px solid currentColor; border-radius: 50%; width: 14px; height: 14px; display: inline-grid; place-items: center; font-size: 10px; }
+.pc-rodape { display: grid; gap: 2px; }
+.pc-acoes { position: sticky; bottom: -16px; background: var(--painel); display: grid; gap: 8px; padding: 8px 0 16px; margin-bottom: -16px; border-top: 1px solid var(--linha); }
+.pc-acoes .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; color: var(--texto); }
+.pc-acoes .btn-principal { color: var(--acento-texto); }
+.pc-acoes .pc-ir { font-size: 19px; font-weight: 800; }
+.pc-acoes .pc-ir .ico { width: 24px; height: 24px; }
+.pc-acoes2 { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+.pc-acoes2 .btn { padding: 0 6px; font-size: 14px; flex-direction: column; gap: 2px; }
+.folha .pc-troca { font-size: 12px; text-align: center; }
+.pc-motivos { display: grid; gap: 8px; }
+.folha:has(.postos-lista), .folha:has(.posto-card) { max-height: 88%; }
+.pc-valores { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.folha .pc-valor { display: grid; gap: 0; color: var(--texto); font-size: 18px; font-variant-numeric: tabular-nums; }
+.pc-valor .pc-prod { font-size: 12px; color: var(--suave); font-weight: 600; }
+.pc-valor .pc-vazio { font-size: 13px; color: var(--suave); font-weight: 400; }
+
+/* R5: ícones nos cartões de rota (ui/rota.js): ao lado do texto, com o tamanho dele */
+.rota-opcao-dados .ico { width: 16px; height: 16px; margin: 0 3px 2px 0; }
+.rota-opcao-dados .ico + .ico, .rota-opcao-dados .ico:nth-of-type(2) { margin-left: 3px; }
+.rota-etiqueta .ico { width: 13px; height: 13px; margin: 0 3px 2px 0; }

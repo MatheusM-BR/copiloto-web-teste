@@ -48,15 +48,9 @@
     esconder();
   }
 
-  async function pedirPedaco(coords, caminhao) {
-    const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), 25000);
-    try {
-      const resp = await fetch(urlTrace(), { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify(L.pedidoTrace(coords, caminhao)), signal: ctl.signal });
-      return { json: await resp.json().catch(() => null) };
-    } catch (e) { return { rede: true }; } finally { clearTimeout(t); }
-  }
+  // r5: mesmo pedido e mesmos pedaços da "Via do trajeto" (CopilotoVia.fatiar) → tracecache.js manda um só ao servidor
+  function pedacosDaRota(coords) { const V = window.CopilotoVia; return V && V.fatiar ? V.fatiar(coords) : L.dividir(coords); }
+  async function pedirPedaco(coords, caminhao) { return window.CopilotoTrace.compartilhado.postar(urlTrace(), L.pedidoTrace(coords, caminhao)); }
   async function buscar(r) {
     if (buscando.has(r.chave)) return;
     if (!online()) return; // volta no evento "online"
@@ -64,7 +58,7 @@
     const trechos = [];
     let completo = true, rede = false;
     try {
-      for (const p of L.dividir(r.coords)) {
+      for (const p of pedacosDaRota(r.coords)) {
         const res = await pedirPedaco(r.coords.slice(p.de, p.ate + 1), r.caminhao);
         if (res.rede) { completo = false; rede = true; break; }
         // o servidor não casou este pedaço com o mapa (raro com a forma dele mesmo): fica sem limite, sem repetir

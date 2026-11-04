@@ -94,6 +94,7 @@
     mlPararCiclo("cancelado"); // o mãos-livres cede o microfone (volta sozinho depois)
     if (ml.ligado && ml.estado === "ouvindo") mlEstado("esperando");
     if (C.voz.calar) { C.voz.calar(); D.registrar("ui:fala calada", "antes do start()"); }
+    if (C.voz.microfone) C.voz.microfone(true); // o áudio mudo em laço (modo silencioso) sai enquanto o microfone está aberto
     estado("abrindo");
     C.mensagem(ROTULOS.abrindo, 4000);
     eu.h = escuta.escutar({ maxMs: ms, fimSilencioMs: extra && extra.fimSilencioMs, semFalaMs: extra && extra.semFalaMs,
@@ -109,6 +110,7 @@
       },
       aoTerminar: (res) => {
         if (ouvindo === eu) ouvindo = null;
+        if (!ouvindo && C.voz.microfone) C.voz.microfone(false);
         estado("pronto");
         if (eu.abriu && res.motivo !== "alerta" && res.motivo !== "cancelado") C.voz.bipe("fim");
         anotar(res);
@@ -142,8 +144,8 @@
     // texto era descartado); sem nada ouvido, cancela
     if (ouvindo) { const o = ouvindo; if (o.h && o.h.concluir) o.h.concluir(); else pararEscuta("cancelado"); return; }
     if (sessao && sessao.escuta) { sessao.escuta.parar("cancelado"); return; }
-    // o microfone ouviria a fala do alerta: espera ela acabar
-    if (C.voz.emAlerta()) { C.mensagem("Espere o alerta terminar e toque de novo.", 4000); return; }
+    // "Falar" durante o alerta: corta a fala do alerta e abre o microfone (o alerta continua na tela)
+    if (C.voz.emAlerta()) { C.voz.calar(); D.registrar("ui:alerta calado", "toque em Falar"); }
     alertaNoToque = C.alerta.atual();
     // M3 (QA2): o relato por voz vai no ponto do TOQUE em "Falar" (como o "!"), não no fim da fala/reconhecimento
     gpsNoToque = C.relatos.leituraDoToque();
@@ -162,7 +164,7 @@
     if (!res.textos.length && res.motivo === "silencio" && (!res.codigo || res.codigo === "no-speech")) {
       // nada foi dito (fim por silêncio): só o aviso, sem a folha de comandos
       D.registrar("ui:não ouvi nada", "");
-      C.mensagem(NAO_OUVI, 6000);
+      avisar(NAO_OUVI, true); // na tela e por voz
       return;
     }
     if (!res.textos.length) {
@@ -227,6 +229,8 @@
       case "cancelar_rota": return comando("comando:cancelar-rota", {}, semOuvinte);
       case "mapa_modo": return comando("comando:mapa-modo", { modo: r.modo }, semOuvinte);
       case "qual_km": return comando("comando:qual-km", {}, semOuvinte); // "em que km estou" (ui/km.js atende)
+      case "chegada": case "restante": return responderViagem(r.intencao);
+      case "silenciar": return silenciar();
       case "ir_para": if (C.km && C.km.deVoz(r)) return; return irPara(r); // "BR-153 km 140" é destino por km (ui/km.js)
       case "talvez_lugar": if (C.km && C.km.deVoz(r)) return; return talvezLugar(r, textos, toque);
       case "relatar_sem_tipo": // "polícia", "blitz": o app não tem esse tipo; o formulário abre no ponto do toque para escolher
@@ -244,6 +248,16 @@
     setTimeout(() => { if (!d.atendido) semNinguem(); }, SEM_OUVINTE_MS);
   }
   function semOuvinte() { avisar(Cmd.MSG.aindaNao + ".", true); }
+  // "quando eu chego", "quanto falta": a resposta vem da navegação (ou da rota traçada); fala e escreve
+  function responderViagem(tipo) {
+    const t = C.navegacao && typeof C.navegacao.textoViagem === "function" ? C.navegacao.textoViagem(tipo) : null;
+    avisar(t || "Não há rota nem navegação em andamento.", true);
+  }
+  // "silencia", "cala a boca": corta a fala de agora (o alerta, se houver, continua na tela) e não repete a manobra cortada
+  function silenciar() {
+    C.voz.calar({ definitivo: true });
+    C.mensagem("Fala silenciada.", 3000);
+  }
   function repetirSozinho() {
     const a = C.alerta.atual();
     if (!a || ultimaDistAlerta == null) { semOuvinte(); return; }
@@ -539,7 +553,7 @@
   function naoEntendi(textos, toque, motivo) {
     const ouvido = String([].concat(textos).find((t) => t && String(t).trim()) || "").trim();
     D.registrar("ui:não entendi", ouvido.length + " letras");
-    avisar(Cmd.MSG.naoEntendi, true); // o motivo (ex.: sem internet para procurar) vai escrito na folha
+    avisar(Cmd.MSG.naoEntendi + (motivo ? " " + motivo : ""), true); // o mesmo texto da folha, escrito e falado
     const filhos = [el("h2", "cmd-titulo", "Não entendi")];
     if (motivo) filhos.push(el("p", "cmd-ne-motivo", motivo));
     if (ouvido) { const p = el("p", "cmd-ne-ouvido", "Ouvi: “" + ouvido + "”"); p.id = "cmd-ne-ouvido"; filhos.push(p); }
@@ -553,7 +567,7 @@
     filhos.push(linha);
     // a folha cobre o "Falar": tentar de novo daqui mesmo (o toque é o gesto que o iPhone pede para abrir o microfone)
     const denovo = botao("Falar de novo", "btn btn-grande", () => { C.folha.fechar(); tocar(); });
-    denovo.id = "cmd-ne-falar"; denovo.dataset.semDestravar = "";
+    denovo.id = "cmd-ne-falar";
     filhos.push(denovo);
     const form = el("form", "cmd-alt-form"); form.id = "cmd-alt-form";
     const campo = document.createElement("input");
@@ -823,7 +837,7 @@
 
   // ouvindo(): true enquanto o reconhecimento de fala está ativo (toque em "Falar" ou resposta ao "É o mesmo?"). M3 (QA3):
   // a navegação usa para adiar a fala de manobra (o microfone ouviria a própria fala e ela se perderia).
-  C.comandos = { ouvir: tocar, executar: (t) => executar([].concat(t), null), disponivel: () => escuta.disponivel(), ouvindo: () => !!ouvindo,
+  C.comandos = { ouvir: tocar, pararEscuta: (m) => { const tinha = !!ouvindo || !!(sessao && sessao.escuta); pararEscuta(m || "cancelado"); if (sessao && sessao.escuta) sessao.escuta.parar(m || "cancelado"); return tinha; }, executar: (t) => executar([].concat(t), null), disponivel: () => escuta.disponivel(), ouvindo: () => !!ouvindo,
     alternativa: () => abrirAlternativa({}),
     // pergunta por voz com resposta na tela (destino por km: "Qual estado?", ui/km.js): tratar(textos) → true se respondeu; id = elemento vivo da pergunta
     perguntar,
@@ -889,7 +903,7 @@
     btn = C.botoesMapa.adicionar({ id: "cmd-falar", icone: "", rotulo: ROTULOS.pronto, aoTocar: tocar, classe: "cmd-falar", noFim: true });
     btn.textContent = "";
     btn.append(el("span", "cmd-icone", "🎙"), el("span", "cmd-rotulo", "Falar"));
-    btn.dataset.semDestravar = ""; // ui/voz.js não destrava a fala neste toque (a fala muda tocaria com o microfone abrindo)
+    // ui/voz.js destrava a fala também neste toque (enunciado mudo antes de o microfone abrir)
     if (!escuta.disponivel()) btn.setAttribute("aria-disabled", "true");
     estado("pronto");
     // toque longo em "Falar": comandos por toque/teclado, sem microfone

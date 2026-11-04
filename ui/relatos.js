@@ -66,7 +66,7 @@
       b.append(el("span", "r-nome", cfg.curto || cfg.rotulo)); // só o nome: a sigla repetia o nome
       b.addEventListener("click", () => {
         sel.value = id; sel.dispatchEvent(new Event("change"));
-        if (cfg.valor) inp.focus();
+        if (cfg.valor) { pararContagem(); inp.focus(); } else iniciarContagem(cfg);
       });
       grade.appendChild(b);
       botoesTipo.set(id, b);
@@ -94,8 +94,37 @@
     }
     const relogio = setInterval(mostrarIdade, 1000);
     const logado = C.nuvem.logado(), envia = podeEnviar();
+    // Rodapé fixo da folha (estilos/toque.css): contagem, erro e os botões grandes ficam sempre à vista, mesmo com a
+    // folha rolada e com o teclado aberto. Tipo SEM valor: 2 toques (abrir o "!" e escolher o tipo); o relato sai sozinho
+    // em 4 s, com a contagem visível e "Cancelar" grande. Tipo COM valor: abre o campo numérico e "Salvar relato" fica
+    // acima do teclado.
+    const rodape = el("div", "folha-rodape r-rodape");
+    const contagem = el("p", "r-contagem"); contagem.id = "r-contagem"; contagem.setAttribute("role", "status"); contagem.hidden = true;
     const botoes = el("div", "r-botoes");
+    const ESPERA_S = 4;
+    let timerContagem = null, restante = 0, tipoContagem = null;
+    function pararContagem() {
+      clearInterval(timerContagem); timerContagem = null; tipoContagem = null;
+      contagem.hidden = true; contagem.textContent = "";
+      cancelar.textContent = "Cancelar"; cancelar.classList.remove("contando");
+    }
+    function mostrarContagem() {
+      contagem.hidden = false;
+      contagem.textContent = "Enviando “" + (Relatos.TIPOS[tipoContagem].curto || Relatos.TIPOS[tipoContagem].rotulo) + "” em " + restante + " s";
+      cancelar.textContent = "Cancelar (" + restante + " s)";
+    }
+    function iniciarContagem(cfg) {
+      pararContagem();
+      tipoContagem = sel.value; restante = ESPERA_S; cancelar.classList.add("contando"); mostrarContagem();
+      timerContagem = setInterval(() => {
+        if (!rodape.isConnected) { pararContagem(); return; }
+        restante--;
+        if (restante <= 0) { const t = tipoContagem; pararContagem(); if (sel.value === t) salvar.click(); return; }
+        mostrarContagem();
+      }, 1000);
+    }
     const salvar = botao("Salvar relato", "btn btn-principal btn-grande", () => {
+      pararContagem();
       if (!sel.value) { erro.textContent = "Toque no tipo do relato."; return; }
       const r = Relatos.criarRelato(sel.value, { lat: toque.lat, lon: toque.lon, rumo: toque.rumo }, inp.value, Date.now(), novoId());
       if (!r.ok) { erro.textContent = r.erro; inp.setAttribute("aria-invalid", "true"); return; }
@@ -111,9 +140,26 @@
         : "Relato salvo só neste aparelho. Entre para compartilhar com outros motoristas.") + (aviso ? " " + aviso : ""), 6000);
     });
     salvar.id = "r-salvar";
-    const cancelar = botao("Cancelar", "btn btn-grande", () => { clearInterval(relogio); C.folha.fechar(); }); cancelar.id = "r-cancelar";
-    botoes.append(salvar, cancelar);
-    const itens = [el("h2", null, opcoes && opcoes.aqui ? "Relatar no ponto tocado" : "Reportar neste ponto"), rotTipo, grade, sel, rotValor, erro, idade];
+    const cancelar = botao("Cancelar", "btn btn-grande", () => {
+      if (timerContagem) { // cancela o envio automático e volta à escolha do tipo
+        pararContagem(); sel.value = ""; sel.dispatchEvent(new Event("change")); return;
+      }
+      clearInterval(relogio); C.folha.fechar();
+    }); cancelar.id = "r-cancelar";
+    // mudar o campo do valor ou o tipo por outro caminho (voz) nunca deixa um envio automático pendente
+    sel.addEventListener("change", () => { if (tipoContagem && sel.value !== tipoContagem) pararContagem(); });
+    inp.addEventListener("input", pararContagem);
+    botoes.append(cancelar, salvar);
+    rodape.append(erro, contagem, botoes);
+    // SOS no TOPO da folha (fixo): a Emergência a um toque a partir do "!", com alvo de 64 px
+    const sos = botao("SOS", "btn r-sos", () => {
+      pararContagem(); clearInterval(relogio); C.folha.fechar();
+      if (C.privacidade && C.privacidade.abrirEmergencia) C.privacidade.abrirEmergencia();
+    });
+    sos.id = "r-sos"; sos.setAttribute("aria-label", "SOS: abrir Emergência (191, 192, 193 e sua posição)");
+    const topo = el("div", "folha-topo r-topo");
+    topo.append(el("h2", null, opcoes && opcoes.aqui ? "Relatar no ponto tocado" : "Reportar neste ponto"), sos);
+    const itens = [topo, rotTipo, grade, sel, rotValor, idade];
     if (logado && envia) {
       itens.push(el("p", null, "Vai para outros motoristas. Vence sozinho e ganha força quando outros motoristas confirmarem."));
     } else if (logado) {
@@ -121,18 +167,11 @@
     } else {
       itens.push(el("p", null, "Fica salvo só neste aparelho e vence sozinho."));
       const dica = el("p", "dica", "Entre para compartilhar com outros motoristas. ");
-      const ir = botao("Entrar na conta", "btn r-ir-conta", () => { clearInterval(relogio); C.folha.fechar(); C.abas.irPara("conta"); }); ir.id = "btn-ir-conta";
+      const ir = botao("Entrar na conta", "btn r-ir-conta", () => { pararContagem(); clearInterval(relogio); C.folha.fechar(); C.abas.irPara("conta"); }); ir.id = "btn-ir-conta";
       dica.appendChild(ir);
       itens.push(dica);
     }
-    itens.push(botoes);
-    // SOS pequeno (redesenho): a Emergência fica a um toque a partir do "!", sem ocupar espaço no mapa
-    const sos = botao("SOS · Emergência", "btn btn-pequeno r-sos", () => {
-      clearInterval(relogio); C.folha.fechar();
-      if (C.privacidade && C.privacidade.abrirEmergencia) C.privacidade.abrirEmergencia();
-    });
-    sos.id = "r-sos"; sos.setAttribute("aria-label", "SOS: abrir Emergência (191, 192, 193 e sua posição)");
-    itens.push(sos);
+    itens.push(rodape);
     C.folha.abrir(itens);
   }
 

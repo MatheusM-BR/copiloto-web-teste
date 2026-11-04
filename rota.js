@@ -17,8 +17,20 @@
 
   function ehCaminhao(perfil) { return !!perfil && perfil.tipo !== "Carro"; }
 
-  // origem/destino: { lat, lon }. perfil: perfil ativo ou null.
-  function criarPedido(perfil, origem, destino) {
+  // Carga por eixo (t) para o Valhalla (axle_load) e para a consulta de restrições (p_axle_t). O cadastro do veículo não
+  // tem "peso por eixo": vale eixoT, se um dia existir; senão a MÉDIA PBTC ÷ eixos (estimativa: o eixo mais carregado pesa
+  // mais que a média). Sem os dois números: null (o campo é omitido, nada é inventado).
+  function cargaPorEixoT(perfil) {
+    const p = perfil || {};
+    const num = (v) => typeof v === "number" && isFinite(v);
+    if (num(p.eixoT) && p.eixoT > 0) return p.eixoT;
+    if (num(p.pbtc) && num(p.eixos) && p.eixos >= 2 && p.pbtc > 0) return Math.round(p.pbtc / p.eixos * 10) / 10;
+    return null;
+  }
+
+  // origem/destino: { lat, lon }. perfil: perfil ativo ou null. extra (opcional): { semPedagio: true } → use_tolls 0 (o
+  // Valhalla evita pedágio quando dá; não é garantia).
+  function criarPedido(perfil, origem, destino, extra) {
     const pedido = {
       locations: [
         { lat: origem.lat, lon: origem.lon, type: "break" },
@@ -35,8 +47,11 @@
         if (typeof v === "number" && isFinite(v)) opcoes[m.valhalla] = v;
         else faltando.push(m.rotulo);
       }
+      const eixo = cargaPorEixoT(perfil);
+      if (eixo != null) opcoes.axle_load = eixo;
+      if (extra && extra.semPedagio) opcoes.use_tolls = 0;
       pedido.costing_options = { truck: opcoes };
-    }
+    } else if (extra && extra.semPedagio) pedido.costing_options = { auto: { use_tolls: 0 } };
     return { pedido, faltando };
   }
 
@@ -106,12 +121,12 @@
     } else if (faltando.length) {
       lista.push("Medidas não informadas (" + faltando.join(", ") + "): o servidor usou valores padrão dele. Cadastre as medidas do veículo.");
     }
-    // o aviso de pontes, viadutos e limite de peso só faz sentido para caminhão (para carro seria ruído)
-    if (perfil && ehCaminhao(perfil)) lista.push("Rota não verificada para pontes, viadutos e limites de peso. O mapa tem poucas restrições cadastradas. Confira a sinalização da estrada.");
+    // Pontes, viadutos e limites: o estado (verificado / não verificado / com violação) é uma linha só, em ui/avisos.js
+    // (linhaEstadoRestricoes + cartão de restrições); aqui não há mais um aviso fixo que contradiria o resultado.
     return lista;
   }
 
-  const api = { URL_PADRAO, traduzirErro, criarPedido, decodificarPolyline6, resumirResposta, formatarTempo, formatarKm, avisos, ehCaminhao };
+  const api = { URL_PADRAO, traduzirErro, criarPedido, cargaPorEixoT, decodificarPolyline6, resumirResposta, formatarTempo, formatarKm, avisos, ehCaminhao };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoRota = api;
 })(typeof window !== "undefined" ? window : globalThis);

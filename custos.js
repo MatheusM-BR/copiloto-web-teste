@@ -189,7 +189,7 @@
     if (!r || !r.ok) return r ? r.motivo : "";
     if (r.quantidade === 0) return "Nenhuma praça de pedágio conhecida na rota (estimativa).";
     if (r.semTarifa === r.quantidade) {
-      return plural(r.quantidade, "praça", "praças") + " de pedágio na rota, sem tarifa conhecida.";
+      return plural(r.quantidade, "praça", "praças") + " de pedágio na rota, tarifa não informada.";
     }
     let t = formatarEstimado(r.total);
     if (r.semTarifa) t += "; " + plural(r.semTarifa, "praça sem tarifa conhecida", "praças sem tarifa conhecida");
@@ -200,6 +200,7 @@
   function avisosPedagio(r) {
     const out = [];
     if (!r || !r.ok) return out;
+    if (r.quantidade > 0 && r.semTarifa === r.quantidade) return out;   // r5: sem nenhuma tarifa, "contada como cobrada" e "valor de cabine" não dizem nada
     if (r.sentidoIncerto) out.push(plural(r.sentidoIncerto, "praça", "praças") + " sem sentido de cobrança conhecido: contada" + (r.sentidoIncerto === 1 ? "" : "s") + " como cobrada" + (r.sentidoIncerto === 1 ? "" : "s") + ".");
     if (r.extrapoladas) out.push("Acima de 6 eixos o valor é calculado por eixo; o contrato da praça pode cobrar diferente.");
     out.push("Valor de cabine sem desconto de tag. Pode mudar com reajuste da concessionária.");
@@ -307,7 +308,8 @@
     if (!r || !r.ok) return { valor: null, nota: r ? r.motivo : null };
     if (r.quantidade === 0) return { valor: "nenhuma praça conhecida na rota", nota: null };
     if (r.semTarifa === r.quantidade) {
-      return { valor: "tarifa desconhecida", nota: plural(r.quantidade, "praça", "praças") + " na rota sem tarifa conhecida" };
+      // r5: nenhuma praça com tarifa: só o fato ("6 praças, tarifa não informada"), sem "desconhecida" nem R$ nenhum
+      return { valor: plural(r.quantidade, "praça", "praças") + ", tarifa não informada", nota: null };
     }
     return { valor: aprox(r.total, 2) + " (estimado)",
       nota: r.semTarifa ? plural(r.semTarifa, "praça sem tarifa conhecida", "praças sem tarifa conhecida") : null };

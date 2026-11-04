@@ -25,6 +25,7 @@
   let elKm = null, atual = null, ultimoPedido = null, emVoo = null, respondidoEm = null, posResposta = null;
   const cache = new Map(); // chave da posição → { snv, kmAt, t }
   const CACHE_MAX = 60, CACHE_MS = 10 * 60000, FRESCO_MS = 60000, FRESCO_M = 1000;
+  const kmCache = window.CopilotoKmCache.criar();
   let destinoKm = null;    // { lat, lon, rotulo, precisao_m, estimado } do último destino por km
   let rodoviasCache = new Map();
 
@@ -50,6 +51,7 @@
   function aplicar(res, pos) {
     atual = res && !res.falhou ? D.escolherKm(res.snv, res.kmAt) : null;
     respondidoEm = Date.now(); posResposta = { lat: pos.lat, lon: pos.lon };
+    kmCache.registrar(atual, pos); // r5: base para estimar o km entre pedidos reais
     desenhar();
     C.emit("km:atual", { atual });
   }
@@ -61,6 +63,8 @@
     if (emVoo) return emVoo;
     if (!forcar && !D.devePedirKm(ultimoPedido, Date.now(), pos)) return null;
     ultimoPedido = { t: Date.now(), lat: pos.lat, lon: pos.lon };
+    const deduzido = forcar ? null : kmCache.estimar(pos); // r5: em rodovia, a menos de ~2 km da última resposta real, sem RPC
+    if (deduzido) { atual = deduzido; respondidoEm = Date.now(); posResposta = { lat: pos.lat, lon: pos.lon }; desenhar(); C.emit("km:atual", { atual }); return atual; }
     emVoo = pedir(pos).then((res) => { emVoo = null; aplicar(res, pos); return atual; }, () => { emVoo = null; return null; });
     return emVoo;
   }
