@@ -47,7 +47,7 @@
     for (const id of ["nav-painel", "alerta"]) {
       const e = $(id); if (visivel(e)) topo = Math.max(topo, e.getBoundingClientRect().bottom - main.top + 8);
     }
-    for (const e of [document.querySelector(".velocidade"), $("btn-recentralizar")]) {
+    for (const e of [document.querySelector(".velocidade"), $("btn-recentralizar"), $("nav-rodape")]) {
       if (visivel(e)) base = Math.min(base, e.getBoundingClientRect().top - main.top - 8);
     }
     // coluna de botões: o cartão termina antes do botão mais à esquerda que fica na faixa de altura do cartão

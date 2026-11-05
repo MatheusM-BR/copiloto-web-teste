@@ -60,7 +60,7 @@
     const botoesTipo = new Map();
     for (const [id, cfg] of Object.entries(Relatos.TIPOS)) {
       sel.add(new Option(cfg.rotulo, id));
-      const b = el("button", "r-tipo-btn" + (cfg.risco ? " risco" : ""));
+      const b = el("button", "r-tipo-btn" + (cfg.risco ? " risco" : "") + (id === "acidente" || id === "altura_maxima" ? " grave" : "")); // lote 1: só a gravidade (acidente, ponte baixa) em vermelho
       b.type = "button"; b.dataset.tipo = id; b.setAttribute("role", "radio"); b.setAttribute("aria-checked", "false");
       b.setAttribute("aria-label", cfg.rotulo);
       if (window.CopilotoIcones) b.append(window.CopilotoIcones.no(window.CopilotoIcones.ICONE_RELATO[id] || "aviso", { classe: "r-ico" })); // r6: ícone grande em cima do nome

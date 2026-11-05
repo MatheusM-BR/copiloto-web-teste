@@ -1,26 +1,34 @@
 /* Redesenho da interface (pedido de 31/10/2026 após o teste no iPhone): tela inicial enxuta, busca, Configurações,
-   toque no mapa, navegação mínima, tema claro. Cores: laranja var(--acento) #F2A43A, seta azul #4DA3FF. */
+   toque no mapa, navegação mínima, tema claro. Cores (lote 1 do Stitch): azul var(--primaria) para ação, âmbar var(--atencao) só para aviso (tokens em base.css e aqui). */
 
 /* ------------------------------------------------------------ tema claro (escuro = :root de base.css) */
 :root[data-tema="claro"] {
-  --bg: #eef1f5;
+  --bg: #faf8f5;
   --painel: #ffffff;
-  --linha: #d3dae3;
-  --texto: #14181f;
-  --suave: #556070;
-  --campo: #f5f7fa;
-  --acento-escuro: #9a5b00;
-  --link: #0b57b0;      /* links e "Saiba mais": o laranja do tema escuro não tem contraste sobre branco */
-  --ok-texto: #0b6b3a;  /* "Ligada" (verde) em texto sobre branco, ≥ 4,5:1 */
+  --linha: #d6d1c9;
+  --texto: #101828;
+  --suave: #475467;
+  --campo: #f4f1ec;
+  --primaria: #0f4bb8;
+  --primaria-texto: #ffffff;
+  --primaria-forte: #0f4bb8;
+  --primaria-suave: #e6eefb;
+  --atencao: #b54708;           /* texto/borda de aviso sobre claro */
+  --atencao-fundo: #f5a524;     /* preenchimento de aviso */
+  --atencao-fundo-texto: #1a1204;
+  --atencao-suave: #fff1d6;
+  --perigo: #d92d20;
+  --perigo-texto: #ffffff;
+  --perigo-txt: #b42318;
+  --perigo-forte: #961910;
+  --perigo-suave: #fde7e5;
+  --ok: #12a150;
+  --ok-fundo-texto: #04170b;
+  --link: #0f4bb8;
+  --ok-texto: #0b6b3a;  /* "Ligada" (verde) em texto sobre branco, >= 4,5:1 */
 }
-:root { --ok-texto: var(--ok); --link: var(--acento); --acento-escuro: #ffd9a1; --faixa-nav: #12603a; --faixa-nav-2: #0d4a2c; }
+:root { --ok-texto: var(--ok); --link: var(--primaria); --acento-escuro: var(--atencao); }
 :root[data-tema="claro"] #mapa { background: #e8e4dc; }
-:root[data-tema="claro"] .btn-perigo, :root[data-tema="claro"] .erro, :root[data-tema="claro"] .folha .r-erro { color: #b3261e; }
-:root[data-tema="claro"] .folha .aviso-rota, :root[data-tema="claro"] .folha .nav-registrado,
-:root[data-tema="claro"] .folha .r-idade, :root[data-tema="claro"] .e5-coord.e5-velha { color: #8a4b00; }
-:root[data-tema="claro"] .r-tipo-btn.escolhido { background: #fff1db; }
-:root[data-tema="claro"] .nav-status, :root[data-tema="claro"] .nav-reentrada { background: #fff1db; }
-:root[data-tema="claro"] .alerta.critico { background: #ffe3e0; }
 :root[data-tema="claro"] .cmd-falar[data-estado="indisponivel"] { color: var(--suave); }
 
 .so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -102,14 +110,12 @@
 .cfg-menu > button:last-child { border-bottom: 0; }
 .cfg-item { flex: none; }
 .cfg-valor {
-  min-width: 0; color: var(--acento); font-size: 14px; font-weight: 600; text-align: right;
+  min-width: 0; color: var(--primaria); font-size: 14px; font-weight: 600; text-align: right;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-:root[data-tema="claro"] .cfg-valor { color: #8a4b00; }
 #btn-tela[aria-pressed="true"] .cfg-desligado, #btn-tela:not([aria-pressed="true"]) .cfg-ligado { display: none; }
 #cfg-fachada[aria-checked="true"] .cfg-valor { color: var(--ok-texto); }
-.cfg-menu > button.e5-nav-sos .cfg-item { color: #ff8b84; font-size: 16px; font-weight: 800; letter-spacing: 0; }
-:root[data-tema="claro"] .cfg-menu > button.e5-nav-sos .cfg-item { color: #b3261e; }
+.cfg-menu > button.e5-nav-sos .cfg-item { color: var(--perigo-txt); font-size: 16px; font-weight: 800; letter-spacing: 0; }
 .cfg-menu > button.e5-nav-sos .cfg-valor { color: var(--suave); font-size: 13px; }
 /* a chip do veículo ativo agora é o valor do item "Veículo" */
 .chip-veiculo { max-width: 60%; }
@@ -145,7 +151,7 @@
 /* ------------------------------------------------------------ toque no mapa: pino e folha "Ir para cá / Relatar aqui" */
 .pino-toque { width: 36px; height: 48px; pointer-events: none; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .45)); }
 .pino-toque svg { display: block; width: 36px; height: 48px; }
-.pino-toque path { fill: var(--acento); stroke: #1b2230; stroke-width: 2; }
+.pino-toque path { fill: var(--primaria); stroke: #1b2230; stroke-width: 2; }
 .pino-toque circle { fill: #1b2230; }
 .toque-folha { display: grid; gap: 10px; }
 .folha .toque-titulo { font-size: 19px; overflow-wrap: anywhere; }
@@ -156,8 +162,7 @@
 .toque-botoes2 .btn { flex: 1; font-size: 15px; }
 
 /* relato: "SOS · Emergência" pequeno no pé do formulário do "!" */
-.folha .r-sos { justify-self: start; min-height: 48px; color: #ff8b84; border-color: #5a2a28; font-weight: 800; }
-:root[data-tema="claro"] .folha .r-sos { color: #b3261e; border-color: #e7b4ae; }
+.folha .r-sos { justify-self: start; min-height: 48px; color: var(--perigo-txt); border-color: var(--perigo-txt); font-weight: 800; }
 
 /* carregado/vazio: peso total só para "Carregado" */
 .nav-peso-rotulo input { min-height: 64px; font-size: 20px; font-weight: 700; }
@@ -166,13 +171,21 @@
 /* ------------------------------------------------------------ navegando: o mínimo
    Faixa verde no alto (ícone, distância, via; "Depois…" pequeno; engrenagem dentro dela, ui/configuracoes.js) e barra no pé
    (velocidade, hora de chegada, restante, "Encerrar"); "!" e "Falar" logo acima da barra, à direita. */
-#app.nav-ativa { --rodape-h: calc(84px + env(safe-area-inset-bottom, 0px)); }
+#app.nav-ativa { --rodape-h: calc(156px + env(safe-area-inset-bottom, 0px)); }
 #app.nav-ativa .barra-topo { display: none; }
 #app.nav-ativa .maplibregl-ctrl-bottom-right, #app.nav-ativa .maplibregl-ctrl-bottom-left { bottom: var(--rodape-h); }
-#app.nav-ativa .velocidade { width: 72px; height: 72px; bottom: calc(6px + env(safe-area-inset-bottom, 0px)); z-index: 2; box-shadow: none; border-color: transparent; }
-#app.nav-ativa .velocidade b { font-size: 26px; }
+/* velocidade navegando (lote 1): linha larga no alto do pé, número grande à esquerda e placa de limite à direita; fica por
+   cima da barra (.nav-rodape) e não recebe toque (pointer-events: none) */
+#app.nav-ativa .velocidade, #app.nav-ativa .velocidade:has(> .limite-placa:not([hidden])) {
+  left: max(14px, env(safe-area-inset-left, 0px)); right: max(14px, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+  width: auto; height: 72px; padding: 0; border-radius: 16px; z-index: 2; box-shadow: none; border-color: transparent; background: transparent;
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px; text-align: left; pointer-events: none;
+}
+#app.nav-ativa .velocidade b { font-size: 56px; order: 1; letter-spacing: -.02em; }
+#app.nav-ativa .velocidade > span { order: 2; font-size: 16px; font-weight: 700; color: var(--texto); letter-spacing: .04em; align-self: flex-end; padding-bottom: 12px; }
+#app.nav-ativa .velocidade .limite-placa { order: 3; margin: 0 0 0 auto; }
 #app.nav-ativa .msg-mapa { bottom: calc(var(--rodape-h) + 12px); }
-.nav-manobra .btn-config { width: 56px; height: 56px; margin-left: auto; background: rgba(0, 0, 0, .25); border-color: rgba(255, 255, 255, .35); color: #fff; box-shadow: none; }
+.nav-manobra .btn-config { width: 64px; height: 64px; margin-left: auto; background: var(--campo); border-color: var(--linha); color: var(--texto); box-shadow: none; }
 .busca-aviso { margin: 0 0 8px; font-size: 14px; color: var(--suave); }
 .busca-item.busca-resultado::before { border-color: var(--acento); background: var(--acento); }
 /* cartão "Ativar o GPS": abaixo da busca e à esquerda da coluna de botões ("Falar" e "!" continuam tocáveis); se não

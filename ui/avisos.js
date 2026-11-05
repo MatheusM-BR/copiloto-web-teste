@@ -156,19 +156,68 @@
     const km = $("km-atual");
     if (km && km.parentNode === p) p.insertBefore(faixa, km.nextSibling); else { const seg = $("nav-seguinte"); if (seg && seg.parentNode === p) p.insertBefore(faixa, seg.nextSibling); else p.appendChild(faixa); }
   }
+  // Restrição que o caminhão não passa (lote 1): a faixa vira o cartão vermelho "VOCÊ NÃO PASSA" com os dois números (limite da
+  // via × seu caminhão, só quando o dado existe), a distância ao vivo e dois botões de 84 px. A voz e a lógica são as mesmas.
+  let cartaoAtivo = null; // aviso do cartão aberto (para atualizar a distância e saber o que "Desviar" refaz)
+  function textoDist(distM) { return distM < 50 ? "aqui" : D.fmtDistRota(distM); }
+  function montarCritico(a, distM) {
+    cartaoAtivo = a;
+    const cab = el("div", "critico-cab");
+    if (window.CopilotoIcones) cab.append(window.CopilotoIcones.no("aviso"));
+    cab.append(el("b", "critico-titulo", "VOCÊ NÃO PASSA"));
+    const linha = el("div", "critico-linha");
+    linha.append(el("span", "aviso-dado-texto", a.texto), el("span", "aviso-dado-dist", textoDist(distM)));
+    faixa.append(cab, linha);
+    const lim = Dv && a.detalhe ? Dv.paraLimites(String(a.detalhe).split("; ")[0]) : null;
+    if (lim) {
+      const caixa = (rotulo, valor, cls) => { const c = el("div", "critico-num " + cls); c.append(el("small", null, rotulo), el("b", null, valor)); return c; };
+      const nums = el("div", "critico-nums");
+      nums.append(caixa("Limite da via", Dv.textoMedida(lim.limite, lim.unidade), "via"), caixa("Seu caminhão", Dv.textoMedida(lim.veiculo, lim.unidade), "caminhao"));
+      faixa.append(nums);
+    }
+    const msg = el("p", "critico-msg"); msg.id = "critico-msg"; msg.hidden = true;
+    const bot = el("div", "critico-botoes");
+    const des = botao("Desviar", "btn critico-btn critico-desviar", async () => {
+      if (!C.desvio || !C.desvio.desviarAgora) return;
+      if (!online()) { msg.textContent = "Sem internet para calcular o desvio."; msg.hidden = false; return; }
+      des.disabled = true; des.textContent = "Procurando desvio…"; msg.hidden = true;
+      let fase = null;
+      try { fase = await C.desvio.desviarAgora(); } catch (e) { fase = "falha"; }
+      if (fase === "ok" || fase === "parcial") { esconderFaixa(); return; } // a rota nova entrou (banner "Rota alterada…" de ui/desvio.js)
+      des.disabled = false; des.textContent = "Desviar";
+      msg.textContent = fase === "sem" ? "Sem caminho que evite a restrição; confirme a medida no local." : "Não deu para calcular o desvio agora.";
+      msg.hidden = false;
+    });
+    des.id = "critico-desviar";
+    const mesmo = botao("Seguir mesmo assim", "btn critico-btn critico-mesmo", () => {
+      const r = C.rota.atual();
+      if (r && Array.isArray(r.coords)) mesmoAssim.add(D.chaveRota(r.coords));
+      if (C.desvio && C.desvio.aceitar) C.desvio.aceitar(r); // o resumo da viagem guarda "restrição mantida por decisão do motorista"
+      esconderFaixa();
+    });
+    mesmo.id = "critico-mesmo";
+    bot.append(des, mesmo);
+    faixa.append(bot, msg);
+  }
   function mostrarFaixa(a, distM) {
     if (!faixa) criarFaixa(); if (!faixa) return;
     faixa.textContent = "";
-    if (window.CopilotoIcones) { const w = el("span", "dados-aviso-ico"); w.append(window.CopilotoIcones.no(ICONE_AVISO[a.tipo] || "aviso")); faixa.append(w); } // r6: símbolo do aviso
-    faixa.append(el("span", "aviso-dado-texto", a.texto), el("span", "aviso-dado-dist", distM < 50 ? "aqui" : D.fmtDistRota(distM)));
+    cartaoAtivo = null;
+    const critico = a.tipo === "restricao";
+    faixa.classList.toggle("critico", critico);
+    if (critico) montarCritico(a, distM);
+    else {
+      if (window.CopilotoIcones) { const w = el("span", "dados-aviso-ico"); w.append(window.CopilotoIcones.no(ICONE_AVISO[a.tipo] || "aviso")); faixa.append(w); } // r6: símbolo do aviso
+      faixa.append(el("span", "aviso-dado-texto", a.texto), el("span", "aviso-dado-dist", textoDist(distM)));
+    }
     faixa.dataset.tipo = a.tipo; faixa.hidden = false;
-    clearTimeout(faixaTimer); faixaTimer = setTimeout(esconderFaixa, 20000);
+    clearTimeout(faixaTimer); faixaTimer = setTimeout(esconderFaixa, critico ? 60000 : 20000);
   }
   const ICONE_AVISO = { restricao: "aviso", perigoso: "aviso", balanca: "balanca", balsa: "rota", curva: "reta", passagem_nivel: "aviso", lombada: "aviso", lombadas: "aviso",
     radar: "r_radar", praca_pedagio: "pedagio", obra: "obras", area_escape: "reta", perigo: "aviso" };
   // intervalo mínimo entre falas (20 s; window.COPILOTO_AVISO_INTERVALO_MS encurta nos testes)
   function opcoesAvisador() { const ms = Number(window.COPILOTO_AVISO_INTERVALO_MS); return ms > 0 ? { intervaloMs: ms } : {}; }
-  function esconderFaixa() { clearTimeout(faixaTimer); if (faixa) faixa.hidden = true; }
+  function esconderFaixa() { clearTimeout(faixaTimer); cartaoAtivo = null; if (faixa) { faixa.hidden = true; faixa.classList.remove("critico"); } }
   function falar(a, distM) {
     if (!C.voz || !C.voz.falar) return;
     // restrição do caminhão é segurança: espera o alerta/manobra acabar sem ser descartada por tempo e aborta o microfone aberto
@@ -192,6 +241,12 @@
     if (avisadorChave !== e.chave) { avisadorChave = e.chave; avisador = D.criarAvisador(e.avisos, opcoesAvisador()); selecionada = e.chave; }
     if (!avisador) return;
     pedirDesvioNavegando(e, d.progresso_m);
+    // o cartão "Você não passa" mostra a distância ao vivo; passou do ponto, some
+    if (cartaoAtivo && faixa && !faixa.hidden) {
+      const falta = cartaoAtivo.ao_longo_m - d.progresso_m;
+      if (falta < -40) esconderFaixa();
+      else { const dist = faixa.querySelector(".aviso-dado-dist"); if (dist) dist.textContent = textoDist(Math.max(0, falta)); }
+    }
     const g = C.estado.gps;
     const r = avisador.atualizar({ progressoM: d.progresso_m, kmh: g ? g.kmh : null });
     if (r.falar) { mostrarFaixa(r.falar, r.distanciaM); falar(r.falar, r.distanciaM); }
@@ -263,9 +318,17 @@
       bloco.dataset.estado = res.violadas.length ? "viola" : res.condicionais.length ? "condicional" : "ok";
       if (res.violadas.length && !mesmoAssim.has(e.chave)) {
         const c = el("div", "dados-restr-cartao viola"); c.id = "dados-restr-viola"; c.setAttribute("role", "alert");
+        c.append(el("b", "dados-restr-nao-passa", "VOCÊ NÃO PASSA")); // lote 1 (Stitch P2.3): o aviso grande; o título abaixo diz quantas
         const h3 = el("h3", null, D.tituloRestricoes(res.violadas.length));
         if (window.CopilotoIcones) window.CopilotoIcones.prefixar(h3, "aviso"); // r6: triângulo antes do título (o texto fica)
         c.append(h3);
+        const lim0 = Dv && res.violadas[0].viola && res.violadas[0].viola[0] ? Dv.paraLimites(res.violadas[0].viola[0]) : null;
+        if (lim0) { // os dois números da primeira restrição (a lista abaixo traz todas, por extenso)
+          const caixa = (rotulo, valor) => { const n = el("div", "critico-num"); n.setAttribute("aria-hidden", "true"); n.append(el("small", null, rotulo), el("b", null, valor)); return n; };
+          const nums = el("div", "critico-nums");
+          nums.append(caixa("Limite da via", Dv.textoMedida(lim0.limite, lim0.unidade)), caixa("Seu caminhão", Dv.textoMedida(lim0.veiculo, lim0.unidade)));
+          c.append(nums);
+        }
         for (const x of res.violadas.slice(0, 12)) c.append(itemRestricao(x, e, "viola"));
         if (res.violadas.length > 12) c.append(el("p", "dica", "e mais " + (res.violadas.length - 12) + "."));
         const dv = C.desvio ? C.desvio.estado(r) : null;
@@ -280,7 +343,7 @@
         }
         const ver = botao("Ver no mapa", "btn", () => verNoMapa(r, "restricoes")); ver.id = "dados-restr-ver";
         if (window.CopilotoIcones) window.CopilotoIcones.prefixar(ver, "mapa");
-        const ok = botao("Mesmo assim", "btn dados-restr-mesmo", () => { mesmoAssim.add(e.chave); if (C.desvio && C.desvio.aceitar) C.desvio.aceitar(r); avisar(e, "restricoes"); }); ok.id = "dados-restr-mesmo";
+        const ok = botao("Seguir mesmo assim", "btn dados-restr-mesmo", () => { mesmoAssim.add(e.chave); if (C.desvio && C.desvio.aceitar) C.desvio.aceitar(r); avisar(e, "restricoes"); }); ok.id = "dados-restr-mesmo";
         bot.append(ver, ok); c.append(bot);
         // restrição do OSM é dado da comunidade: limite da via × veículo está em cada item; quem decide é o motorista
         c.append(el("p", "dados-fonte", (Dv ? Dv.AVISO_FONTE : "Segundo o mapa (OSM), dado da comunidade, estimado.") + " " + (res.fonte || "© OpenStreetMap contributors (ODbL)") + ". A ausência de restrição no mapa não libera a via."));

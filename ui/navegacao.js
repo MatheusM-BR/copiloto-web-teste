@@ -993,7 +993,12 @@
     const fim = el("button", "btn nav-encerrar"); fim.type = "button"; fim.id = "nav-encerrar";
     fim.append(el("span", "nav-encerrar-icone", "✕"), el("span", "nav-encerrar-texto", "Encerrar"));
     fim.setAttribute("aria-label", "Encerrar navegação"); fim.addEventListener("click", () => confirmarEncerrar());
-    rod.append(info, ver, fim);
+    // lote 1: atalho dos postos à frente como ícone de 64 px (a lista é a mesma de sempre, ui/postos.js)
+    const posto = el("button", "btn nav-postos"); posto.type = "button"; posto.id = "nav-atalho-postos";
+    posto.setAttribute("aria-label", "Postos à frente"); posto.title = "Postos à frente";
+    if (window.CopilotoIcones) posto.append(window.CopilotoIcones.no("bomba", { classe: "ico" })); else posto.textContent = "⛽";
+    posto.addEventListener("click", () => { if (C.postos && C.postos.abrirProximo) C.postos.abrirProximo(); });
+    rod.append(info, posto, ver, fim);
     const av = el("div", "nav-aviso"); av.id = "nav-aviso"; av.hidden = true;
     av.addEventListener("click", () => mostrarAviso(false));
     p.append(linha, seg, off, st, re, av);

@@ -1,17 +1,30 @@
 /* Base: cores, layout, mapa, botões, formulários e folha inferior (tela inicial, Configurações, busca, tema claro: interface.css). Pacotes NÃO editam este arquivo: cada um usa o seu (ver ARQUITETURA.md). */
 /* Layout: mapa em tela cheia, faixa de aviso fixa no topo, velocidade no canto, navegação embaixo. */
 :root {
-  --bg: #14181f;
-  --painel: #1d232d;
-  --linha: #2c3542;
-  --texto: #eef1f5;
-  --suave: #9aa6b6;
-  --acento: #f2a43a;
-  --acento-texto: #1a1204;
-  --perigo: #c8322b;
-  --perigo-texto: #fff;
-  --ok: #3fb67a;
-  --campo: #12161c;
+  /* Lote 1 (Stitch): azul = ação/rota/foco; âmbar só para atenção; vermelho para perigo. Claro: interface.css */
+  --bg: #0b0f17;
+  --painel: #151b27;
+  --linha: #2a3445;
+  --texto: #e6eaf2;
+  --suave: #a9b4c6;
+  --campo: #0f1520;
+  --primaria: #6ea8ff;
+  --primaria-texto: #06142e;
+  --primaria-forte: #1e4fa8;   /* fundo de blocos azuis com texto branco (seta da manobra, banner de desvio) */
+  --primaria-suave: #14233f;   /* fundo de item escolhido */
+  --acento: var(--primaria);   /* nome antigo: o que era "ação" laranja agora é azul */
+  --acento-texto: var(--primaria-texto);
+  --atencao: #ffc75a;          /* texto/borda de aviso */
+  --atencao-fundo: #ffc75a;    /* preenchimento de aviso (texto --atencao-fundo-texto) */
+  --atencao-fundo-texto: #1a1204;
+  --atencao-suave: #3a2a10;
+  --perigo: #ff6b5e;
+  --perigo-texto: #1a0604;     /* texto sobre --perigo (contraste >= 4,5:1) */
+  --perigo-txt: #ff8b84;       /* perigo como texto sobre a superfície */
+  --perigo-forte: #a31f14;     /* cartão de destaque (texto branco) */
+  --perigo-suave: #3a1414;
+  --ok: #4ade80;
+  --ok-fundo-texto: #04170b;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
@@ -81,12 +94,12 @@ main { position: relative; flex: 1; min-height: 0; }
   background: var(--painel); font-weight: 600;
 }
 .btn-principal { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
-.btn-perigo { color: #ff8b84; }
+.btn-perigo { color: var(--perigo-txt); }
 .btn-pequeno { min-height: 40px; padding: 0 12px; font-size: 14px; }
 
 .msg-mapa {
   position: absolute; top: 84px; left: 50%; transform: translateX(-50%);
-  background: var(--painel); border: 1px solid var(--acento); color: var(--texto);
+  background: var(--painel); border: 1px solid var(--atencao); color: var(--texto);
   border-radius: 10px; padding: 8px 12px; font-size: 14px; width: max-content; max-width: 90%;
   pointer-events: none; /* só informa: nunca tapa um botão */
 }
@@ -108,8 +121,8 @@ input, select {
   width: 100%; min-height: 46px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--linha);
   background: var(--campo); color: var(--texto);
 }
-input[aria-invalid="true"] { border-color: #ff8b84; }
-.erro { color: #ff8b84; font-size: 13px; min-height: 0; }
+input[aria-invalid="true"] { border-color: var(--perigo-txt); }
+.erro { color: var(--perigo-txt); font-size: 13px; min-height: 0; }
 .dica { color: var(--suave); font-size: 13px; margin: 0; }
 
 .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { z-index: 2; }
@@ -180,7 +193,7 @@ input[aria-invalid="true"] { border-color: #ff8b84; }
 @media (orientation: landscape) and (max-height: 540px) {
   .aviso-paisagem {
     display: flex; position: fixed; top: 0; left: 0; right: 0; height: 36px; z-index: 20; align-items: center; justify-content: center;
-    gap: 8px; background: var(--acento); color: var(--acento-texto); font-size: 15px; white-space: nowrap; overflow: hidden;
+    gap: 8px; background: var(--atencao-fundo); color: var(--atencao-fundo-texto); font-size: 15px; white-space: nowrap; overflow: hidden;
     padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px));
   }
   .aviso-paisagem-icone { font-size: 20px; line-height: 1; transform: rotate(-90deg); }
@@ -189,4 +202,4 @@ input[aria-invalid="true"] { border-color: #ff8b84; }
 }
 
 /* SOS (aba Emergência): posição velha (GPS sem sinal) em destaque de atenção */
-.e5-coord.e5-velha { color: #ffd9a1; }
+.e5-coord.e5-velha { color: var(--atencao); }

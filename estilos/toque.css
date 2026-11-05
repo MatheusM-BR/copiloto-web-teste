@@ -9,10 +9,10 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, .45); -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
 .btn-sos[hidden] { display: none; }
-/* navegando: o velocímetro é menor e a barra do pé tem 84 px; o SOS fica logo acima do velocímetro */
-#app.nav-ativa .btn-sos { bottom: calc(6px + env(safe-area-inset-bottom, 0px) + 72px + 10px); }
+/* navegando (lote 1): SOS pequeno (56 px) no canto, logo acima do pé e longe do "Encerrar" (que fica à direita do pé) */
+#app.nav-ativa .btn-sos { bottom: calc(var(--rodape-h) + 10px); width: 56px; height: 56px; font-size: 16px; border-width: 2px; }
 @media (orientation: landscape) and (max-height: 540px) {
-  #app.nav-ativa .btn-sos { bottom: calc(4px + 64px + 10px); }
+  #app.nav-ativa .btn-sos { bottom: calc(var(--rodape-h) + 6px); }
 }
 
 /* ------------------------------------------------------------ folha: cabeçalho e rodapé fixos, meio rola (itens 8, 11, 14) */
@@ -33,13 +33,11 @@
 /* relato: título + SOS na mesma linha, no topo; contagem do envio automático e botões grandes no rodapé */
 .r-topo { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .folha .r-topo h2 { min-width: 0; }
-.folha .r-topo .r-sos { min-height: 64px; min-width: 96px; font-size: 20px; font-weight: 900; color: #fff; background: var(--perigo); border-color: var(--perigo); }
-:root[data-tema="claro"] .folha .r-topo .r-sos { color: #fff; border-color: var(--perigo); }
-.r-rodape .r-contagem { margin: 0; font-size: 17px; font-weight: 800; color: var(--acento-escuro, #ffd9a1); text-align: center; }
+.folha .r-topo .r-sos { min-height: 64px; min-width: 96px; font-size: 20px; font-weight: 900; color: var(--perigo-texto); background: var(--perigo); border-color: var(--perigo); }
+.r-rodape .r-contagem { margin: 0; font-size: 17px; font-weight: 800; color: var(--acento-escuro, var(--atencao)); text-align: center; }
 .r-rodape .r-contagem[hidden] { display: none; }
 .r-rodape .r-botoes { grid-template-columns: 1fr 1fr; }
-.r-rodape .r-botoes .contando { border-color: var(--perigo); color: #ff8b84; font-weight: 800; }
-:root[data-tema="claro"] .r-rodape .r-botoes .contando { color: #b3261e; }
+.r-rodape .r-botoes .contando { border-color: var(--perigo); color: var(--perigo-txt); font-weight: 800; }
 .r-rodape .r-erro { margin: 0; text-align: center; }
 .btn.r-ir-conta { min-height: 64px; }
 

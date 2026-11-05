@@ -9,7 +9,7 @@
 .reputacao-num { font-size: 34px; font-weight: 800; color: var(--acento); font-variant-numeric: tabular-nums; line-height: 1.1; }
 .msg-conta { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--acento); font-size: 15px; }
 .msg-conta[hidden] { display: none; }
-.msg-conta.erro-msg { border-color: #ff8b84; color: #ffd0cc; }
+.msg-conta.erro-msg { border-color: var(--perigo-txt); color: #ffd0cc; }
 .email-conta { word-break: break-all; color: var(--texto); }
 
 /* Entrar com Google (acima do e-mail/senha) */

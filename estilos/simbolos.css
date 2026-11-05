@@ -11,15 +11,10 @@
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
 .voz-modo-btn .voz-modo-ico { width: 34px; height: 34px; }
-.voz-modo-btn.escolhido, .voz-modo-btn[aria-checked="true"] { border-color: var(--acento); background: #3a2a10; box-shadow: 0 0 0 2px var(--acento) inset; }
-:root[data-tema="claro"] .voz-modo-btn.escolhido, :root[data-tema="claro"] .voz-modo-btn[aria-checked="true"] { background: #fff1db; }
+.voz-modo-btn.escolhido, .voz-modo-btn[aria-checked="true"] { border-color: var(--acento); background: var(--primaria-suave); box-shadow: 0 0 0 2px var(--acento) inset; }
 .voz-modo-btn:disabled { opacity: .5; }
 /* relato: ícone grande em cima do nome; o nome continua (tipos de risco não podem ficar ambíguos) */
-.r-tipo-btn { min-height: 84px; }
-.r-tipo-btn .r-ico { width: 38px; height: 38px; color: var(--acento); }
-:root[data-tema="claro"] .r-tipo-btn .r-ico { color: var(--acento-escuro); }
-.r-tipo-btn.risco .r-ico { color: #ff8b84; }
-:root[data-tema="claro"] .r-tipo-btn.risco .r-ico { color: #b3261e; }
+.r-tipo-btn .r-ico { width: 40px; height: 40px; color: var(--acento); flex: none; }
 .relato-rodovia { font-weight: 700; font-variant-numeric: tabular-nums; }
 /* configurações: ícone antes do item do menu e dentro dos botões de tema/mapa */
 .cfg-menu > button .cfg-item { display: inline-flex; align-items: center; }

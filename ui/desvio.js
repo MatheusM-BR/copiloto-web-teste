@@ -22,6 +22,33 @@
   const tentadasNav = new Set(); // ids de restrição já tentadas navegando (uma tentativa por restrição)
   let aceitoDestino = null, emNav = false, ultimaFalhaNav = 0, ultimoDestino = null;
   const NAV_REPETE_FALHA_MS = 60000, NAV_LIMITE_MS = 12000;
+  let ultimoProgresso = 0, bannerTimer = null;
+  const { el, botao } = C.util;
+  const BANNER_MS = 15000;
+
+  // Lote 1: banner azul no topo da navegação quando o app troca de rota por conta de uma restrição. Só informa (a troca já
+  // aconteceu e foi falada); "Entendi" fecha. Sem "+N km · +N min" quando a conta não fecha: nunca inventa número.
+  function textoExtra(base, nova) {
+    const e = Dv.extra(base, nova);
+    const parte = (v, un) => (isFinite(v) && Math.abs(v) >= 0.5 ? (v > 0 ? "+" : "\u2212") + (Math.abs(v) < 10 ? (Math.round(Math.abs(v) * 10) / 10).toString().replace(".", ",") : Math.round(Math.abs(v))) + " " + un : null);
+    return [parte(e.km, "km"), parte(e.minutos, "min")].filter(Boolean).join(" · ");
+  }
+  function esconderBanner() { clearTimeout(bannerTimer); const b = document.getElementById("desvio-banner"); if (b) b.hidden = true; }
+  function mostrarBanner(res, base) {
+    const p = document.getElementById("nav-painel"); if (!p) return;
+    let b = document.getElementById("desvio-banner");
+    if (!b) { b = el("div", "desvio-banner"); b.id = "desvio-banner"; b.setAttribute("role", "status"); p.insertBefore(b, p.firstChild); }
+    b.textContent = "";
+    const n = res.restantes ? res.restantes.length : 0;
+    const titulo = res.fase === "ok" ? "Rota alterada para evitar restrição" : "Rota alterada, mas ainda passa por " + n + (n === 1 ? " restrição" : " restrições");
+    const texto = el("div", "desvio-texto"); texto.append(el("b", "desvio-titulo", titulo));
+    const extra = textoExtra(base, res.nova);
+    if (extra) texto.append(el("span", "desvio-extra", extra));
+    if (window.CopilotoIcones) { const w = el("span", "desvio-ico"); w.append(window.CopilotoIcones.no("rota")); b.append(w); }
+    const ok = botao("Entendi", "btn desvio-ok", esconderBanner); ok.id = "desvio-banner-ok";
+    b.append(texto, ok); b.hidden = false;
+    clearTimeout(bannerTimer); bannerTimer = setTimeout(esconderBanner, BANNER_MS);
+  }
 
   const chave = (r) => D.chaveRota(r.coords);
   const chaveDestino = (d) => (d ? d.lat.toFixed(6) + "," + d.lon.toFixed(6) : null);
@@ -128,14 +155,19 @@
     const d = base.destino;
     return !!(await C.navegacao.trocarDestino({ lat: d.lat, lon: d.lon, rotulo: base.rotulo || null }));
   }
-  async function navegando(info) {
-    if (emNav || !navAtiva() || !info || !C.dadosRota) return;
+  // opt.forcar: botão "Desviar" do cartão "Você não passa" (ui/avisos.js): mesma busca de sempre, sem a regra dos 3 km, das
+  // tentativas anteriores nem do "Mesmo assim"; devolve a fase ("ok", "parcial", "sem", "falha") ou null se nada foi feito.
+  async function navegando(info, opt) {
+    const forcar = !!(opt && opt.forcar);
+    if (emNav || !navAtiva() || !info || !C.dadosRota) return null;
     const base = C.rota.atual(), gps = C.estado.gps;
-    if (!base || !base.destino || !gps || navigator.onLine === false) return;
-    if (aceitoDestino && aceitoDestino === chaveDestino(base.destino)) return;
-    if (Date.now() - ultimaFalhaNav < NAV_REPETE_FALHA_MS) return;
-    const novas = Dv.paraRecalcularNavegando(info.violadas, info.progressoM, tentadasNav);
-    if (!novas.length) return;
+    if (!base || !base.destino || !gps || navigator.onLine === false) return null;
+    if (!forcar && aceitoDestino && aceitoDestino === chaveDestino(base.destino)) return null;
+    if (!forcar && Date.now() - ultimaFalhaNav < NAV_REPETE_FALHA_MS) return null;
+    const novas = forcar ? (info.violadas || []).filter((r) => r && typeof r.ao_longo_m === "number" && r.ao_longo_m - info.progressoM > -40)
+      : Dv.paraRecalcularNavegando(info.violadas, info.progressoM, tentadasNav);
+    if (!novas.length) return null;
+    let fase = null;
     emNav = true;
     for (const r of novas) tentadasNav.add(r.id);
     const ativo = C.rota.desvioAtivo();
@@ -143,25 +175,38 @@
     try {
       const res = await procurar({ origem: base.origem, destino: base.destino, perfil: base.perfil, rotulo: base.rotulo, km: info.km || base.km, minutos: info.minutos || base.minutos },
         novas, { origem: { lat: gps.lat, lon: gps.lon }, alvos, tempoLimiteMs: NAV_LIMITE_MS });
-      if (!navAtiva()) return;
+      if (!navAtiva()) return null;
+      fase = res.fase;
       if (res.fase === "ok" || res.fase === "parcial") {
         C.rota.definirDesvio({ destino: base.destino, alvos: res.alvos, registro: res.registro });
         falouInicio.add(res.registro.map((x) => x.id).join(","));
         for (const x of res.registro) falouPerto.add(x.id);
         const adotou = await adotar(res.nova, base);
-        if (!adotou) { C.rota.definirDesvio(ativo); for (const r of novas) tentadasNav.delete(r.id); ultimaFalhaNav = Date.now(); return; }
+        if (!adotou) { C.rota.definirDesvio(ativo); for (const r of novas) tentadasNav.delete(r.id); ultimaFalhaNav = Date.now(); return "falha"; }
         const fala = res.fase === "ok" ? Dv.falaDesvio(res.evitadas)
           : "Rota alterada, mas ainda passa por " + res.restantes.length + (res.restantes.length === 1 ? " restrição" : " restrições") + ". Confirme a medida no local.";
         falarSeguranca(fala);
-        C.mensagem(res.fase === "ok" ? fala.replace(/\.$/, "") + " (" + res.etiqueta + ")." : fala, 9000);
+        mostrarBanner(res, { km: info.km || base.km, minutos: info.minutos || base.minutos }); // lote 1: o banner azul no lugar da mensagem
+        if (res.fase !== "ok") C.mensagem(fala, 9000);
       } else if (res.fase === "sem") {
         falarSeguranca(Dv.falaSemDesvio(novas));
         C.mensagem(Dv.textoSemDesvio(novas), 10000);
-      } else { for (const r of novas) tentadasNav.delete(r.id); ultimaFalhaNav = Date.now(); } // sem rede: tenta de novo mais tarde
+      } else { for (const r of novas) tentadasNav.delete(r.id); ultimaFalhaNav = Date.now(); if (forcar) C.mensagem("Não deu para calcular o desvio agora (servidor de rotas). Tente de novo.", 8000); } // sem rede: tenta de novo mais tarde
     } catch (e) {
       for (const r of novas) tentadasNav.delete(r.id);
       ultimaFalhaNav = Date.now();
+      fase = "falha";
     } finally { emNav = false; }
+    return fase;
+  }
+  // "Desviar" do cartão "Você não passa" (navegando): refaz o desvio das restrições da rota que ainda estão à frente
+  async function desviarAgora() {
+    const rota = C.rota.atual();
+    if (!navAtiva() || !rota || !C.dadosRota) return null;
+    const res = C.dadosRota.restricoesJa(rota);
+    if (!res || !res.violadas.length) return null;
+    aceitoDestino = null; // o motorista pediu o desvio agora: vale de novo
+    return navegando({ coords: rota.coords, violadas: res.violadas, progressoM: ultimoProgresso }, { forcar: true });
   }
   // fala de segurança: sem naoInterromper, corta fala não crítica (a voz é da equipe de voz; aqui só se usa C.voz.falar)
   function falarSeguranca(texto) { try { if (C.voz && C.voz.falar) C.voz.falar(texto, { seguranca: true }); } catch (e) { /* sem voz */ } }
@@ -185,7 +230,7 @@
     }
   }
 
-  C.desvio = { estado, desviar, aceitar, navegando, procurar, buscar };
+  C.desvio = { estado, desviar, aceitar, navegando, desviarAgora, procurar, buscar };
   C.aoIniciar(() => {
     C.on("dados:rota", aoRestricoes);
     C.on("rota-limpa", () => { estados.clear(); tentadasNav.clear(); aceitoDestino = null; ultimaFalhaNav = 0; ultimoDestino = null; });
@@ -196,7 +241,10 @@
       ultimoDestino = k; estados.clear(); tentadasNav.clear(); if (k !== aceitoDestino) aceitoDestino = null;
     });
     C.on("veiculo", () => { estados.clear(); });
-    C.on("navegacao", (d) => { if (d && d.ativa === false) { tentadasNav.clear(); emNav = false; falouInicio.clear(); falouPerto.clear(); } else aoNavegarFalar(d); });
+    C.on("navegacao", (d) => {
+      if (d && d.ativa === false) { tentadasNav.clear(); emNav = false; falouInicio.clear(); falouPerto.clear(); esconderBanner(); ultimoProgresso = 0; }
+      else { if (d && typeof d.progresso_m === "number") ultimoProgresso = d.progresso_m; aoNavegarFalar(d); }
+    });
     // folha da rota: linha curta e discreta quando a rota escolhida já sai desviada (acompanha a escolha)
     C.rotaExtras.antesIniciar = C.rotaExtras.antesIniciar || [];
     C.rotaExtras.antesIniciar.push(function (r) {

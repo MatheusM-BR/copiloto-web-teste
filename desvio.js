@@ -160,6 +160,16 @@
     const un = " " + m[3].toLowerCase();
     return m[1].toLowerCase() + ": limite da via " + fmt(num(m[4])) + un + " · seu caminhão " + fmt(num(m[2])) + un;
   }
+  // Os dois números do cartão "Você não passa": { dimensao, veiculo, limite, unidade } a partir de "altura 4.4 m > limite 4.2 m"
+  // (null se o texto não tiver esse formato: sem número, o cartão não mostra a comparação).
+  function paraLimites(motivo) {
+    const m = /^\s*([a-zçã]+)\s+([\d.,]+)\s*(m|t)\s*>\s*limite\s+([\d.,]+)/i.exec(String(motivo || ""));
+    if (!m) return null;
+    const veiculo = num(m[2]), limite = num(m[4]);
+    return veiculo == null || limite == null ? null : { dimensao: m[1].toLowerCase(), veiculo, limite, unidade: m[3].toLowerCase() };
+  }
+  // "4,20 m" (metros com 2 casas) · "20 t"
+  function textoMedida(v, unidade) { return unidade === "m" ? (Math.round(v * 100) / 100).toFixed(2).replace(".", ",") + " m" : fmt(v) + " " + unidade; }
   const AVISO_FONTE = "Segundo o mapa (OSM), dado da comunidade: pode estar errado ou desatualizado. O motorista decide; confirme a medida no local.";
 
   // Quem pede o desvio navegando: restrições violadas a ≥ 3 km à frente do progresso, ainda não tentadas.
@@ -194,7 +204,7 @@
   function falaPerto(r) { const n = r.falado || nomeFalado(r); return "Estamos desviando " + (/^(ponte|balsa|restrição)/.test(n) ? "da " : "do ") + n + ", siga a rota."; }
 
   const api = { FACIL_KM, FACIL_MIN, facil, extra, registro, linhaFolha, falaInicio, falaPerto, LADO_M, MAX_POLIGONOS, NAV_MIN_ADIANTE_M, quadrado, distM, acumular, aneis, aplicar, etiqueta, deltaKm, deltaMin, evitadasEntre,
-    dimensaoViolada, nomeFalado, nomeCurto, falaDesvio, falaSemDesvio, textoSemDesvio, textoParcial, textoLimites, AVISO_FONTE, paraRecalcularNavegando };
+    dimensaoViolada, nomeFalado, nomeCurto, falaDesvio, falaSemDesvio, textoSemDesvio, textoParcial, textoLimites, paraLimites, textoMedida, AVISO_FONTE, paraRecalcularNavegando };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoDesvio = api;
 })(typeof window !== "undefined" ? window : globalThis);

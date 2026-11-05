@@ -1,5 +1,5 @@
 /* Destino e rota (ui/rota.js) */
-.folha .aviso-rota { color: #ffd9a1; font-size: 13px; border-left: 3px solid var(--acento); padding-left: 10px; }
+.folha .aviso-rota { color: var(--atencao); font-size: 13px; border-left: 3px solid var(--acento); padding-left: 10px; }
 .btn-redondo.destino[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); }
 /* Alternativas de rota (ui/rota.js + alternativas.js): cartões compactos ≥ 64 px, a escolhida em azul (como a linha) */
 .rota-opcoes { display: grid; gap: 8px; min-width: 0; }

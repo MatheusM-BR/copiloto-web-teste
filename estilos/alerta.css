@@ -2,55 +2,62 @@
 /* Alerta de relato à frente (estilo Waze) */
 .alerta {
   position: absolute; z-index: 8; left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); top: 8px;
-  background: var(--painel); border: 3px solid var(--acento); border-radius: 18px; padding: 14px; display: grid; gap: 8px;
+  background: var(--painel); border: 3px solid var(--atencao); border-radius: 18px; padding: 14px; display: grid; gap: 8px;
   box-shadow: 0 8px 28px rgba(0,0,0,.5);
 }
 .alerta[hidden] { display: none; }
-.alerta.nivel-disputed { border-style: dashed; border-color: #ffd9a1; }
+.alerta.nivel-disputed { border-style: dashed; border-color: var(--atencao); }
 .alerta.nivel-confirmed { border-color: var(--ok); }
 .alerta-topo { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.alerta-sigla { background: var(--acento); color: var(--acento-texto); font-weight: 900; font-size: 14px; border-radius: 8px; padding: 4px 8px; white-space: nowrap; }
-.alerta-titulo { font-size: 21px; font-weight: 800; line-height: 1.15; min-width: 0; }
+.alerta-sigla { background: var(--atencao-fundo); color: var(--atencao-fundo-texto); font-weight: 900; font-size: 14px; border-radius: 8px; padding: 4px 8px; white-space: nowrap; }
+.alerta-titulo { font-size: 22px; font-weight: 800; line-height: 1.15; min-width: 0; }
 .alerta-dist { font-size: 40px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
 .alerta-nivel { font-size: 15px; color: var(--suave); font-weight: 600; }
-.alerta.nivel-disputed .alerta-nivel { color: #ffd9a1; }
+.alerta.nivel-disputed .alerta-nivel { color: var(--atencao); }
 .alerta-nota { margin: 0; font-size: 14px; color: var(--suave); }
 .alerta-nota[hidden], .alerta .botoes[hidden] { display: none; }
+/* contagem de votos do relato (lote 1): "6 confirmaram · 1 negou", sempre visível */
+.alerta-contagem { font-size: 15px; font-weight: 600; color: var(--texto); font-variant-numeric: tabular-nums; }
+.alerta-contagem[hidden] { display: none; }
 .alerta .botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
-.alerta button { min-height: 76px; border-radius: 14px; font-size: 19px; font-weight: 800; border: 0; }
-.alerta .sim { background: var(--ok); color: #06200f; }
-.alerta .nao { background: var(--perigo); color: #fff; }
+/* dois botões grandes (>= 72 px): "Continua lá" verde, "Não está mais" neutro; o ícone vem do CSS (o texto do botão não muda) */
+.alerta button { min-height: 76px; border-radius: 14px; font-size: 19px; font-weight: 800; border: 2px solid transparent; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.1; padding: 0 8px; }
+.alerta button::before { font-size: 26px; line-height: 1; font-weight: 900; }
+.alerta .sim { background: var(--ok); color: var(--ok-fundo-texto); }
+.alerta .sim::before { content: "✓"; }
+.alerta .nao { background: var(--campo); color: var(--texto); border-color: var(--linha); }
+.alerta .nao::before { content: "✕"; color: var(--perigo-txt); }
 /* E5: indicador discreto do nível (COM-05), alerta crítico de altura/peso (ALT-03) */
 .alerta-nivel[hidden], .alerta-veiculo[hidden] { display: none; }
 .alerta.nivel-reported { border-width: 2px; }
-.alerta.nivel-probable .alerta-nivel, .alerta.nivel-confirmed .alerta-nivel { color: var(--ok); font-size: 17px; letter-spacing: .1em; }
+.alerta.nivel-probable .alerta-nivel, .alerta.nivel-confirmed .alerta-nivel { color: var(--ok-texto); font-size: 17px; letter-spacing: .1em; }
 .alerta-veiculo { font-size: 17px; font-weight: 800; line-height: 1.25; }
-.alerta-veiculo.sem_dado { color: #ffd9a1; font-weight: 700; font-size: 15px; }
-.alerta.critico { border-color: var(--perigo); border-width: 4px; background: #3a1414; }
-.alerta.critico .alerta-sigla { background: var(--perigo); color: #fff; }
-.alerta.critico .alerta-veiculo { color: #fff; }
+.alerta-veiculo.sem_dado { color: var(--atencao); font-weight: 700; font-size: 15px; }
+.alerta.critico { border-color: var(--perigo); border-width: 4px; background: var(--perigo-suave); }
+.alerta.critico .alerta-sigla { background: var(--perigo); color: var(--perigo-texto); }
+.alerta.critico .alerta-veiculo { color: var(--texto); }
 
-/* Com a navegação ativa (B1): faixa compacta logo abaixo do painel de manobra, sem cobrir manobra, distância nem
-   "Encerrar" (--nav-fim vem de ui/navegacao.js). Uma linha: o quê e a que distância à esquerda, votos (64 px) à direita.
-   Enquanto ela está aberta, o painel esconde a linha "Depois:" e o aviso de carga para sobrar mapa. */
+/* Com a navegação ativa (lote 1): cartão logo abaixo do painel de manobra, sem cobrir manobra, distância nem "Encerrar"
+   (--nav-fim vem de ui/navegacao.js). Título e distância na primeira linha, contagem de votos e os dois botões grandes
+   (76 px) embaixo. Enquanto ele está aberto, o painel esconde "Depois:" e o aviso de carga para sobrar mapa. */
 #app.nav-ativa .alerta {
-  top: var(--nav-fim, 8px); padding: 6px 8px; gap: 4px 8px; border-width: 2px; border-radius: 14px;
+  top: var(--nav-fim, 8px); padding: 10px 12px 12px; gap: 4px 10px; border-width: 2px; border-radius: 16px;
   grid-template-columns: minmax(0, 1fr) auto; align-items: center;
 }
 #app.nav-ativa .alerta.critico { border-width: 3px; }
 #app.nav-ativa .alerta-topo { grid-column: 1; grid-row: 1; gap: 6px; }
 #app.nav-ativa .alerta-sigla { display: none; }
-#app.nav-ativa .alerta-titulo { font-size: 16px; line-height: 1.15; }
-#app.nav-ativa .alerta-dist { grid-column: 1; grid-row: 2; font-size: 24px; white-space: nowrap; }
-#app.nav-ativa .alerta .botoes { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; gap: 6px; grid-template-columns: 100px 100px; }
-#app.nav-ativa .alerta button { min-height: 64px; font-size: 15px; line-height: 1.1; padding: 0 6px; }
+#app.nav-ativa .alerta-titulo { font-size: 22px; line-height: 1.15; }
+#app.nav-ativa .alerta-dist { grid-column: 2; grid-row: 1; font-size: 30px; white-space: nowrap; text-align: right; }
+#app.nav-ativa .alerta .botoes { grid-column: 1 / -1; grid-row: auto; margin-top: 4px; gap: 10px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+#app.nav-ativa .alerta button { min-height: 76px; font-size: 19px; }
 #app.nav-ativa .alerta-veiculo, #app.nav-ativa .alerta-nota { grid-column: 1 / -1; }
-#app.nav-ativa .alerta-nivel { grid-column: 1; grid-row: 2; justify-self: end; font-size: 13px; }
+#app.nav-ativa .alerta-contagem { grid-column: 1; grid-row: 2; }
+#app.nav-ativa .alerta-nivel { grid-column: 2; grid-row: 2; justify-self: end; font-size: 14px; }
 #app.nav-ativa .alerta.nivel-disputed .alerta-nivel { grid-column: 1 / -1; grid-row: auto; justify-self: start; }
-#app.nav-ativa .alerta-veiculo { font-size: 15px; }
+#app.nav-ativa .alerta-veiculo { font-size: 16px; }
 #app.nav-ativa:has(#alerta:not([hidden])) .nav-seguinte,
 #app.nav-ativa:has(#alerta:not([hidden])) .nav-aviso:not(.pedido) { display: none; }
-@media (max-width: 359px) { #app.nav-ativa .alerta .botoes { grid-template-columns: 84px 84px; } }
 
 /* M2 (QA): com uma folha aberta (relato, postos, rota…), o alerta fica atrás dela e sem os botões de voto: um toque na
    folha nunca vira voto sem querer. O que sobra à vista continua avisando (tipo e distância); a voz não muda. */
@@ -59,7 +66,7 @@
 
 /* Voz perdida: aviso fixo, grande, tocável (iPhone mudo/bloqueado) */
 #aviso-sem-som { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 64px); z-index: 60;
-  min-height: 52px; padding: 12px 14px; border: 2px solid #fff; border-radius: 14px; background: #b45309; color: #fff;
+  min-height: 52px; padding: 12px 14px; border: 2px solid #fff; border-radius: 14px; background: var(--atencao-suave); color: var(--texto); border-color: var(--atencao);
   font: 700 16px/1.25 system-ui, sans-serif; box-shadow: 0 6px 18px rgba(0,0,0,.45); text-align: center; }
 #aviso-sem-som[hidden] { display: none; }
 #voz-testar { margin-top: 10px; min-height: 48px; width: 100%; }

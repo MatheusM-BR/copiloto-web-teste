@@ -101,6 +101,24 @@
     return e;
   }
 
+  // lote 1: contagem de votos do relato, sempre visível ("6 confirmaram · 1 negou")
+  function linhaContagem() {
+    let e = $("alerta-contagem");
+    if (!e) {
+      e = el("div", "alerta-contagem"); e.id = "alerta-contagem";
+      const nv = $("alerta-nivel"); nv.parentNode.insertBefore(e, nv.nextSibling);
+    }
+    return e;
+  }
+  function textoContagem(r) {
+    const c = Number(r.confirm_count) || 0, n = Number(r.deny_count) || 0;
+    if (!c && !n) return "Ninguém confirmou ainda";
+    const p = [];
+    if (c) p.push(c + (c === 1 ? " confirmou" : " confirmaram"));
+    if (n) p.push(n + (n === 1 ? " negou" : " negaram"));
+    return p.join(" · ");
+  }
+
   function mostrar(r, dist, abriu, fase) {
     alertaAtual = r;
     if (abriu) dispensadoId = null;
@@ -119,6 +137,7 @@
     nv.textContent = ind; nv.hidden = !ind;
     nv.setAttribute("aria-label", NuvemLib.textoNivel(r.level));
     nv.title = NuvemLib.textoNivel(r.level);
+    linhaContagem().textContent = textoContagem(r);
     const lv = linhaVeiculo();
     lv.textContent = cruz && cruz.texto ? cruz.texto : "";
     lv.hidden = !(cruz && cruz.texto);

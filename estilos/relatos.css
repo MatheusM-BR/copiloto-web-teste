@@ -1,6 +1,6 @@
 /* Relatos: marcadores e popups locais, da nuvem e pendentes (ui/relatos.js, ui/comunidade.js) */
 .relato-marca {
-  background: var(--acento); color: var(--acento-texto); font-weight: 800; font-size: 11px; letter-spacing: .02em;
+  background: var(--atencao-fundo); color: var(--atencao-fundo-texto); font-weight: 800; font-size: 11px; letter-spacing: .02em;
   border: 2px solid #fff; border-radius: 8px; padding: 2px 6px; white-space: nowrap; cursor: pointer;
 }
 .relato-marca.transitorio { background: #e5484d; color: #fff; }
@@ -10,9 +10,9 @@
 .popup-relato button { min-height: 36px; border-radius: 8px; border: 1px solid #c8322b; background: #fff; color: #c8322b; font-weight: 600; }
 /* Relatos da nuvem: estilo por nível */
 .relato-marca.nuvem.nivel-reported { background: #f6c27a; border-style: solid; opacity: .8; } /* COM-05: nível discreto, sem rótulo */
-.relato-marca.nuvem.nivel-probable { background: var(--acento); }
-.relato-marca.nuvem.nivel-confirmed { background: var(--ok); color: #06200f; }
-.relato-marca.nuvem.nivel-disputed { background: #2c3542; color: #ffd9a1; border: 2px dashed #ffd9a1; }
+.relato-marca.nuvem.nivel-probable { background: var(--atencao-fundo); }
+.relato-marca.nuvem.nivel-confirmed { background: var(--ok); color: var(--ok-fundo-texto); }
+.relato-marca.nuvem.nivel-disputed { background: #2c3542; color: var(--atencao); border: 2px dashed var(--atencao); }
 .relato-marca.nuvem.nivel-hidden { background: #5b6472; color: #eef1f5; border: 2px dashed #9aa6b6; opacity: .75; }
 .relato-marca.nuvem.meu { box-shadow: 0 0 0 2px #3b82f6; }
 .relato-marca.pendente { background: #5b6472; color: #fff; border: 2px dashed #fff; }
@@ -28,24 +28,24 @@
 .popup-relato .botoes-voto button { min-height: 64px; font-size: 16px; }
 .popup-relato .confirmar-retirar button { min-height: 48px; }
 
-/* A3: formulário de relato — grade de botões grandes por tipo (≥ 64 px), valor com teclado numérico */
-.folha .r-pergunta { color: var(--texto); font-size: 16px; font-weight: 600; }
-.r-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-@media (min-width: 560px) { .r-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* A3 + lote 1: formulário de relato — grade de 2 colunas, botões >= 84 px, ícone + nome curto (sem legenda), sem cor de
+   categoria: só a gravidade (acidente e ponte baixa) fica em vermelho; valor com teclado numérico */
+.folha .r-pergunta { color: var(--texto); font-size: 18px; font-weight: 700; }
+.r-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .r-tipo-btn {
-  min-height: 64px; padding: 6px 8px; border-radius: 12px; border: 2px solid var(--linha); background: var(--campo);
-  display: grid; place-items: center; align-content: center; gap: 2px; text-align: center;
+  min-height: 84px; padding: 8px 12px; border-radius: 16px; border: 2px solid var(--linha); background: var(--campo); color: var(--texto);
+  display: flex; align-items: center; justify-content: flex-start; gap: 12px; text-align: left;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-/* o nome diz o tipo (a sigla repetia o nome: ACID/Acidente); tipos de risco na estrada têm o contorno vermelho */
-.r-tipo-btn.risco { border-color: #c62f35; }
-.r-tipo-btn .r-nome { font-size: 16px; font-weight: 600; line-height: 1.15; color: var(--texto); }
-.r-tipo-btn.escolhido { border-color: var(--acento); background: #3a2a10; box-shadow: 0 0 0 2px var(--acento) inset; }
+.r-tipo-btn .r-nome { font-size: 18px; font-weight: 700; line-height: 1.15; color: var(--texto); min-width: 0; overflow-wrap: anywhere; }
+.r-tipo-btn.grave { border-color: var(--perigo-txt); background: var(--perigo-suave); }
+.r-tipo-btn.grave .r-ico { color: var(--perigo-txt); }
+.r-tipo-btn.escolhido { border-color: var(--acento); background: var(--primaria-suave); box-shadow: 0 0 0 2px var(--acento) inset; }
 .r-valor-rotulo[hidden] { display: none; }
 .r-valor-rotulo input { min-height: 64px; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.folha .r-erro { color: #ff8b84; font-size: 15px; font-weight: 600; }
+.folha .r-erro { color: var(--perigo-txt); font-size: 15px; font-weight: 600; }
 .folha .r-erro:empty { display: none; }
-.folha .r-idade { color: #ffd9a1; font-weight: 600; }
+.folha .r-idade { color: var(--atencao); font-weight: 600; }
 .folha .r-idade[hidden] { display: none; }
 .r-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .btn.r-ir-conta { min-height: 48px; margin-top: 6px; }
