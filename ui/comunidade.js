@@ -50,6 +50,8 @@
     const exp = Date.parse(r.expires_at);
     pop.append(el("b", null, tituloServidor(r)), detalhe);
     if (r.level === "disputed") pop.append(el("small", "nivel-disputed", "? Contestado por outros motoristas"));
+    const onde = NuvemLib.textoRodovia(r);
+    if (onde) { const o = el("small", "relato-rodovia", onde); pop.append(o); }
     if (isFinite(exp)) pop.append(el("small", null, Relatos.validade(exp, Date.now()).replace(/^v/, "V")));
     if (r.mine) {
       // copiloto_report_delete RETIRA o relato do mapa (o histórico fica no servidor): pede confirmação antes
@@ -78,7 +80,7 @@
     const vivos = new Set(relatosNuvem.map((r) => r.id));
     for (const [id, x] of marcasNuvem) if (!vivos.has(id)) { x.m.remove(); marcasNuvem.delete(id); }
     for (const r of relatosNuvem) {
-      const chave = [r.level, r.confirm_count, r.deny_count, r.my_vote, r.mine, r.expires_at, r.value_numeric, pode("enviar")].join("|");
+      const chave = [r.level, r.confirm_count, r.deny_count, r.my_vote, r.mine, r.expires_at, r.value_numeric, r.road_ref, r.km, pode("enviar")].join("|");
       const antes = marcasNuvem.get(r.id);
       if (antes && antes.chave === chave) continue;
       if (antes) antes.m.remove();
@@ -93,6 +95,27 @@
         .setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(popupNuvem(r))).addTo(C.mapa);
       marcasNuvem.set(r.id, { m, chave });
     }
+  }
+
+  // r6: rodovia e km dos relatos (copiloto_report_roads). Uma consulta para os ids ainda não conhecidos; falha ou função
+  // ausente (migração não aplicada): em silêncio, sem tentar de novo por 10 min.
+  const rodovias = new Map();   // id → { road_ref, km } | null (sem rodovia)
+  let semRodovias = 0;
+  async function buscarRodovias(forcar) {
+    if (!nuvem.logado() || Date.now() < semRodovias) return;
+    const ids = relatosNuvem.filter((r) => r.road_ref === undefined && (forcar || !rodovias.has(r.id))).map((r) => r.id).slice(0, 200);
+    if (!ids.length) return;
+    try {
+      const l = await nuvem.rpc("copiloto_report_roads", { p_ids: ids });
+      const achados = new Map((Array.isArray(l) ? l : []).map((x) => [x.id, x]));
+      for (const id of ids) rodovias.set(id, achados.get(id) ? { road_ref: achados.get(id).road_ref, km: achados.get(id).km } : null);
+      aplicarRodovias();
+    } catch (e) { semRodovias = Date.now() + 600000; }
+  }
+  function aplicarRodovias() {
+    let mudou = false;
+    for (const r of relatosNuvem) { const x = rodovias.get(r.id); if (x && r.road_ref !== x.road_ref) { r.road_ref = x.road_ref; r.km = x.km; mudou = true; } }
+    if (mudou) desenharNuvem();
   }
 
   const online = () => navigator.onLine !== false;
@@ -115,6 +138,7 @@
       if (!nuvem.logado() || !pode("alertas")) return;
       ultimaBusca = pos;
       definirRelatos((Array.isArray(lista) ? lista : []).filter((r) => NuvemLib.visivel(r) && NuvemLib.tipoParaApp(r.report_type) && isFinite(r.lat) && isFinite(r.lon)));
+      aplicarRodovias(); buscarRodovias(false);
     } catch (e) {
       if (e.codigo === "sessao_expirada") C.mensagem(e.message, 7000);
       // sem internet ou servidor com problema: mantém o que já está no mapa e espera antes de tentar de novo
@@ -190,6 +214,7 @@
     const validade = Number(relato.expiraEm) - Number(relato.criadoEm);
     const expiraEm = isFinite(validade) && validade > 0 ? Math.min(Number(relato.expiraEm), obs + validade) : relato.expiraEm;
     const item = { id: relato.id, tipo: relato.tipo, valor: relato.valor, lat: relato.lat, lon: relato.lon, expiraEm, observadoEm: obs, params };
+    if (relato.rodovia) item.rodovia = relato.rodovia;
     if (o.seguraAte) item.seguraAte = o.seguraAte;
     nuvem.enfileirar(item);
     C.folha.fechar();
@@ -223,6 +248,8 @@
   // relato.gpsToque (opcional, M2): leitura do GPS no toque do "!" (precisão, rumo e velocidade daquele ponto, não do "Salvar")
   async function enviar(relato) {
     if (!pode("enviar")) { folhaErro("Envio desligado", MSG_SEM_ENVIO); return; } // PRI-01 (c)
+    // r6: rodovia e km de agora (quando o km do app é recente); vai com o relato, inclusive na fila offline
+    if (!relato.rodovia) { try { const rod = NuvemLib.rodoviaDoRelato(C.km && C.km.recente ? C.km.recente(180000) : null); if (rod) relato = Object.assign({}, relato, { rodovia: rod }); } catch (e) { /* sem km */ } }
     const qualidade = relato.gpsToque ? Consent.paramsQualidade(consent(), relato.gpsToque) : paramsGps();
     const params = Object.assign({ p_type: NuvemLib.tipoParaServidor(relato.tipo), p_lat: relato.lat, p_lon: relato.lon, p_value: relato.valor }, qualidade);
     const env = { relato, params, fase: "candidatos", cancelado: false, fim: false };
@@ -258,6 +285,7 @@
     try {
       const r = await nuvem.rpc("copiloto_report_submit", corpo);
       env.fim = true;
+      if (relato.rodovia) NuvemLib.definirRodovia((n, p) => nuvem.rpc(n, p), r, relato.rodovia).then(() => buscarRodovias(true), () => {}); // silencioso
       if (env.cancelado) {
         // B3: chegou ao servidor depois do Cancelar: tira da fila (não manda duas vezes) e não mexe na folha atual
         nuvem.retirar(relato.id); desenharPendentes();

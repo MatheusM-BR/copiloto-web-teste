@@ -231,6 +231,7 @@
       case "qual_km": return comando("comando:qual-km", {}, semOuvinte); // "em que km estou" (ui/km.js atende)
       case "chegada": case "restante": return responderViagem(r.intencao);
       case "silenciar": return silenciar();
+      case "modo_voz": return modoVoz(r.modo);
       case "ir_para": if (C.km && C.km.deVoz(r)) return; return irPara(r); // "BR-153 km 140" é destino por km (ui/km.js)
       case "talvez_lugar": if (C.km && C.km.deVoz(r)) return; return talvezLugar(r, textos, toque);
       case "relatar_sem_tipo": // "polícia", "blitz": o app não tem esse tipo; o formulário abre no ponto do toque para escolher
@@ -257,6 +258,13 @@
   function silenciar() {
     C.voz.calar({ definitivo: true });
     C.mensagem("Fala silenciada.", 3000);
+  }
+  // "só alertas" / "fala tudo": muda o modo de fala (persistente) e confirma na tela e, se couber no modo, por voz
+  function modoVoz(modo) {
+    const frase = C.voz.definirModo ? C.voz.definirModo(modo) : null;
+    if (!frase) return avisar(Cmd.MSG.aindaNao + ".", true);
+    avisar(frase, false);
+    C.voz.falar(frase, { naoInterromper: true, conversa: false });
   }
   function repetirSozinho() {
     const a = C.alerta.atual();
@@ -438,6 +446,7 @@
   }
 
   async function irPara(r) {
+    if (C.lugares && C.lugares.porVoz && C.lugares.porVoz(r)) return; // "ir para casa", "me leva para a base", favorito (ui/lugares.js)
     const meu = ++buscaSeq;
     D.registrar("ui:destino por voz", r.consulta.length + " letras");
     C.mensagem("Procurando " + r.lugar + "…", 6000);

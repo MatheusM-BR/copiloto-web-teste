@@ -39,6 +39,40 @@
     ok: '<path d="M4.500 12.500l5 5L19.500 7"/>',
     fechar: '<path d="M6 6l12 12M18 6L6 18"/>',
     voltar: '<path d="M15 5l-7 7 7 7"/>',
+    // r6 (símbolos nas telas restantes): voz, busca, configurações e os tipos de relato
+    voz_tudo: '<path d="M4 9.500h3.500L12 5.500v13l-4.500-4H4z"/><path d="M15.500 9a4 4 0 010 6M18.200 6.500a8 8 0 010 11"/>',
+    voz_alertas: '<path d="M6 17v-6a6 6 0 0112 0v6l1.500 2h-15zM10 21.500h4"/>',
+    lupa: '<circle cx="10.500" cy="10.500" r="6.500"/><path d="M15.500 15.500L21 21"/>',
+    pino: '<path d="M12 21.500s-7-6.200-7-11.800a7 7 0 0114 0c0 5.600-7 11.800-7 11.800z"/><circle cx="12" cy="9.700" r="2.500"/>',
+    casa: '<path d="M3.500 11L12 3.500 20.500 11M5.500 9.500V20.500h13V9.500M10 20.500v-6h4v6"/>',
+    mapa: '<path d="M3 6.500l6-2.500 6 2.500 6-2.500v14l-6 2.500-6-2.500-6 2.500zM9 4v14M15 6.500v14"/>',
+    engrenagem: '<circle cx="12" cy="12" r="3"/><path d="M12 2.500v3M12 18.500v3M2.500 12h3M18.500 12h3M5.300 5.300l2.100 2.100M16.600 16.600l2.100 2.100M5.300 18.700l2.100-2.100M16.600 7.400l2.100-2.100"/>',
+    sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2.500v2.500M12 19v2.500M2.500 12H5M19 12h2.500M5.300 5.300l1.800 1.800M16.900 16.900l1.800 1.800M5.300 18.700l1.800-1.800M16.900 7.100l1.800-1.800"/>',
+    lua: '<path d="M20 14.500A8.500 8.500 0 019.500 4 8.500 8.500 0 1020 14.500z"/>',
+    tema_auto: '<circle cx="12" cy="12" r="9.500"/><path d="M12 2.500a9.500 9.500 0 000 19z" fill="currentColor"/>',
+    escudo: '<path d="M12 3l7.500 3v5.500c0 4.700-3.200 8.200-7.500 9.500-4.300-1.300-7.500-4.800-7.500-9.500V6z"/>',
+    pessoa: '<circle cx="12" cy="8" r="4"/><path d="M4.500 21a7.500 7.500 0 0115 0"/>',
+    celular: '<rect x="7" y="2.500" width="10" height="19" rx="2.500"/><path d="M11 18.500h2"/>',
+    pulso: '<path d="M3 12h4l2.500-6 4 12 2.500-6H21"/>',
+    predio: '<path d="M5 21V4h9v17M14 9h5v12M8 8h3M8 12h3M8 16h3M3 21h18"/>',
+    r_altura: '<path d="M12 6v12M8.500 9L12 5.500 15.500 9M8.500 15l3.500 3.500 3.500-3.500M4 3h16M4 21h16"/>',
+    r_peso: '<path d="M7 8h10l3 12H4zM9.500 8a2.500 2.500 0 015 0"/>' + T(12, 17.500, 8, "t"),
+    r_buraco: '<ellipse cx="12" cy="15" rx="8" ry="4"/><path d="M5 11.500l-1.500-4M19 11.500l1.500-4M12 10.500V5"/>',
+    r_acidente: '<path d="M12 2.500l2 5 5-2-2 5 5 2-5 2 2 5-5-2-2 5-2-5-5 2 2-5-5-2 5-2-2-5 5 2z"/>',
+    r_radar: '<circle cx="12" cy="12" r="2"/><path d="M7.500 7.500a6.400 6.400 0 000 9M16.500 7.500a6.400 6.400 0 010 9M4.500 4.500a10.600 10.600 0 000 15M19.500 4.500a10.600 10.600 0 010 15"/>',
+    r_animal: '<circle cx="6.500" cy="10.500" r="1.800"/><circle cx="10" cy="6.500" r="1.800"/><circle cx="14" cy="6.500" r="1.800"/><circle cx="17.500" cy="10.500" r="1.800"/><path d="M12 12c-3 0-5.500 3-5.500 5.200 0 1.800 1.800 2.300 3 2.300 1 0 1.700-.5 2.500-.5s1.500.5 2.500.5c1.200 0 3-.5 3-2.300C17.500 15 15 12 12 12z"/>',
+    r_fila: '<rect x="1.500" y="8.500" width="5.500" height="7" rx="1.500"/><rect x="9.200" y="8.500" width="5.500" height="7" rx="1.500"/><rect x="17" y="8.500" width="5.500" height="7" rx="1.500"/><path d="M4 19h16"/>',
+    r_objeto: '<path d="M3.500 7.500L12 3l8.500 4.500v9L12 21l-8.500-4.500zM3.500 7.500L12 12l8.500-4.500M12 12v9"/>',
+    r_parado: '<path d="M2.500 16.500v-3.500l2.200-4.500h8.600l2.200 4.500v3.500zM2.500 16.500v1.500M15.500 16.500v1.500"/><path d="M19 4.500l3 5.500h-6z"/>',
+    r_alagamento: '<path d="M2.500 9c2 0 2-2 4.500-2s2.500 2 4.500 2 2.500-2 4.500-2 2.500 2 4.500 2M2.500 14c2 0 2-2 4.500-2s2.500 2 4.500 2 2.500-2 4.500-2 2.500 2 4.500 2M2.500 19c2 0 2-2 4.500-2s2.500 2 4.500 2 2.500-2 4.500-2 2.500 2 4.500 2"/>',
+    r_neblina: '<path d="M4 7h13M7 11.500h13M4 16h10M8 20.500h12"/>',
+    r_lisa: '<path d="M8 3c4 3-4 6 0 9s-4 6 0 9M16 3c4 3-4 6 0 9s-4 6 0 9"/>',
+    balsa: '<path d="M3 16.500l1.800 3.500h14.400l1.800-3.500zM6.500 16.500V11.500h11v5M9.500 11.500V7.500h5v4M12 7.500V4"/>',
+    terra: '<path d="M7 20.500L10 3.500M17 20.500L14 3.500M12 6.500v2.500M12 11.500v2.500M12 16.500v2.500"/>',
+    casa: '<path d="M3 12l9-8 9 8M5 10v10h14V10M10 20v-6h4v6"/>',
+    base: '<path d="M3 21V9.500l9-5.500 9 5.500V21M7 21v-6h10v6M7 12.500h10"/>',
+    estrela: '<path d="M12 3l2.800 5.700 6.200.9-4.500 4.400 1.100 6.200L12 17.200 6.400 20.200l1.100-6.200L3 9.600l6.200-.9z"/>',
+    parada: '<path d="M12 21s-6.500-6-6.500-11a6.500 6.500 0 0113 0c0 5-6.500 11-6.500 11z"/><circle cx="12" cy="10" r="2.300"/>',
     filtro: '<path d="M3 5h18l-7 8.500V20l-4-2v-4.500z"/>',
   };
   const NOMES = Object.keys(ICONES);
@@ -58,7 +92,18 @@
     return t.content.firstChild;
   }
 
-  const api = { NOMES, svg, no };
+  // Ícone de cada tipo de relato (app): usado na grade do formulário e nas listas.
+  const ICONE_RELATO = { altura_maxima: "r_altura", limite_peso: "r_peso", obra: "obras", buraco: "r_buraco", acidente: "r_acidente", radar_movel: "r_radar",
+    animal: "r_animal", fila: "r_fila", objeto: "r_objeto", veiculo_parado: "r_parado", alagamento: "r_alagamento", neblina: "r_neblina",
+    pista_escorregadia: "r_lisa", balanca: "balanca" };
+  // Põe o ícone (decorativo) no começo de um elemento, sem mexer no texto. Devolve o elemento.
+  function prefixar(elemento, nome, classe) {
+    if (!elemento || elemento.querySelector(":scope > svg.ico")) return elemento;
+    elemento.insertBefore(no(nome, { classe: classe || "ico-prefixo" }), elemento.firstChild);
+    return elemento;
+  }
+
+  const api = { NOMES, ICONE_RELATO, svg, no, prefixar };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoIcones = api;
 })(typeof window !== "undefined" ? window : globalThis);

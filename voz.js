@@ -17,6 +17,28 @@
   };
   const PERFIL_PADRAO = "equilibrado";
 
+  // Modo de fala (r6): "tudo" = Completo (alertas, orientação e conversa pelo caminho); "alertas" = Só alertas (só o que é
+  // segurança: restrição, balança, curva forte, trecho crítico, radar, desvio de rota, chegada, relato à frente, e o que o
+  // motorista pediu por voz). Não fala conversa: marcos de 30 min/50 km, "Continue por…", resumo da rota traçada.
+  const MODOS = {
+    tudo:    { rotulo: "Completo",    simbolo: "voz_tudo",    dica: "Fala alertas, curvas e a conversa pelo caminho" },
+    alertas: { rotulo: "Só alertas",  simbolo: "voz_alertas", dica: "Fala só avisos de segurança e a chegada" },
+  };
+  const MODO_PADRAO = "tudo";
+  // Frases de conversa de quem não passa a marca { conversa: true } (rota.js, mapa.js): reconhecidas pelo começo do texto.
+  const RE_CONVERSA = /^(?:Rota de \d[\d,. ]* (?:quil[ôo]metros?|metros?)|Continue por \d|Faltam \d|Falta(?:m)? (?:cerca de )?\d|Rota atualizada com a internet)/i;
+  function ehConversa(texto, opcoes) {
+    if (opcoes && opcoes.conversa === true) return true;
+    if (opcoes && (opcoes.critica || opcoes.seguranca || opcoes.conversa === false)) return false;
+    const t = String(texto == null ? "" : texto);
+    return RE_CONVERSA.test(t) && !/restri[çc]/i.test(t); // a rota traçada com restrição no texto é segurança: sai
+  }
+  // O modo deixa esta fala sair? Alerta de segurança, crítica e resposta a comando de voz sempre saem.
+  function permiteFala(modo, texto, opcoes) {
+    if (modo !== "alertas") return true;
+    return !ehConversa(texto, opcoes);
+  }
+
   const AGRADECIMENTOS = {
     profissional: ["Registrado."],
     equilibrado:  ["Obrigado, registrado."],
@@ -81,10 +103,10 @@
     let o = null;
     try { o = JSON.parse((storage && storage.getItem(CHAVE_PREF)) || "null"); } catch (e) { o = null; }
     o = o || {};
-    return { ligada: o.ligada !== false, perfil: PERFIS[o.perfil] ? o.perfil : PERFIL_PADRAO };
+    return { ligada: o.ligada !== false, perfil: PERFIS[o.perfil] ? o.perfil : PERFIL_PADRAO, modo: MODOS[o.modo] ? o.modo : MODO_PADRAO };
   }
   function gravarPreferencias(storage, pref) {
-    try { storage && storage.setItem(CHAVE_PREF, JSON.stringify({ ligada: !!pref.ligada, perfil: PERFIS[pref.perfil] ? pref.perfil : PERFIL_PADRAO })); } catch (e) { /* ignora */ }
+    try { storage && storage.setItem(CHAVE_PREF, JSON.stringify({ ligada: !!pref.ligada, perfil: PERFIS[pref.perfil] ? pref.perfil : PERFIL_PADRAO, modo: MODOS[pref.modo] ? pref.modo : MODO_PADRAO })); } catch (e) { /* ignora */ }
   }
 
   // WAV mono 8 kHz 8 bits só de silêncio (data: URI), gerado aqui: nenhum arquivo de som no app. Tocado em laço mantém a
@@ -355,7 +377,7 @@
     return { disponivel, tocar, destravar: () => { if (!disponivel()) return false; try { contexto(); return true; } catch (e) { return false; } } };
   }
 
-  const api = { wavSilencio, wavSilencioDataUri, ehIOS, CHAVE_BIPE, BIPES, lerBipe, gravarBipe, criarBipe, PERFIS, PERFIL_PADRAO, AGRADECIMENTOS, CHAVE_PREF, numeroFalado, distanciaFalada, textoAlerta, agradecimento,
+  const api = { MODOS, MODO_PADRAO, ehConversa, permiteFala, wavSilencio, wavSilencioDataUri, ehIOS, CHAVE_BIPE, BIPES, lerBipe, gravarBipe, criarBipe, PERFIS, PERFIL_PADRAO, AGRADECIMENTOS, CHAVE_PREF, numeroFalado, distanciaFalada, textoAlerta, agradecimento,
     lerPreferencias, gravarPreferencias, criarFalador };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoVoz = api;

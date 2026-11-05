@@ -63,7 +63,8 @@
       const b = el("button", "r-tipo-btn" + (cfg.risco ? " risco" : ""));
       b.type = "button"; b.dataset.tipo = id; b.setAttribute("role", "radio"); b.setAttribute("aria-checked", "false");
       b.setAttribute("aria-label", cfg.rotulo);
-      b.append(el("span", "r-nome", cfg.curto || cfg.rotulo)); // só o nome: a sigla repetia o nome
+      if (window.CopilotoIcones) b.append(window.CopilotoIcones.no(window.CopilotoIcones.ICONE_RELATO[id] || "aviso", { classe: "r-ico" })); // r6: ícone grande em cima do nome
+      b.append(el("span", "r-nome", cfg.curto || cfg.rotulo)); // o nome continua: tipo de risco não fica só no desenho
       b.addEventListener("click", () => {
         sel.value = id; sel.dispatchEvent(new Event("change"));
         if (cfg.valor) { pararContagem(); inp.focus(); } else iniciarContagem(cfg);

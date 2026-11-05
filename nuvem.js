@@ -52,6 +52,28 @@
     const n = Math.max(0, Math.floor(Number(r && r.confirm_count) || 0));
     return "Relato de motorista · " + n + (n === 1 ? " confirmação" : " confirmações");
   }
+  // ---- rodovia e km do relato (r6; copiloto_report_set_road / copiloto_report_roads)
+  const RE_RODOVIA = /^[A-Z]{2,3}-[0-9]{1,4}[A-Z]?$/;
+  // Do km atual do app ({ rodovia, km, … }) para { road_ref, km }; null quando não vale (sem rodovia no formato ou km fora de 0–5.000).
+  function rodoviaDoRelato(atual) {
+    if (!atual || typeof atual.rodovia !== "string") return null;
+    const ref = atual.rodovia.trim().toUpperCase().replace(/\s+/g, "-");
+    if (!RE_RODOVIA.test(ref)) return null;
+    const km = typeof atual.km === "number" && isFinite(atual.km) && atual.km >= 0 && atual.km <= 5000 ? Math.round(atual.km * 1000) / 1000 : null;
+    return { road_ref: ref, km };
+  }
+  // "BR-153 km 140" (km sem casas inúteis: 140,5 → "140,5"); só a rodovia se não houver km; "" sem rodovia.
+  function textoRodovia(r) {
+    if (!r || typeof r.road_ref !== "string" || !r.road_ref) return "";
+    const km = r.km == null || r.km === "" ? null : Number(r.km);
+    return r.road_ref + (km != null && isFinite(km) ? " km " + String(Math.round(km * 10) / 10).replace(".", ",") : "");
+  }
+  // Depois do envio: grava rodovia/km no relato recém-criado (só "created": confirmar um existente não é autoria). Falha em silêncio.
+  async function definirRodovia(chamar, resposta, rodovia) {
+    if (!rodovia || !resposta || resposta.action !== "created" || resposta.report_id == null) return false;
+    try { await chamar("copiloto_report_set_road", { p_report_id: resposta.report_id, p_road_ref: rodovia.road_ref, p_km: rodovia.km == null ? null : rodovia.km }); return true; }
+    catch (e) { return false; }
+  }
   // hidden só aparece para o autor (mine=true)
   function visivel(r) { return !!r && (r.level !== "hidden" || r.mine === true); }
 
@@ -484,7 +506,8 @@
             if (item.seguraAte != null && item.seguraAte > agora()) continue; // B3: o envio direto ainda pode chegar
             try {
               // M7: item guardado antes da M7 (sem p_observed_at) usa a hora em que entrou na fila
-              await rpc("copiloto_report_submit", comHoraObservada(item.params, horaObservada(item, item.criadoEm)));
+              const resp = await rpc("copiloto_report_submit", comHoraObservada(item.params, horaObservada(item, item.criadoEm)));
+              if (item.rodovia) await definirRodovia(rpc, resp, item.rodovia); // fila: rodovia/km do momento do relato (silencioso)
               fila = fila.filter((x) => x.id !== item.id); res.enviados++; gravarFila();
             } catch (e) {
               if (e.rede) break; // ainda sem internet: tenta depois
@@ -526,7 +549,7 @@
 
   const api = {
     esperaAposFalha, ESPERA_BUSCA_MS, horaObservada, comHoraObservada,
-    criarNuvem, ErroNuvem, NIVEIS, textoNivel, indicadorNivel, detalheNivel, visivel,
+    rodoviaDoRelato, textoRodovia, definirRodovia, criarNuvem, ErroNuvem, NIVEIS, textoNivel, indicadorNivel, detalheNivel, visivel,
     tipoParaServidor, tipoParaApp, APP_PARA_SERVIDOR, SERVIDOR_PARA_APP,
     mensagemErroRpc, mensagemErroAuth, MSG_REDE, CHAVE_SESSAO, CHAVE_FILA,
     CHAVE_PKCE, PKCE_VALIDADE_MS, MSG_PROVEDOR_DESLIGADO, mensagemErroOAuth, gerarVerificador, base64url, desafioPkce, urlAutorizar,

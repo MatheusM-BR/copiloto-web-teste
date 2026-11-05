@@ -71,6 +71,8 @@
       if (f.caminhao && a.acesso_caminhao !== true) return false;
       if (f.h24 && a.aberto_24h !== true) return false;
       if (f.banho && a.banho !== true) return false;
+      if (f.aberto && abertoAgoraDoPosto(p, f.agora) !== true) return false;   // só confirmado aberto; horário desconhecido não passa
+      if (Array.isArray(f.bandeiras) && f.bandeiras.length && !f.bandeiras.includes(grupoBandeira(p.brand))) return false;
       return true;
     });
   }
@@ -251,10 +253,139 @@
     return t.replace(/\D/g, "").length >= 8 ? t : null;
   }
 
+  // ---------------------------------------------------------------- R6: dados do posto (telefone, horário, data), bandeira em grupos
+  // A API (copiloto_stations_*) põe estes campos em `attributes`: telefone, atualizado_em (ISO), horario. Também aceita
+  // os nomes soltos (phone/telefone, updated_at, opening_hours) para outras fontes.
+  function dadosDoPosto(p) {
+    const a = (p && p.attributes) || {};
+    const txt = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
+    return {
+      telefone: telefoneLimpo({ phone: txt(a.telefone) || (p && (p.phone || p.telefone)) }),
+      atualizadoEm: txt(a.atualizado_em) || txt(p && p.updated_at) || null,
+      horario: txt(a.horario) || txt(p && p.opening_hours),
+    };
+  }
+  // ISO (ou AAAA-MM-DD) → "dd/mm/aaaa"; null se não vier data válida.
+  function formatarData(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ""));
+    if (!m || +m[2] < 1 || +m[2] > 12 || +m[3] < 1 || +m[3] > 31) return null;
+    return m[3] + "/" + m[2] + "/" + m[1];
+  }
+
+  // opening_hours do OSM (subconjunto): "24/7", "Mo-Su 06:00-22:00", "Mo-Fr 08:00-12:00,14:00-18:00; Sa 08:00-12:00; Su off",
+  // listas de dias ("Mo,We,Fr"), intervalos que viram a noite ("22:00-06:00") e 24:00. Regras mais adiante valem sobre as anteriores
+  // nos dias que citam. Feriados (PH/SH) são ignorados. Qualquer sintaxe fora disso (nascer do sol, semanas, meses, comentários)
+  // devolve null = desconhecido. Dia que nenhuma regra cita = fechado (padrão do OSM).
+  const DIAS_OSM = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+  const RE_HORA = "\\d{1,2}:\\d{2}\\s*-\\s*\\d{1,2}:\\d{2}";
+  const RE_REGRA = new RegExp("^(?:([A-Za-z][A-Za-z,\\-]*)\\s+)?(" + RE_HORA + "(?:\\s*,\\s*" + RE_HORA + ")*|off|closed)$", "i");
+  function minutos(h) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(h.trim());
+    if (!m) return null;
+    const t = +m[1] * 60 + +m[2];
+    return +m[1] <= 24 && +m[2] < 60 && t <= 1440 ? t : null;
+  }
+  function diasDaRegra(txt) {
+    if (!txt) return DIAS_OSM.map((_, i) => i);
+    const out = [];
+    for (const parte of txt.split(",")) {
+      if (/^(PH|SH)$/i.test(parte)) continue;
+      const m = /^([A-Za-z]{2})(?:-([A-Za-z]{2}))?$/.exec(parte);
+      if (!m) return null;
+      const norm = (x) => DIAS_OSM.findIndex((d) => d.toLowerCase() === x.toLowerCase());
+      const a = norm(m[1]), b = m[2] ? norm(m[2]) : a;
+      if (a < 0 || b < 0) return null;
+      for (let i = a; ; i = (i + 1) % 7) { out.push(i); if (i === b) break; }
+    }
+    return out;
+  }
+  // → null (não entendi) | { semana: [ [ [ini,fim],... ] x 7 ] } (segunda = 0), "24/7" vira todos os dias 0–1440.
+  function lerHorario(texto) {
+    const t = String(texto || "").trim();
+    if (!t || t.length > 300) return null;
+    if (/^24\/7$/i.test(t)) return { semana: DIAS_OSM.map(() => [[0, 1440]]) };
+    const semana = DIAS_OSM.map(() => []);
+    let algum = false;
+    for (const regra of t.split(";").map((x) => x.trim()).filter(Boolean)) {
+      const m = RE_REGRA.exec(regra);
+      if (!m) return null;
+      const dias = diasDaRegra(m[1]);
+      if (dias === null) return null;
+      let faixas = [];
+      if (!/^(off|closed)$/i.test(m[2])) {
+        for (const f of m[2].split(",")) {
+          const [i, j] = f.split("-").map(minutos);
+          if (i == null || j == null || i === j) return null;
+          faixas.push([i, j]);
+        }
+      }
+      if (!dias.length) continue;   // regra só de feriado
+      algum = true;
+      for (const d of dias) semana[d] = faixas.slice();
+    }
+    return algum ? { semana } : null;
+  }
+  // true | false | null (horário ausente ou que não sei ler). `agora` = Date (hora local do aparelho).
+  function abertoAgora(texto, agora) {
+    const h = lerHorario(texto);
+    if (!h) return null;
+    const d = agora instanceof Date ? agora : new Date(agora == null ? Date.now() : agora);
+    if (isNaN(d.getTime())) return null;
+    const dia = (d.getDay() + 6) % 7, min = d.getHours() * 60 + d.getMinutes();
+    for (const [i, j] of h.semana[dia]) {
+      if (i < j ? min >= i && min < j : min >= i) return true;          // i > j: vira a noite, a ponta de hoje
+    }
+    for (const [i, j] of h.semana[(dia + 6) % 7]) if (i > j && min < j) return true; // a ponta de ontem que cai hoje
+    return false;
+  }
+  // Considera o atributo 24 h confirmado (true) e depois o horário. false (não é 24 h) não decide nada.
+  function abertoAgoraDoPosto(p, agora) {
+    const a = (p && p.attributes) || {};
+    if (a.aberto_24h === true) return true;
+    return abertoAgora(dadosDoPosto(p).horario, agora);
+  }
+  // { estado: "aberto"|"fechado"|"?", icone, texto } para o selo verde / vermelho / cinza
+  function situacaoAbertura(p, agora) {
+    const v = abertoAgoraDoPosto(p, agora);
+    if (v === true) return { estado: "aberto", icone: "ok", texto: "Aberto agora" };
+    if (v === false) return { estado: "fechado", icone: "fechar", texto: "Fechado agora" };
+    return { estado: "?", icone: "ajuda", texto: "Horário não informado" };
+  }
+
+  // Bandeira em grupos para o filtro: ipiranga, shell (Raízen), petrobras (BR/Vibra), ale, outras (inclui bandeira branca e sem bandeira).
+  const GRUPOS_BANDEIRA = [["ipiranga", "Ipiranga"], ["shell", "Shell"], ["petrobras", "Petrobras / BR"], ["ale", "Ale"], ["outras", "Outras"]];
+  function grupoBandeira(brand) {
+    const u = String(brand || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().trim();
+    if (!u || u === "BANDEIRA BRANCA") return "outras";
+    if (/^IPIRANGA\b/.test(u)) return "ipiranga";
+    if (/^(SHELL|RAIZEN)\b/.test(u)) return "shell";
+    if (/^(PETROBRAS|VIBRA|BR)\b/.test(u)) return "petrobras";
+    if (/^ALE\b/.test(u)) return "ale";
+    return "outras";
+  }
+
+  // Confiança em estrelas (1 a 3) a partir do mesmo critério do texto de rotuloConfianca.
+  function estrelasConfianca(p) {
+    if (!p) return 0;
+    if (p.source === "osm") return 1;
+    if (p.match_level === "alta") return 3;
+    if (p.match_level === "media") return 2;
+    if (p.match_level === "baixa") return 1;
+    return 3; // cadastro ANP sem OSM: dado oficial
+  }
+  // Desvio estimado ida e volta da pista até o posto, em minutos (~40 km/h); null se for menos de 1 min ou se não vier a distância.
+  function desvioMin(p) {
+    const m = p && p.off_route_m;
+    if (m == null || !isFinite(m)) return null;
+    const min = Math.round((2 * m) / 667);
+    return min >= 1 ? min : null;
+  }
+
+
   const api = {
     CONE_GRAUS, ZOOM_MINIMO, RAIO_MAX_M, MAX_PONTOS_ROTA, ATRIBUTOS, ROTULO,
     distanciaM, rumoGraus, difAngulo, aFrentePorRumo, naRota, filtrar, formatarDistancia, nomeBandeira, nomePosto,
-    descreverAtributos, resumoAtributos, AMENIDADES, descreverAmenidades, amenidadesSim, marcaBandeira, proximoComDiesel, linhaDoPosto, precoDaRegiao, formatarDiaMes, formatarReais, diasDesde, telefoneLimpo, rotuloConfianca, rotaGeoJSON, buscaDaVista, precisaBuscar, paraGeoJSON,
+    descreverAtributos, resumoAtributos, AMENIDADES, descreverAmenidades, amenidadesSim, marcaBandeira, proximoComDiesel, linhaDoPosto, precoDaRegiao, formatarDiaMes, formatarReais, diasDesde, telefoneLimpo, rotuloConfianca, rotaGeoJSON, dadosDoPosto, formatarData, lerHorario, abertoAgora, abertoAgoraDoPosto, situacaoAbertura, GRUPOS_BANDEIRA, grupoBandeira, estrelasConfianca, desvioMin, buscaDaVista, precisaBuscar, paraGeoJSON,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoPostos = api;

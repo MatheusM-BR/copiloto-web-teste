@@ -100,7 +100,13 @@
     const res = C.dadosRota.restricoesJa(rota);
     if (res && res.violadas.length) buscar(rota, res.violadas, true);
   }
-  function aceitar(rota) { aceitoDestino = chaveDestino(rota && rota.destino); }
+  function aceitar(rota) {
+    aceitoDestino = chaveDestino(rota && rota.destino);
+    // r6: o resumo da viagem registra as restrições que o motorista decidiu enfrentar
+    let lista = [];
+    try { const res = C.dadosRota && C.dadosRota.restricoesJa ? C.dadosRota.restricoesJa(rota) : null; lista = ((res && res.violadas) || []).map((r) => ({ id: r.id, descricao: Dv.registro([r], { km: 0, minutos: 0 }, { km: 0, minutos: 0 })[0].descricao })); } catch (e) { lista = []; }
+    C.emit("desvio:aceito", { destino: rota && rota.destino, restricoes: lista });
+  }
 
   // Automático: as restrições da rota atual chegaram e há violação → já calcula o desvio
   let dentroAoRestricoes = false;

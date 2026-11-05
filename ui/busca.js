@@ -8,7 +8,8 @@
 // Toque no mapa — um só comportamento: TOQUE SIMPLES num ponto do mapa (fora de marcador, popup ou posto) abre a folha do
 // ponto com o endereço (Copiloto.endereco.perto, se existir) ou a coordenada, "Ir para cá" (vira destino e traça a rota;
 // navegando, pergunta antes de trocar), "Relatar aqui" e "Salvar como casa/base". Nunca vira destino sozinho.
-// Casa/base: copiloto.base.v1 = { lat, lon, rotulo }.
+// Casa/base: copiloto.base.v1 = { lat, lon, rotulo } (formato antigo, lido como Casa por ui/lugares.js, que guarda a lista em
+// copiloto.lugares.v1: Casa, Base e até 5 favoritos).
 // Expõe Copiloto.busca: abrir(), procurar(texto) → Promise<[{ nome, detalhe, lat, lon }]> (também para a voz: "ir para X";
 // sem internet, os recentes; erro de rede: rejeita com .rede = true), irPara({ lat, lon, rotulo? }),
 // abrirToque({ lat, lng }, { titulo?, detalhe? }), base().
@@ -57,6 +58,7 @@
     const li = el("li");
     const b = el("button", "busca-item " + classe); b.type = "button";
     const txt = el("span", "busca-item-texto");
+    if (window.CopilotoIcones) b.append(window.CopilotoIcones.no("relogio")); // recente: relógio (r6)
     txt.append(el("span", "busca-item-nome", d.rotulo || I.textoCoordenada(d)));
     const det = [d.detalhe, textoDist(d)].filter(Boolean).join(" · ");
     if (det) txt.append(el("small", "busca-item-detalhe", det));
@@ -105,6 +107,7 @@
     const li = el("li");
     const b = el("button", "busca-item busca-resultado"); b.type = "button";
     const txt = el("span", "busca-item-texto");
+    if (window.CopilotoIcones) b.append(window.CopilotoIcones.no(r.icone || "pino")); // resultado: pino (r6)
     txt.append(el("span", "busca-item-nome", r.nome));
     const det = [r.detalhe, Number.isFinite(r.lat) && Number.isFinite(r.lon) ? textoDist(r) : ""].filter(Boolean).join(" · ");
     if (det) txt.append(el("small", "busca-item-detalhe", det));
@@ -206,6 +209,7 @@
     else C.mensagem("Postos indisponíveis agora.", 5000);
   }
   function abrirBase() {
+    if (C.lugares && C.lugares.irCasaOuBase) { C.lugares.irCasaOuBase(); return; } // rodada 6: Casa, Base e favoritos (ui/lugares.js)
     const b = lerBase();
     if (b) { irPara(Object.assign({ rotulo: b.rotulo || "Casa / base" }, b)); return; }
     C.abas.irPara("mapa");
@@ -235,16 +239,24 @@
       C.relatos.abrirFormulario({ toque: { lat: p.lat, lon: p.lon, rumo: null, velKmh: null, precisao: null, t: Date.now() }, aqui: true });
     });
     rel.id = "toque-relatar";
+    if (window.CopilotoIcones) { window.CopilotoIcones.prefixar(ir, "ir"); window.CopilotoIcones.prefixar(rel, "bandeira"); } // r6: símbolo + texto (ação de destino não fica só no desenho)
     const linha = el("div", "toque-botoes"); linha.append(ir, rel);
     const base = botao("Salvar como casa/base", "btn btn-pequeno toque-base", () => {
       gravarJSON(CHAVE_BASE, { lat: p.lat, lon: p.lon, rotulo: titulo.dataset.endereco || "Casa / base" });
+      if (C.lugares && C.lugares.salvar) C.lugares.salvar({ tipo: "casa", nome: "Casa", lat: p.lat, lon: p.lon, rotulo: titulo.dataset.endereco || "Casa / base" });
       C.mensagem("Casa/base salva. Ela aparece na busca.", 4000);
       folhaGuardada = null;
       C.folha.fechar();
     });
     base.id = "toque-base";
     const fechar = botao("Fechar", "btn btn-pequeno", fecharToque); fechar.id = "toque-fechar";
-    const linha2 = el("div", "toque-botoes2"); linha2.append(base, fechar);
+    // rodada 6: Casa, Base ou um favorito nomeado (ui/lugares.js)
+    const lugar = botao("Salvar lugar", "btn btn-pequeno toque-lugar", () => {
+      tirarPino(); folhaGuardada = null;
+      C.lugares.escolherParaSalvar(p, titulo.dataset.endereco || null);
+    });
+    lugar.id = "toque-lugar"; if (!C.lugares) lugar.hidden = true;
+    const linha2 = el("div", "toque-botoes2"); linha2.append(base, lugar, fechar);
     const raiz = el("div", "toque-folha"); raiz.id = "toque-folha";
     raiz.append(titulo, det, linha, linha2);
     folhaToque = raiz;

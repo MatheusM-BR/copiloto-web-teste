@@ -201,6 +201,8 @@
     radar: ["Radar", "Radar reportado à frente."], praca_pedagio: ["Praça de pedágio", "Praça de pedágio à frente."],
     obra: ["Obra recorrente", "Obra recorrente à frente."],
   };
+  // r6: no modo de voz "Só alertas" estes avisos ficam só na faixa da tela (a fala é de perigo)
+  const AVISOS_SO_TELA_NO_MODO_ALERTAS = ["lombada", "lombadas", "praca_pedagio", "obra", "area_escape"];
   const KINDS_FEICOES = ["curva", "lombada", "balanca", "passagem_nivel", "balsa", "area_escape", "radar", "perigo"];
   function aviso(o) {
     return { id: o.id, tipo: o.tipo, prioridade: PRIORIDADE[o.chave || o.tipo] || 1, ao_longo_m: Math.round(o.ao_longo_m), lat: o.lat, lon: o.lon,
@@ -466,7 +468,7 @@
   const api = { CHAVE_DADOS, lerGuardados, buscarGuardado, guardar, UFS, nomeUF, ufDoTexto, ufsFaladas, ordenarUfs, interpretarDestinoKm, prefixoRodovia, rotuloKm, textoKmTela, falaKm, falaSemKm, avisoPrecisao, fmtKm,
     escolherKm, chavePosicao, devePedirKm, KM_INTERVALO_MS, KM_DESLOC_M, KM_DIST_MAX_M,
     distanciaM, acumuladoM, progressoM, rotaGeoJSON, simplificar, chaveRota,
-    PRIORIDADE, KINDS_FEICOES, avisosDeFeicoes, avisosDeTrechos, avisosDeArtesp, avisosDeRestricoes, textoRestricao, juntarAvisos, contagens, textoContagens,
+    PRIORIDADE, KINDS_FEICOES, AVISOS_SO_TELA_NO_MODO_ALERTAS, avisosDeFeicoes, avisosDeTrechos, avisosDeArtesp, avisosDeRestricoes, textoRestricao, juntarAvisos, contagens, textoContagens,
     antecedenciaM, criarAvisador, falaAviso, textoDistanciaFalada, FALA_INTERVALO_MS,
     usarSnv, textoPistaSnv, textoFonteSnv, SNV_COBERTURA_MIN, paramsRestricoes, dimensoesFaltando, resumoRestricoes, tituloRestricoes, fmtDistRota };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

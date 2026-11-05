@@ -159,10 +159,13 @@
   function mostrarFaixa(a, distM) {
     if (!faixa) criarFaixa(); if (!faixa) return;
     faixa.textContent = "";
+    if (window.CopilotoIcones) { const w = el("span", "dados-aviso-ico"); w.append(window.CopilotoIcones.no(ICONE_AVISO[a.tipo] || "aviso")); faixa.append(w); } // r6: símbolo do aviso
     faixa.append(el("span", "aviso-dado-texto", a.texto), el("span", "aviso-dado-dist", distM < 50 ? "aqui" : D.fmtDistRota(distM)));
     faixa.dataset.tipo = a.tipo; faixa.hidden = false;
     clearTimeout(faixaTimer); faixaTimer = setTimeout(esconderFaixa, 20000);
   }
+  const ICONE_AVISO = { restricao: "aviso", perigoso: "aviso", balanca: "balanca", balsa: "rota", curva: "reta", passagem_nivel: "aviso", lombada: "aviso", lombadas: "aviso",
+    radar: "r_radar", praca_pedagio: "pedagio", obra: "obras", area_escape: "reta", perigo: "aviso" };
   // intervalo mínimo entre falas (20 s; window.COPILOTO_AVISO_INTERVALO_MS encurta nos testes)
   function opcoesAvisador() { const ms = Number(window.COPILOTO_AVISO_INTERVALO_MS); return ms > 0 ? { intervaloMs: ms } : {}; }
   function esconderFaixa() { clearTimeout(faixaTimer); if (faixa) faixa.hidden = true; }
@@ -171,7 +174,9 @@
     // restrição do caminhão é segurança: espera o alerta/manobra acabar sem ser descartada por tempo e aborta o microfone aberto
     const critica = a.tipo === "restricao";
     if (!critica && C.voz.emAlerta && C.voz.emAlerta()) return; // alerta de relato falando: a faixa fica, a fala não briga
-    C.voz.falar(D.falaAviso(a, distM), { naoInterromper: true, esperaMaxMs: 8000, critica });
+    // Só alertas: lombada, pedágio, obra recorrente e área de escape são informação, não perigo
+    const conversa = D.AVISOS_SO_TELA_NO_MODO_ALERTAS.indexOf(a.tipo) >= 0;
+    C.voz.falar(D.falaAviso(a, distM), { naoInterromper: true, esperaMaxMs: 8000, critica, conversa });
     C.emit("dados:aviso", { aviso: a, distanciaM: distM });
   }
   // Navegando: restrição violada a ≥ 3 km à frente → ui/desvio.js recalcula evitando-a (não, se o motorista tocou "Mesmo assim")
@@ -258,7 +263,9 @@
       bloco.dataset.estado = res.violadas.length ? "viola" : res.condicionais.length ? "condicional" : "ok";
       if (res.violadas.length && !mesmoAssim.has(e.chave)) {
         const c = el("div", "dados-restr-cartao viola"); c.id = "dados-restr-viola"; c.setAttribute("role", "alert");
-        c.append(el("h3", null, D.tituloRestricoes(res.violadas.length)));
+        const h3 = el("h3", null, D.tituloRestricoes(res.violadas.length));
+        if (window.CopilotoIcones) window.CopilotoIcones.prefixar(h3, "aviso"); // r6: triângulo antes do título (o texto fica)
+        c.append(h3);
         for (const x of res.violadas.slice(0, 12)) c.append(itemRestricao(x, e, "viola"));
         if (res.violadas.length > 12) c.append(el("p", "dica", "e mais " + (res.violadas.length - 12) + "."));
         const dv = C.desvio ? C.desvio.estado(r) : null;
@@ -272,6 +279,7 @@
           bot.append(des);
         }
         const ver = botao("Ver no mapa", "btn", () => verNoMapa(r, "restricoes")); ver.id = "dados-restr-ver";
+        if (window.CopilotoIcones) window.CopilotoIcones.prefixar(ver, "mapa");
         const ok = botao("Mesmo assim", "btn dados-restr-mesmo", () => { mesmoAssim.add(e.chave); if (C.desvio && C.desvio.aceitar) C.desvio.aceitar(r); avisar(e, "restricoes"); }); ok.id = "dados-restr-mesmo";
         bot.append(ver, ok); c.append(bot);
         // restrição do OSM é dado da comunidade: limite da via × veículo está em cada item; quem decide é o motorista

@@ -9,7 +9,7 @@
   "use strict";
   const { el, botao, lerJSON, gravarJSON } = C.util;
   const P = window.CopilotoPostos, A = window.CopilotoAutonomia, IC = window.CopilotoIcones;
-  const CHAVE_FILTROS = "copiloto.postos.filtros.v1", CHAVE_ERROS = "copiloto.postos.erros.v1";
+  const CHAVE_FILTROS = "copiloto.postos.filtros.v1", CHAVE_BANDEIRAS = "copiloto.postos.bandeiras.v1", CHAVE_ERROS = "copiloto.postos.erros.v1";
   const ic = (nome, rotulo, classe) => (IC ? IC.no(nome, { rotulo, classe }) : document.createTextNode(""));
   const ESPERA_MS = 800;          // espera depois de mexer no mapa antes de buscar
   const INTERVALO_MIN_MS = 2500;  // no máximo uma busca de área a cada 2,5 s
@@ -22,11 +22,16 @@
   let litrosTexto = "";           // o que o motorista digitou nesta abertura (não fica guardado)
   // último filtro lembrado (R5): só chaves conhecidas e booleanas
   let filtros = (function () {
-    const b = { diesel: false, caminhao: false, h24: false, banho: false }, g = lerJSON(CHAVE_FILTROS, null);
+    const b = { diesel: false, caminhao: false, h24: false, banho: false, aberto: false }, g = lerJSON(CHAVE_FILTROS, null);
     if (g && typeof g === "object") for (const k of Object.keys(b)) b[k] = g[k] === true;
     return b;
   })();
-  const temFiltro = () => Object.keys(filtros).some((k) => filtros[k]);
+  // bandeiras escolhidas no filtro (R6): lista de grupos de P.GRUPOS_BANDEIRA; vazia = todas
+  let bandeiras = (function () {
+    const g = lerJSON(CHAVE_BANDEIRAS, null), validos = P.GRUPOS_BANDEIRA.map((x) => x[0]);
+    return Array.isArray(g) ? validos.filter((k) => g.includes(k)) : [];
+  })();
+  const temFiltro = () => Object.keys(filtros).some((k) => filtros[k]) || bandeiras.length > 0;
   let seqBusca = 0;
 
   // ------------------------------------------------------------ API (anônima: só a chave publicável)
@@ -103,7 +108,7 @@
       const resp = await rpc("copiloto_stations_near", { p_lat: g.lat, p_lon: g.lon, p_heading_deg: g.rumo != null ? Math.round(g.rumo) % 360 : null, p_radius_m: 30000, p_limit: quer });
       r = P.aFrentePorRumo(resp, g, g.rumo);
     }
-    return P.filtrar(r, filtros).slice(0, 5);
+    return P.filtrar(r, Object.assign({}, filtros, { bandeiras, agora: new Date() })).slice(0, 5);
   }
 
   function estimativa() {
@@ -173,6 +178,30 @@
     }
     return f;
   }
+  // Segunda linha (R6): "Aberto agora" e bandeira. Rola para o lado se não couber; cada chip tem 64 px de altura.
+  function filtrosUi2() {
+    const f = el("div", "postos-filtros2"); f.setAttribute("role", "group"); f.setAttribute("aria-label", "Aberto agora e bandeira");
+    const refazer = () => { desenharFolha({ carregando: true }); atualizarLista(); };
+    const ab = el("button", "btn btn-pequeno postos-chip postos-chip-aberto"); ab.type = "button"; ab.id = "postos-chip-aberto";
+    ab.append(ic("relogio"), el("span", null, "Aberto agora"));
+    ab.setAttribute("aria-label", "Só abertos agora (horário confirmado)"); ab.setAttribute("aria-pressed", String(filtros.aberto));
+    ab.addEventListener("click", () => { filtros.aberto = !filtros.aberto; gravarJSON(CHAVE_FILTROS, filtros); refazer(); });
+    f.appendChild(ab);
+    for (const [chave, rotulo] of P.GRUPOS_BANDEIRA) {
+      const b = el("button", "btn btn-pequeno postos-chip postos-chip-bandeira"); b.type = "button"; b.id = "postos-bandeira-" + chave;
+      const amostra = chave === "outras" ? null : P.marcaBandeira(chave === "petrobras" ? "PETROBRAS" : chave.toUpperCase());
+      if (amostra) { const l = el("span", "pc-logo", amostra.iniciais); l.style.background = amostra.cor; l.setAttribute("aria-hidden", "true"); b.appendChild(l); }
+      else b.appendChild(ic("bandeira"));
+      b.appendChild(el("span", null, rotulo));
+      b.setAttribute("aria-label", "Bandeira " + rotulo); b.setAttribute("aria-pressed", String(bandeiras.includes(chave)));
+      b.addEventListener("click", () => {
+        bandeiras = bandeiras.includes(chave) ? bandeiras.filter((x) => x !== chave) : bandeiras.concat(chave);
+        gravarJSON(CHAVE_BANDEIRAS, bandeiras); refazer();
+      });
+      f.appendChild(b);
+    }
+    return f;
+  }
 
   function titulo() {
     if (modoLista === "rota") return "Próximos postos na rota";
@@ -183,7 +212,7 @@
   function desenharFolha(o) {
     // ordem pensada para a tela pequena: título, filtros e os POSTOS primeiro; dicas e litros (opcionais) depois
     const h2 = el("h2", "postos-titulo"); h2.append(ic("bomba"), document.createTextNode(o.carregando ? "Buscando postos…" : titulo()));
-    const itens = [h2, filtrosUi()];
+    const itens = [h2, filtrosUi(), filtrosUi2()];
     const dicas = [];
     if (!o.carregando && !o.erro && modoLista === "perto") dicas.push(el("p", "dica", "Sem rumo do GPS (parado?): mostrando os mais perto em qualquer direção, em linha reta."));
     if (!o.carregando && !o.erro && modoLista === "rumo") dicas.push(el("p", "dica", "Pelo seu rumo, distância em linha reta. Trace uma rota para ver os postos no caminho."));
@@ -193,7 +222,7 @@
       const km = est.ok ? est.km : null;
       const marcados = A.marcar(lista, km);
       if (!marcados.length) itens.push(el("p", null, temFiltro()
-        ? "Nenhum posto à frente com esse dado confirmado. Desligue o filtro para ver os que não informam."
+        ? "Nenhum posto à frente com esse filtro confirmado. Desligue o filtro para ver os que não informam."
         : "Nenhum posto encontrado à frente nos próximos 30 km."));
       const ul = el("ul", "postos-lista"); ul.id = "postos-lista";
       const prox = P.proximoComDiesel(marcados);
@@ -218,6 +247,33 @@
     return l;
   }
   const dica = (t) => el("span", "so-leitor", t);
+  // confiança da posição/cadastro em estrelas (1 a 3); o texto completo fica no aria-label e no title
+  function estrelas(p, classe) {
+    const n = P.estrelasConfianca(p), r = P.rotuloConfianca(p);
+    const e = el("span", classe || "pc-estrelas", "★".repeat(n) + "☆".repeat(3 - n));
+    e.setAttribute("role", "img"); e.setAttribute("aria-label", "Confiança " + n + " de 3: " + r); e.title = r;
+    return e;
+  }
+  // selo de abertura: símbolo verde (aberto), vermelho (fechado) ou cinza (sem horário que eu entenda)
+  function seloAbertura(p, completo) {
+    const s = P.situacaoAbertura(p, new Date());
+    const e = el("span", "pc-abertura ab-" + (s.estado === "?" ? "desc" : s.estado));
+    e.dataset.estado = s.estado; e.title = s.texto;
+    e.append(ic(s.icone, null, "pc-ab-ico"));
+    if (completo) e.appendChild(el("span", null, s.texto)); else e.appendChild(el("span", "so-leitor", s.texto));
+    return e;
+  }
+
+  // Desvio estimado em minutos (ida e volta pelo acesso, 30 km/h) com o símbolo do relógio; "na pista" quando o posto é à beira dela.
+  // Só com rota (off_route_m): pelo rumo não há "pista" para medir.
+  function chipDesvio(p) {
+    const d = window.CopilotoRotaPref ? window.CopilotoRotaPref.desvioPosto(p.off_route_m) : null;
+    if (!d) return null;
+    const c = el("span", "postos-desvio" + (d.min === 0 ? " pista" : "")); c.dataset.min = String(d.min);
+    c.append(ic(d.min === 0 ? "ok" : "relogio"), document.createTextNode(d.texto));
+    c.setAttribute("aria-label", d.aria); c.title = d.aria;
+    return c;
+  }
 
   // Item da lista: logo, nome, distância em destaque, ícones só do que está CONFIRMADO. Texto completo para o leitor de tela.
   function itemPosto(p, proximo) {
@@ -231,16 +287,23 @@
     const dist = el("span", "postos-dist"); dist.setAttribute("aria-hidden", "true");
     dist.append(ic(modoLista === "rota" ? "rota" : "reta"), document.createTextNode(P.formatarDistancia(p.distancia_m)));
     topo.append(nome, dist);
-    const marca = el("span", "postos-marca", P.nomeBandeira(p.brand)); marca.setAttribute("aria-hidden", "true");
+    const dv = modoLista === "rota" ? chipDesvio(p) : null;
+    if (dv) topo.appendChild(dv);
+    const marca = el("span", "postos-marca"); marca.setAttribute("aria-hidden", "true");
+    marca.append(document.createTextNode(P.nomeBandeira(p.brand) + " "), estrelas(p, "postos-estrelas"));
     const icones = el("span", "postos-icones"); icones.setAttribute("aria-hidden", "true");
     const sim = P.amenidadesSim(p.attributes);
     for (const x of sim) icones.appendChild(ic(x.icone, null, "ico-sim"));
     if (!sim.length) icones.append(ic("ajuda", null, "ico-desc"), el("span", "postos-sem", "sem informação"));
+    const ab = P.situacaoAbertura(p, new Date());
+    if (ab.estado !== "?") icones.appendChild(seloAbertura(p, false));
+    const desv = modoLista === "rota" ? P.desvioMin(p) : null;
+    if (desv) { const dv = el("span", "postos-desvio"); dv.append(ic("relogio"), document.createTextNode(desv + " min")); dv.title = "Desvio estimado de cerca de " + desv + " min"; icones.appendChild(dv); }
     corpo.append(topo, marca, icones);
     b.append(logoBandeira(p), corpo);
     if (proximo) { const t = el("span", "postos-selo"); t.append(ic("ok"), document.createTextNode("Próximo com diesel")); b.appendChild(t); }
     // texto para o leitor de tela (e fonte do que o motorista vê em ícones): nada some, só deixa de ocupar a tela
-    b.append(dica(textoDistancia(p) + " · " + P.nomeBandeira(p.brand)), dica(r.conhecidos.length ? r.conhecidos.join(" · ") : "Serviços: não informados"));
+    b.append(dica(textoDistancia(p) + " · " + P.nomeBandeira(p.brand) + " · " + ab.texto + (desv ? " · desvio de cerca de " + desv + " min" : "") + " · " + P.rotuloConfianca(p)), dica(r.conhecidos.length ? r.conhecidos.join(" · ") : "Serviços: não informados"));
     if (r.conhecidos.length && r.naoInformados.length) b.appendChild(dica("Não informado: " + r.naoInformados.join(", ")));
     const aviso = p.alcance === "fora" ? "Fora do alcance estimado" : p.alcance === "limite" ? "No limite do alcance estimado" : null;
     if (aviso) {
@@ -308,7 +371,7 @@
     for (const a of todas.filter((x) => x.real || x.estado !== "?")) grade.appendChild(celula(a));
     const sec = el("section", "pc-comod");
     const cab = el("h3", "pc-sub", "Comodidades"); sec.append(cab, grade);
-    const horario = (p.attributes && typeof p.attributes.horario === "string" && p.attributes.horario.trim()) || null;
+    const horario = P.dadosDoPosto(p).horario;
     const h = el("p", "pc-linha pc-horario"); h.append(ic("relogio"), document.createTextNode("Horário: " + (horario || "não informado")));
     sec.appendChild(h);
     const faltam = todas.filter((x) => !x.real && x.estado === "?");
@@ -353,7 +416,8 @@
     const cab = el("header", "pc-cab");
     const tit = el("div", "pc-tit");
     const h2 = el("h2", null, P.nomePosto(p)); h2.id = "posto-card-titulo"; h2.tabIndex = -1;
-    tit.append(h2, el("p", "pc-bandeira", P.nomeBandeira(p.brand)));
+    const linhaMarca = el("p", "pc-bandeira", P.nomeBandeira(p.brand) + " "); linhaMarca.appendChild(estrelas(p));
+    tit.append(h2, linhaMarca);
     cab.append(logoBandeira(p, true), tit);
     raiz.appendChild(cab);
     // distância "à frente" e alcance
@@ -362,8 +426,11 @@
       d.append(ic(modo === "rota" ? "rota" : "reta"), el("strong", null, P.formatarDistancia(p.distancia_m)),
         document.createTextNode(modo === "rota" ? " à frente, pela rota" : " em linha reta"));
       if (modo === "rota" && p.off_route_m != null) d.appendChild(el("span", "pc-fora", " · a " + P.formatarDistancia(p.off_route_m) + " da pista"));
+      const dv = modo === "rota" ? chipDesvio(p) : null;
+      if (dv) { dv.id = "postos-desvio-card"; d.appendChild(dv); }
       raiz.appendChild(d);
     }
+    const abertura = seloAbertura(p, true); abertura.id = "postos-aberto"; raiz.appendChild(abertura);
     const est = estimativa();
     if (est.ok) {
       const s = A.situacao(p.distancia_m, est.km);
@@ -375,7 +442,11 @@
     const rodape = el("footer", "pc-rodape");
     if (p.cnpj) rodape.appendChild(el("p", "dica", "CNPJ " + p.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")));
     rodape.appendChild(el("p", "dica", P.rotuloConfianca(p)));
-    rodape.appendChild(el("p", "dica", "Dados do posto: data da última atualização sem informação na fonte."));
+    const atual = P.formatarData(P.dadosDoPosto(p).atualizadoEm);
+    const linhaAtual = el("p", "dica pc-atualizado"); linhaAtual.id = "postos-atualizado";
+    if (atual) { linhaAtual.append(ic("relogio"), document.createTextNode("Atualizado em " + atual)); linhaAtual.title = "Data da última atualização do dado deste posto (não é a data do preço)"; }
+    else linhaAtual.textContent = "Dados do posto: data da última atualização sem informação na fonte.";
+    rodape.appendChild(linhaAtual);
     rodape.appendChild(el("p", "dica postos-credito", (p.attribution || CREDITO) + " Preços: ANP."));
     raiz.appendChild(rodape);
     // ações (fixas no pé do card)
@@ -384,12 +455,13 @@
     ir.append(ic("ir"), el("span", null, "Ir até lá"));
     ir.setAttribute("aria-label", "Ir até lá: " + P.nomePosto(p));
     acoes.appendChild(ir);
-    if (C.rota && C.rota.destino && C.rota.destino() && !(C.navegacao && C.navegacao.ativa && C.navegacao.ativa()))
-      acoes.appendChild(el("p", "dica pc-troca", "Vira o destino da rota (troca o atual)."));
+    if (temRota() && !navegando()) acoes.appendChild(el("p", "dica pc-troca", "Entra como parada no caminho; o destino e a rota continuam."));
+    else if (navegando()) acoes.appendChild(el("p", "dica pc-troca", "Navegando: você escolhe se é parada ou novo destino."));
     const linha = el("div", "pc-acoes2");
-    const tel = P.telefoneLimpo(p);
+    const tel = P.dadosDoPosto(p).telefone;
     if (tel) {
       const a = document.createElement("a"); a.className = "btn pc-ligar"; a.href = "tel:" + tel; a.id = "postos-ligar";
+      a.setAttribute("aria-label", "Ligar para " + P.nomePosto(p)); a.title = "Ligar";
       a.append(ic("telefone"), el("span", null, "Ligar"));
       linha.appendChild(a);
     }
@@ -406,23 +478,44 @@
     ligarEsc(raiz, () => (lista.length ? desenharFolha({}) : C.folha.fechar()));
   }
 
-  // Vira destino da rota usando a API pública do módulo de rota.
-  // Com a navegação andando (A2): pergunta antes; "sim" troca o destino DA NAVEGAÇÃO (recalcula e avisa), "não" nada muda.
-  function irPara(p) {
-    if (C.navegacao && C.navegacao.ativa && C.navegacao.ativa() && C.navegacao.trocarDestino) { perguntarTroca(p); return; }
+  // "Ir até lá". Sem rota: o posto vira o destino e a rota é traçada. Com rota (parada ou não): o posto entra como PARADA no
+  // caminho (origem → posto → destino), sem perder a rota nem o destino. Navegando: pergunta antes (parada ou novo destino).
+  const navegando = () => !!(C.navegacao && C.navegacao.ativa && C.navegacao.ativa());
+  const temRota = () => !!(C.rota && C.rota.destino && C.rota.destino() && C.rota.adicionarParada);
+  function paradaDe(p) { return { lat: p.lat, lon: p.lon, rotulo: P.nomePosto(p), alongM: modoLista === "rota" && p.along_route_m != null ? p.along_route_m : undefined }; }
+  function virarDestino(p) {
     C.emit("postos:destino", p);
     C.rota.definirDestino({ lat: p.lat, lng: p.lon });
     C.rota.tracar();
   }
+  async function comoParada(p) {
+    C.emit("postos:destino", p);
+    const r = await C.rota.adicionarParada(paradaDe(p));
+    if (r === "longa") { C.mensagem("Rota muito longa para acrescentar parada: o posto virou o destino.", 7000); C.rota.definirDestino({ lat: p.lat, lng: p.lon }); C.rota.tracar(); }
+    else if (r === "repetida") C.mensagem("Este posto já é uma parada da rota.", 5000);
+  }
+  function irPara(p) {
+    if (navegando() && C.navegacao.trocarDestino) { perguntarTroca(p); return; }
+    if (temRota()) { comoParada(p); return; }
+    virarDestino(p);
+  }
   function perguntarTroca(p) {
     const nome = P.nomePosto(p);
     const b = el("div", "linha-botoes postos-troca");
-    const sim = botao("Sim, trocar", "btn btn-principal nav-grande", () => {
+    // parada: o destino e a rota seguem; a navegação recalcula daqui → posto → destino
+    const parada = temRota() ? botao("", "btn btn-principal nav-grande pc-ir-parada", async () => {
+      C.folha.fechar();
+      const r = await C.rota.adicionarParada(paradaDe(p));
+      if (r === "longa") C.mensagem("Rota muito longa para acrescentar parada. Use \"Sim, trocar\" para ir ao posto.", 7000);
+      else if (r === "repetida") C.mensagem("Este posto já é uma parada da rota.", 5000);
+    }) : null;
+    if (parada) { parada.id = "postos-parada"; parada.append(ic("parada"), el("span", null, "Parada no posto (mantém o destino)")); b.appendChild(parada); }
+    const sim = botao("Sim, trocar", "btn nav-grande", () => {
       C.folha.fechar();
       C.emit("postos:destino", p);
       C.navegacao.trocarDestino({ lat: p.lat, lon: p.lon, rotulo: nome });
     });
-    sim.id = "postos-trocar-sim";
+    sim.id = "postos-trocar-sim"; if (!parada) sim.classList.add("btn-principal");
     const nao = botao("Não", "btn nav-grande", C.folha.fechar); nao.id = "postos-trocar-nao";
     b.append(sim, nao);
     C.folha.abrir([el("h2", null, "Trocar o destino para " + nome + "?"),

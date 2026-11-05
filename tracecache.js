@@ -7,10 +7,10 @@
 (function (raiz) {
   "use strict";
 
-  // união do que ui/limite.js (limite.js) e ui/via.js (viaqualidade.js) pedem; o teste confere que nada ficou de fora
+  // união do que ui/limite.js (limite.js), ui/via.js (viaqualidade.js) e ui/faixas.js (edge.turn_lanes, rodada 6) pedem; o teste confere que nada ficou de fora
   const ATRIBUTOS = ["edge.begin_shape_index", "edge.density", "edge.end_shape_index", "edge.length", "edge.lane_count", "edge.max_downward_grade",
     "edge.max_upward_grade", "edge.mean_elevation", "edge.names", "edge.road_class", "edge.speed_limit", "edge.surface", "edge.traversability",
-    "edge.truck_speed", "edge.use", "edge.weighted_grade"];
+    "edge.truck_speed", "edge.turn_lanes", "edge.use", "edge.weighted_grade"];
 
   function normalizar(corpo) {
     if (!corpo || typeof corpo !== "object" || typeof corpo.encoded_polyline !== "string") return corpo;

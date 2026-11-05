@@ -129,6 +129,8 @@
   // ------------------------------------------------------------ folha da rota
   function linha(id, rotulo, partes, classe) {
     const p = el("p", "custos-linha" + (classe ? " " + classe : "")); p.id = id;
+    const ic = { "custos-pedagio": "pedagio", "custos-combustivel": "bomba", "custos-total": "distancia" }[id];
+    if (ic && window.CopilotoIcones) { const w = el("span", "custos-ico"); w.append(window.CopilotoIcones.no(ic)); p.append(w); } // r6: símbolo + rótulo
     p.append(el("span", "custos-rotulo", rotulo), " ");
     if (partes.valor) {
       p.append(el("span", "custos-valor", partes.valor));

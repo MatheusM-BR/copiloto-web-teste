@@ -15,6 +15,7 @@
   const { $, el, botao } = C.util;
   const Rota = window.CopilotoRota;
   const Alt = window.CopilotoAlternativas;
+  const RP = window.CopilotoRotaPref;
   const COR_ROTA = "#2f80ed", COR_ALTERNATIVA = "#aab4c3";
   let marcadorDestino = null, destino = null, rotaAtual = null, geracao = 0;
   let rotuloDestino = null; // nome do lugar (destino por voz/busca), vai na rota e nos destinos recentes
@@ -26,6 +27,31 @@
   // Desvio ativo (ui/desvio.js): { destino, alvos } — os quadrados a evitar valem para TODO cálculo ao mesmo destino (inclusive
   // os recálculos da navegação, que não sabem do desvio) até o motorista escolher outra rota, limpar ou trocar o destino.
   let desvioAtivo = null;
+
+  // ------------------------------------------------------------ rodada 6: preferências, paradas, selo de compatibilidade
+  // Preferências de rota ("Sem pedágio", "Sem balsa", "Sem estrada de terra"): lembradas (localStorage, com try/catch), valem
+  // para TODO cálculo (inclusive o recálculo da navegação) e só entram o que o servidor suporta (/status).
+  let prefs = RP.normalizarPrefs(lerPrefs());
+  let suporte = null;           // resposta de RP.suporteDoStatus (null = ainda não consultei)
+  let baseInfo = null;          // { chave, minutos, km, custo, comparado } da rota SEM as preferências (para mostrar o "a mais")
+  let paradas = [];             // paradas intermediárias da viagem atual: [{ lat, lon, rotulo, alongM? }], só para o destino atual
+  let paradasDestino = null;    // destino a que as paradas pertencem
+  let marcadoresParada = [];
+  function lerPrefs() { try { return JSON.parse(localStorage.getItem(RP.CHAVE_PREFS) || "null"); } catch (e) { return null; } }
+  function gravarPrefs() { try { localStorage.setItem(RP.CHAVE_PREFS, JSON.stringify(prefs)); } catch (e) { /* sem armazenamento: vale só nesta sessão */ } }
+  const prefsEfetivas = () => RP.efetivas(prefs, suporte);
+  async function consultarSuporte() {
+    if (suporte && suporte.conhecido) return suporte;
+    if (navigator.onLine === false) { suporte = suporte || RP.suporteDoStatus(null); return suporte; }
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 6000);
+    try {
+      const r = await fetch(RP.urlStatus(window.COPILOTO_URL_ROTA || Rota.URL_PADRAO), { signal: ctl.signal });
+      suporte = RP.suporteDoStatus(r.ok ? await r.json().catch(() => null) : null);
+    } catch (e) { suporte = suporte || RP.suporteDoStatus(null); }
+    finally { clearTimeout(t); }
+    return suporte;
+  }
+  function paradasDoDestino(dest) { return paradasDestino && mesmoPonto(paradasDestino, dest) ? paradas : []; }
 
   // Redesenho: escolher destino é pela busca ("Para onde?": recentes, coordenada, postos) ou pelo toque no mapa
   // ("Ir para cá", ui/busca.js). O toque no mapa nunca vira destino sozinho. pedirDestino(true) abre a busca;
@@ -44,6 +70,7 @@
     marcadorDestino = new maplibregl.Marker({ element: pinoDestino() }).setLngLat([destino.lon, destino.lat]).addTo(C.mapa);
     if (C.abas.atual() === "busca") C.abas.irPara("mapa");
     esconderAlternativas(); passagem = null;
+    if (!(paradasDestino && mesmoPonto(paradasDestino, destino))) limparParadas();
     C.emit("destino", destino);
     folhaDestino();
   }
@@ -77,7 +104,7 @@
   function limparRota() {
     const tinha = !!destino || !!rotaAtual;
     destino = null; rotuloDestino = null; rotaAtual = null; geracao++;
-    esconderAlternativas(); passagem = null; desvioAtivo = null;
+    esconderAlternativas(); passagem = null; desvioAtivo = null; baseInfo = null; limparParadas();
     if (marcadorDestino) { marcadorDestino.remove(); marcadorDestino = null; }
     const mapa = C.mapa;
     for (const id of ["rota-toque", "rota"]) if (mapa.getLayer(id)) mapa.removeLayer(id);
@@ -197,6 +224,78 @@
       if (mapa.getSource("rota-alt")) mapa.removeSource("rota-alt");
     });
   }
+  // ------------------------------------------------------------ paradas intermediárias (postos no trajeto)
+  function limparParadas() {
+    paradas = []; paradasDestino = null;
+    for (const m of marcadoresParada) m.remove();
+    marcadoresParada = [];
+  }
+  function desenharParadas() {
+    for (const m of marcadoresParada) m.remove();
+    marcadoresParada = [];
+    if (!C.mapa || typeof maplibregl === "undefined") return;
+    paradas.forEach((p, i) => {
+      const e = el("div", "pino-parada", String(i + 1));
+      e.title = "Parada: " + (p.rotulo || "posto");
+      marcadoresParada.push(new maplibregl.Marker({ element: e }).setLngLat([p.lon, p.lat]).addTo(C.mapa));
+    });
+  }
+  // Navegando: a parada que o caminhão já alcançou sai da lista (senão o recálculo seguinte mandaria voltar a ela).
+  function conferirParadasFeitas(d) {
+    if (!d || !d.ativa || !paradas.length || !rotaAtual || !rotaAtual.paradasM || !isFinite(d.progresso_m)) return;
+    const faltam = RP.aindaFaltam(paradas, rotaAtual.paradasM, d.progresso_m);
+    if (faltam.length === paradas.length) return;
+    paradas = faltam; rotaAtual.paradasM = rotaAtual.paradasM.slice(rotaAtual.paradasM.length - faltam.length);
+    desenharParadas();
+    C.emit("paradas", { paradas: paradas.map((x) => Object.assign({}, x)) });
+  }
+  // Põe um posto como parada da viagem atual, SEM perder a rota nem o destino. Sem rota/destino: devolve false (quem chama
+  // faz o "Ir até lá" de sempre). Fora da navegação recalcula daqui e reabre a folha; navegando, quem recalcula é a navegação
+  // (C.navegacao.adicionarParada). Rota longa (dividida em trechos) não aceita parada: devolve "longa".
+  async function adicionarParada(parada) {
+    if (!destino || !parada) return false;
+    if (rotaAtual && rotaAtual.resposta && rotaAtual.resposta.longa) return "longa";
+    const lista = RP.adicionarParada(paradasDoDestino(destino), parada);
+    if (lista.length === paradasDoDestino(destino).length) return "repetida";
+    const antes = paradas, antesDestino = paradasDestino;
+    paradas = lista; paradasDestino = { lat: destino.lat, lon: destino.lon };
+    if (navAtiva()) {
+      const ok = C.navegacao.adicionarParada ? await C.navegacao.adicionarParada() : false;
+      if (!ok) { paradas = antes; paradasDestino = antesDestino; desenharParadas(); return false; }
+      desenharParadas();
+      C.emit("paradas", { paradas: paradas.map((x) => Object.assign({}, x)) });
+      return true;
+    }
+    const pos = C.estado.ultimaPos;
+    if (!pos) { paradas = antes; paradasDestino = antesDestino; C.mensagem("Ative o GPS para saber de onde você sai.", 6000); return false; }
+    const ctl = new AbortController();
+    C.folha.abrir([el("h2", null, "Acrescentando a parada…"), el("p", null, (parada.rotulo || "Posto") + " entra no caminho, o destino continua o mesmo."),
+      botao("Cancelar", "btn btn-grande", () => { ctl.abort(); paradas = antes; paradasDestino = antesDestino; desenharParadas(); if (rotaAtual) folhaRota(rotaAtual, rotaAtual.perfil); else folhaDestino(); })]);
+    try {
+      const r = await calcular({ origem: { lat: pos[1], lon: pos[0] }, perfil: C.veiculos.ativo(), sinal: ctl.signal, enquadrar: false });
+      desenharParadas();
+      folhaRota(r, r.perfil);
+      C.emit("paradas", { paradas: paradas.map((x) => Object.assign({}, x)) });
+      try { if (C.voz && C.voz.falar) C.voz.falar("Parada acrescentada: " + (parada.rotulo || "posto") + ".", { naoInterromper: true }); } catch (e) { /* a voz nunca derruba */ }
+      return true;
+    } catch (e) {
+      if (e.cancelada || ctl.signal.aborted) return false;
+      paradas = antes; paradasDestino = antesDestino; desenharParadas();
+      const b = el("div", "linha-botoes");
+      b.append(botao("Voltar à rota", "btn btn-principal btn-grande", () => { if (rotaAtual) folhaRota(rotaAtual, rotaAtual.perfil); else folhaDestino(); }));
+      C.folha.abrir([el("h2", null, "Não deu para acrescentar a parada"), el("p", null, (e.motivo || e.message) + " A rota anterior continua valendo."), b]);
+      return false;
+    }
+  }
+  function removerParada(i) {
+    if (!(i >= 0 && i < paradas.length) || navAtiva()) return false;
+    paradas = paradas.filter((_, j) => j !== i);
+    if (!paradas.length) paradasDestino = null;
+    desenharParadas();
+    tracarRota();
+    return true;
+  }
+
   // ------------------------------------------------------------ cálculo
   function navAtiva() { return !!(C.navegacao && typeof C.navegacao.ativa === "function" && C.navegacao.ativa()); }
   const mesmoPonto = (a, b) => !!a && !!b && Math.abs(a.lat - b.lat) < 1e-7 && Math.abs(a.lon - b.lon) < 1e-7;
@@ -277,7 +376,11 @@
   async function calcular(o) {
     const dest = o.destino || destino;
     const perfil = o.perfil !== undefined ? o.perfil : C.veiculos.ativo();
-    let { pedido, faltando } = Rota.criarPedido(perfil, o.origem, dest, { semPedagio: !!o.semPedagio });
+    // preferências (o.prefs: {} para a rota normal; padrão = as ligadas e suportadas) e paradas (o.paradas; padrão = as da viagem)
+    const pr = o.prefs !== undefined ? RP.efetivas(o.prefs, { semPedagio: true, semBalsa: true, semTerra: true }) : prefsEfetivas();
+    if (o.semPedagio) pr.semPedagio = true;
+    const ps = o.paradas !== undefined ? o.paradas : paradasDoDestino(dest);
+    let { pedido, faltando } = Rota.criarPedido(perfil, o.origem, dest, { semPedagio: pr.semPedagio, semBalsa: pr.semBalsa, semTerra: pr.semTerra, paradas: ps });
     let extras = [];
     if (o.ajustar) { const a = o.ajustar(pedido, faltando); pedido = a.pedido; faltando = a.faltando; extras = a.avisos || []; }
     const minha = geracao;
@@ -289,7 +392,7 @@
     const comDesvio = pedido !== pedidoBase;
     let pontos = null;
     if (o.alternativas) pedido = Alt.pedirAlternativas(pedido);
-    else if (!o.consultar && o.passarPor !== false) {
+    else if (!o.consultar && o.passarPor !== false && !(ps && ps.length)) {
       pontos = passagemAutomatica(o.origem, dest);
       if (pontos) pedido = Alt.aplicarPassagem(pedido, pontos);
     }
@@ -324,6 +427,12 @@
       nova = rotas[0];
     } else nova = montar(json, r);
     if (pontos) nova.passagem = pontos.length;
+    nova.prefs = pr;
+    if (ps && ps.length) {
+      nova.paradas = ps.map((x) => Object.assign({}, x));
+      const legs = (nova.resposta && nova.resposta.trip && nova.resposta.trip.legs) || [];
+      nova.paradasM = RP.marcosDasParadas(nova.coords, legs.map((l) => (typeof l.shape === "string" ? Rota.decodificarPolyline6(l.shape).length : 0)));
+    }
     // recálculo com o desvio ativo (navegação): a rota nova leva a lista de desvios aplicados (resumo da viagem)
     if (pedido !== pedidoBase && o.poligonos === undefined && desvioAtivo && desvioAtivo.registro && desvioAtivo.registro.length) nova.desvios = desvioAtivo.registro;
     // consultar: só calcula (conferência da rota offline pela navegação); quem pediu decide se usa (usar(rota))
@@ -395,6 +504,7 @@
     atualizarCartoes();
     C.emit("rota", rotaAtual);
     trocarExtras(r);
+    atualizarInfoPref();
     return true;
   }
 
@@ -421,6 +531,7 @@
       if (ico && window.CopilotoIcones) et.prepend(window.CopilotoIcones.no(ico));
       linha.appendChild(et);
     }
+    const selo = el("span", "rota-selo pendente"); selo.hidden = true; linha.appendChild(selo);
     b.append(topo, linha);
     for (const x of extras("cartao", r, i)) b.append(x);
     b.setAttribute("aria-label", info.rotulo + ": " + dados + ", " + chega + (info.comparacao ? ", " + info.comparacao : "") + (r.desvio ? ", " + r.desvio.etiqueta : "") +
@@ -468,6 +579,94 @@
   // combustível e total); ui/custos.js preenche ao ouvir "rota:folha" e põe a diferença de custo em cada cartão.
   function lugarCustos() { const d = el("div", "rota-custos"); d.id = "rota-custos"; return d; }
 
+  // ---------- preferências na folha da rota (chips com símbolo; ≥ 56 px; escondem o que o servidor não suporta)
+  function chipsPrefs() {
+    const sup = suporte || RP.suporteDoStatus(null);
+    const caixa = el("div", "rota-prefs"); caixa.id = "rota-prefs";
+    caixa.setAttribute("role", "group"); caixa.setAttribute("aria-label", "Preferências de rota");
+    const CURTO = { semPedagio: "Sem pedágio", semBalsa: "Sem balsa", semTerra: "Sem terra" };
+    for (const d of RP.PREFS) {
+      if (sup[d.id] !== true) continue;
+      const b = el("button", "rota-pref" + (prefs[d.id] ? " ligada" : "")); b.type = "button"; b.id = "rota-pref-" + d.id;
+      if (window.CopilotoIcones) b.append(window.CopilotoIcones.no(d.icone));
+      b.append(el("span", null, CURTO[d.id]));
+      b.setAttribute("aria-pressed", String(!!prefs[d.id])); b.setAttribute("aria-label", d.longo + (prefs[d.id] ? ": ligado" : ": desligado")); b.title = d.rotulo;
+      b.addEventListener("click", () => { prefs[d.id] = !prefs[d.id]; gravarPrefs(); C.emit("rota:prefs", Object.assign({}, prefs)); tracarRota(); });
+      caixa.appendChild(b);
+    }
+    return caixa.children.length ? caixa : null;
+  }
+  // "Evitando pedágio: +18 min · +12,3 km" (e o que o servidor não conseguiu evitar), da rota escolhida contra a rota normal
+  function atualizarInfoPref() {
+    const alvo = document.querySelector("#folha .rota-pref-info"); if (!alvo) return;
+    alvo.textContent = "";
+    const ef = prefsEfetivas();
+    if (!RP.algumaAtiva(ef) || !rotaAtual) return;
+    const nomes = RP.rotulosAtivos(ef).join(" e ");
+    if (baseInfo) {
+      const dif = RP.diferenca(baseInfo, rotaAtual);
+      const p = el("p", "rota-comp", ""); p.id = "rota-comparacao";
+      p.append(el("strong", null, "Evitando " + nomes + ": "), document.createTextNode(RP.textoDiferenca(dif)));
+      alvo.appendChild(p);
+      const chave = baseInfo.chave, atual = rotaAtual;
+      if (C.custos && C.custos.modo && C.custos.modo() === "avancado" && C.custos.da) {
+        Promise.all([C.custos.da(baseInfo.rota), C.custos.da(atual)]).then(([cb, cn]) => {
+          if (!p.isConnected || !baseInfo || baseInfo.chave !== chave || rotaAtual !== atual) return;
+          const tb = cb && cb.total && cb.total.ok ? cb.total.total : null, tn = cn && cn.total && cn.total.ok ? cn.total.total : null;
+          const d2 = RP.diferenca(baseInfo, atual, tb, tn);
+          p.lastChild.textContent = RP.textoDiferenca(d2);
+        }, () => { /* sem custo: fica tempo e distância */ });
+      }
+    } else {
+      alvo.appendChild(el("p", "dica", "Comparação com a rota normal indisponível agora."));
+    }
+    for (const a of RP.avisosNaoEvitou(ef, Alt.caracteristicas(rotaAtual.resposta))) alvo.appendChild(el("p", "aviso-rota", a));
+  }
+  function listaParadas() {
+    if (!paradas.length || navAtiva()) return null;
+    const caixa = el("div", "rota-paradas"); caixa.id = "rota-paradas";
+    paradas.forEach((p, i) => {
+      const linha = el("div", "rota-parada");
+      const pino = el("span", "pino-parada pino-parada-lista", String(i + 1)); pino.setAttribute("aria-hidden", "true");
+      linha.append(pino, el("span", "rota-parada-nome", "Parada: " + (p.rotulo || "posto")));
+      const x = botao("", "rota-parada-x", () => removerParada(i)); x.setAttribute("aria-label", "Tirar a parada " + (p.rotulo || "posto"));
+      if (window.CopilotoIcones) x.appendChild(window.CopilotoIcones.no("fechar")); else x.textContent = "×";
+      linha.appendChild(x);
+      caixa.appendChild(linha);
+    });
+    return caixa;
+  }
+
+  // ---------- selo "compatível com o caminhão" nos cartões de alternativa (restrições do banco, ui/avisos.js)
+  function atualizarSelo(i) {
+    const b = document.getElementById("rota-opcao-" + i); if (!b || !opcoes) return;
+    const alvo = b.querySelector(".rota-selo"); if (!alvo) return;
+    const c = opcoes.compat && opcoes.compat[i];
+    const sel = RP.seloCompat(c ? c.resumo : null, { erro: c && c.erro, veiculoCaminhao: Rota.ehCaminhao(opcoes.rotas[i].perfil) });
+    alvo.className = "rota-selo " + sel.estado; alvo.textContent = "";
+    alvo.hidden = sel.estado === "carro";
+    if (sel.estado === "ok" || sel.estado === "condicional") alvo.append(window.CopilotoIcones ? window.CopilotoIcones.no("caminhao") : "", el("span", null, sel.texto));
+    else if (sel.estado === "viola") alvo.append(window.CopilotoIcones ? window.CopilotoIcones.no("aviso") : "", el("span", null, sel.texto));
+    else alvo.append(el("span", null, sel.texto));
+    alvo.dataset.estado = sel.estado;
+    alvo.title = sel.aria;
+    const base = (b.dataset.ariaBase || (b.dataset.ariaBase = b.getAttribute("aria-label") || ""));
+    b.setAttribute("aria-label", base + (sel.aria ? ". " + sel.aria : ""));
+  }
+  function conferirCompatibilidade() {
+    if (!opcoes || !C.dadosRota || !C.dadosRota.restricoesDeRota) return;
+    const minhas = opcoes;
+    minhas.compat = minhas.compat || {};
+    opcoes.rotas.forEach((r, i) => {
+      if (!Rota.ehCaminhao(r.perfil)) { atualizarSelo(i); return; }
+      atualizarSelo(i);
+      Promise.resolve().then(() => C.dadosRota.restricoesDeRota(r)).then((resumo) => {
+        if (opcoes !== minhas) return;
+        minhas.compat[i] = { resumo }; atualizarSelo(i);
+      }, () => { if (opcoes !== minhas) return; minhas.compat[i] = { erro: true }; atualizarSelo(i); });
+    });
+  }
+
   function folhaRota(r, perfil) {
     const botoes = el("div", "linha-botoes");
     botoes.append(botao("Limpar rota", "btn", limparRota));
@@ -477,6 +676,10 @@
     const topo = el("div", "folha-topo rota-topo");
     topo.append(el("h2", null, "Rota para " + rotuloVeiculo(perfil)));
     const itens = [topo];
+    const chips = chipsPrefs();
+    if (chips) itens.push(chips, el("div", "rota-pref-info", ""));
+    const lp = listaParadas();
+    if (lp) itens.push(lp);
     const temNav = C.navegacao && C.navegacao.iniciar;
     if (opcoes) {
       prepararInfos();
@@ -505,6 +708,8 @@
     if (temNav) { const pe = el("div", "folha-rodape rota-rodape"); pe.append(botaoIniciar()); itens.push(pe); }
     C.folha.abrir(itens);
     atualizarCartoes();
+    atualizarInfoPref();
+    conferirCompatibilidade();
     C.emit("rota:folha", { rota: r, perfil });
     marcarDecisao();
     C.mapaPronto(() => enquadrarRota());
@@ -549,7 +754,18 @@
     cancelarPedido.id = "rota-cancelar";
     C.folha.abrir([el("h2", null, "Traçando a rota…"), el("p", null, "Calculando para " + (perfil ? perfil.nome : "carro") + "."), cancelarPedido]);
     try {
+      // preferências ligadas: a rota NORMAL (sem elas) é pedida junto, só para mostrar quanto a mais custa evitar
+      if (RP.algumaAtiva(prefs)) await consultarSuporte();
+      const comparar = RP.algumaAtiva(prefsEfetivas());
+      const chaveBase = Math.round(origem.lat * 1e4) + "," + Math.round(origem.lon * 1e4) + ">" + destino.lat + "," + destino.lon + "|" + paradasDoDestino(destino).length;
+      let promessaBase = null;
+      if (comparar) {
+        const antiga = baseInfo && baseInfo.chave === chaveBase ? baseInfo : null;
+        promessaBase = antiga ? Promise.resolve(antiga.rota) : calcular({ origem, perfil, prefs: {}, consultar: true, enquadrar: false, sinal: ctl.signal }).catch(() => null);
+      }
+      baseInfo = null;
       const r = await calcular({ origem, perfil, alternativas: true, sinal: ctl.signal });
+      if (promessaBase) { const b = await promessaBase; if (b) baseInfo = { chave: chaveBase, minutos: b.minutos, km: b.km, rota: b }; }
       folhaRota(r, perfil);
       falarRota(r);
     } catch (e) {
@@ -567,11 +783,18 @@
     // opções de rota mostradas agora (null fora da escolha): { rotas, escolhida, infos }
     alternativas: () => (opcoes ? { rotas: opcoes.rotas.slice(), escolhida: opcoes.escolhida, infos: opcoes.infos ? opcoes.infos.slice() : null } : null),
     escolher, adicionarDesvio, desvioAtivo: () => (desvioAtivo ? { destino: desvioAtivo.destino, alvos: desvioAtivo.alvos.slice(), registro: desvioAtivo.registro || [] } : null),
+    adicionarParada, removerParada, paradas: () => paradasDoDestino(destino).map((p) => Object.assign({}, p)),
+    prefs: () => Object.assign({}, prefs), prefsEfetivas, suporte: () => (suporte ? Object.assign({}, suporte) : null), consultarSuporte,
     definirDesvio: (d) => { desvioAtivo = d && d.alvos && d.alvos.length ? { destino: d.destino, alvos: d.alvos.slice(), registro: d.registro || [] } : null; } };
 
   C.aoIniciar(() => {
     // navegação começou (por qualquer caminho: folha da rota, rota guardada, voz): as alternativas somem
     C.on("navegacao", (d) => { if (d && d.ativa && opcoes) esconderAlternativas(); });
     C.on("dados:rota", (d) => { if (d && d.parte === "restricoes") falarRestricoesTardias(); });
+    C.on("navegacao", conferirParadasFeitas);
+    C.carregarEstilo("estilos/rota6.css");
+    // o servidor de rotas diz a versão em /status: os chips só aparecem para o que ele suporta (consulta única, sem travar nada)
+    consultarSuporte();
+    window.addEventListener("online", () => { if (!suporte || !suporte.conhecido) consultarSuporte(); });
   });
 })(window.Copiloto);

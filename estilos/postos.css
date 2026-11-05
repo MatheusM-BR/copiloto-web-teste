@@ -105,3 +105,19 @@
 .rota-opcao-dados .ico { width: 16px; height: 16px; margin: 0 3px 2px 0; }
 .rota-opcao-dados .ico + .ico, .rota-opcao-dados .ico:nth-of-type(2) { margin-left: 3px; }
 .rota-etiqueta .ico { width: 13px; height: 13px; margin: 0 3px 2px 0; }
+
+/* ------------------------------------------------------------ R6: aberto agora, bandeira, estrelas, desvio */
+.postos-filtros2 { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scroll-snap-type: x proximity; }
+.postos-filtros2 .postos-chip { flex: none; min-width: 72px; padding: 4px 8px; scroll-snap-align: start; }
+.folha .postos-filtros2 .postos-chip[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
+.postos-chip .pc-logo { width: 26px; height: 26px; font-size: 11px; }
+.pc-abertura { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 15px; }
+.pc-abertura .pc-ab-ico { width: 20px; height: 20px; stroke-width: 3; }
+.ab-aberto { color: var(--ok-texto); }
+.ab-fechado { color: var(--perigo); }
+.ab-desc { color: var(--suave); font-weight: 600; }
+.postos-icones .pc-abertura .pc-ab-ico { width: 20px; height: 20px; padding: 2px; border-radius: 50%; border: 1.5px solid currentColor; }
+.pc-estrelas, .postos-estrelas { color: var(--acento-escuro); letter-spacing: 1px; font-size: 13px; white-space: nowrap; }
+.postos-desvio, .pc-desvio { display: inline-flex; align-items: center; gap: 3px; color: var(--suave); font-size: 13px; white-space: nowrap; }
+.pc-atualizado { display: flex; align-items: center; gap: 6px; }
+.pc-atualizado .ico { width: 16px; height: 16px; }

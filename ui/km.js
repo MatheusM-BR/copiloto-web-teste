@@ -239,6 +239,6 @@
     window.addEventListener("offline", () => { if (atual) { atual = null; desenhar(); } });
   });
 
-  C.km = { atual: () => atual, responderVoz, ehDestino, procurar, irParaKm, deVoz, prefixo, sugerirRodovias, avisoDestino, atualizar: () => atualizar(true),
+  C.km = { atual: () => atual, recente: (maxMs) => (atual && respondidoEm && Date.now() - respondidoEm <= (maxMs || 120000) ? atual : null), responderVoz, ehDestino, procurar, irParaKm, deVoz, prefixo, sugerirRodovias, avisoDestino, atualizar: () => atualizar(true),
     _cache: cache };
 })(window.Copiloto);

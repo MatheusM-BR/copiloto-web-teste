@@ -42,6 +42,10 @@
   let orientacao = (C.util.lerJSON(CHAVE_ORIENTACAO, null) || {}).modo === "norte" ? "norte" : "rumo"; // "norte" | "rumo"
   let navAntes = false, manobraM = null;
   let zoomAlvo = null, deltaZoomUsuario = 0, zoomSeguir = null;
+  // Zoom antes da manobra (rodada 6, rotapref.js): a < distM da manobra o fator sobe de 0 a 1 (curva suave) e a câmera aproxima
+  // zoomExtra níveis e inclina até `pitch`; depois da manobra volta. fatorCam anda no máximo um passo por leitura (sem tremer).
+  const RP = window.CopilotoRotaPref;
+  let camCfg = RP.configCamera(C.util.lerJSON(RP.CHAVE_CAMERA, null)), fatorCam = 0, extraZoomAtual = 0;
   let dedos = 0, mouseApertado = false, gestoAtivo = false, panDesligadoPorPinca = false;
   let timerVolta = null, visivelNoFim = true;
 
@@ -122,8 +126,13 @@
       // sem rumo confiável de movimento (parado, só bússola), o mapa não gira: fica no último bearing
       if (r && r.confiavel && r.graus != null && r.fonte !== "bussola") o.bearing = r.graus;
     }
+    // fator da câmera de manobra: só navegando; as leituras sem manobra à frente o levam de volta a 0
+    if (nav) fatorCam = RP.suavizar(fatorCam, RP.fatorManobra(manobraM, camCfg), RP.fatorManobra(manobraM, camCfg) > fatorCam ? 0.34 : 0.2);
+    else fatorCam = 0;
+    const alvoCam = RP.alvoCamera({ zoom: 0, pitch: PITCH_RUMO }, fatorCam, camCfg);
+    extraZoomAtual = alvoCam.zoom;
     if (orientacao === "rumo" && nav) {
-      o.pitch = PITCH_RUMO;
+      o.pitch = alvoCam.pitch;
       // câmera à frente: o veículo fica no terço inferior, sem ficar embaixo de botão (ver lugarDoVeiculo)
       const W = m.getContainer().clientWidth || 1, a = lugarDoVeiculo(W, H, topo);
       const top = Math.max(topo + 16, 2 * a.y - H), right = Math.max(0, W - 2 * a.x);
@@ -135,7 +144,7 @@
     }
     if (nav) {
       const z = zoomPorVelocidade();
-      if (z != null) o.zoom = Math.min(19, Math.max(11, z + deltaZoomUsuario));
+      if (z != null) o.zoom = Math.min(19, Math.max(11, z + deltaZoomUsuario + extraZoomAtual));
     } else if (zoomSeguir != null) {
       o.zoom = zoomSeguir;
       if (Math.abs(m.getZoom() - zoomSeguir) < 0.01) zoomSeguir = null;
@@ -150,7 +159,7 @@
   function verificarNav() {
     const n = navegando();
     if (n === navAntes) return;
-    navAntes = n; deltaZoomUsuario = 0; zoomAlvo = null; manobraM = null;
+    navAntes = n; deltaZoomUsuario = 0; zoomAlvo = null; manobraM = null; fatorCam = 0; extraZoomAtual = 0;
     if (!n) { // fim da navegação: sem inclinação; a orientação escolhida continua (rumo para cima gira também fora dela)
       cancelarVolta();
       if (C.mapa) C.mapa.easeTo(Object.assign({ pitch: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 600 }, orientacao === "norte" ? { bearing: 0 } : {}));
@@ -271,7 +280,7 @@
     mapa.on("moveend", () => {
       if (!gestoAtivo || dedos > 0 || mouseApertado) return;
       gestoAtivo = false;
-      if (seguindo && navegando() && zoomAlvo != null) deltaZoomUsuario = Math.max(-4, Math.min(4, mapa.getZoom() - zoomAlvo));
+      if (seguindo && navegando() && zoomAlvo != null) deltaZoomUsuario = Math.max(-4, Math.min(4, mapa.getZoom() - zoomAlvo - extraZoomAtual));
       iniciarVolta();
     });
     mapa.on("rotate", girarIcone);
@@ -618,6 +627,16 @@
   }
 
   C.seguir = definirSeguir;
+  // Zoom antes da manobra: configuração lida/gravada aqui (switch em Configurações). config() → { ligado, distM, zoomExtra, pitch }.
+  C.cameraManobra = {
+    config: () => Object.assign({}, camCfg),
+    definir: (o) => {
+      camCfg = RP.configCamera(Object.assign({}, camCfg, o));
+      C.util.gravarJSON(RP.CHAVE_CAMERA, camCfg);
+      C.emit("camera:manobra", Object.assign({}, camCfg));
+    },
+    fator: () => fatorCam,
+  };
   C.orientacao = orientacaoPublica;
   C.mapaModo = mapaModo;
   C.seguindo = () => seguindo;

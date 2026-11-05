@@ -1,0 +1,39 @@
+/* r6: símbolos no lugar de texto nas telas (voz, busca, relatos, configurações) e seletor do modo de voz.
+   Carregado depois de toque.css. O ícone herda a cor do texto (currentColor): contraste dos dois temas. */
+.ico { width: 22px; height: 22px; flex: none; vertical-align: middle; }
+.ico-prefixo { margin-right: 10px; }
+/* seletor "Quanto falar" (tela Voz): 2 botões grandes com símbolo, selecionado com contorno e fundo */
+.voz-modo-titulo { margin: 10px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); font-weight: 700; }
+.voz-modo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.voz-modo-btn {
+  min-height: 84px; border-radius: 14px; border: 2px solid var(--linha); background: var(--campo); color: var(--texto);
+  display: grid; place-items: center; align-content: center; gap: 4px; padding: 8px 6px; font-size: 16px; font-weight: 700;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.voz-modo-btn .voz-modo-ico { width: 34px; height: 34px; }
+.voz-modo-btn.escolhido, .voz-modo-btn[aria-checked="true"] { border-color: var(--acento); background: #3a2a10; box-shadow: 0 0 0 2px var(--acento) inset; }
+:root[data-tema="claro"] .voz-modo-btn.escolhido, :root[data-tema="claro"] .voz-modo-btn[aria-checked="true"] { background: #fff1db; }
+.voz-modo-btn:disabled { opacity: .5; }
+/* relato: ícone grande em cima do nome; o nome continua (tipos de risco não podem ficar ambíguos) */
+.r-tipo-btn { min-height: 84px; }
+.r-tipo-btn .r-ico { width: 38px; height: 38px; color: var(--acento); }
+:root[data-tema="claro"] .r-tipo-btn .r-ico { color: var(--acento-escuro); }
+.r-tipo-btn.risco .r-ico { color: #ff8b84; }
+:root[data-tema="claro"] .r-tipo-btn.risco .r-ico { color: #b3261e; }
+.relato-rodovia { font-weight: 700; font-variant-numeric: tabular-nums; }
+/* configurações: ícone antes do item do menu e dentro dos botões de tema/mapa */
+.cfg-menu > button .cfg-item { display: inline-flex; align-items: center; }
+.cfg-menu > button .cfg-item .ico { width: 26px; height: 26px; margin-right: 12px; color: var(--acento); }
+:root[data-tema="claro"] .cfg-menu > button .cfg-item .ico { color: var(--acento-escuro); }
+.cfg-seg button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.cfg-seg button .ico { width: 24px; height: 24px; }
+/* busca de destino: ícone no começo de cada linha */
+.busca-item .ico, .busca-resultado .ico { width: 26px; height: 26px; margin-right: 12px; color: var(--acento); }
+:root[data-tema="claro"] .busca-item .ico, :root[data-tema="claro"] .busca-resultado .ico { color: var(--acento-escuro); }
+/* avisos de dados da rota (cartões da folha) e pedágio */
+.dados-aviso-ico .ico, .custos-ico .ico { width: 24px; height: 24px; margin-right: 8px; color: var(--acento); }
+:root[data-tema="claro"] .dados-aviso-ico .ico, :root[data-tema="claro"] .custos-ico .ico { color: var(--acento-escuro); }
+/* na faixa de aviso da navegação o ícone acompanha o texto (branco sobre a faixa colorida) */
+.aviso-dado .dados-aviso-ico .ico { color: inherit; margin-right: 8px; }
+.custos-ico { display: inline-flex; margin-right: 4px; }
+.custos-linha .custos-ico .ico { margin-right: 4px; }

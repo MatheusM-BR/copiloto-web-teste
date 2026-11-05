@@ -28,12 +28,18 @@
     return null;
   }
 
-  // origem/destino: { lat, lon }. perfil: perfil ativo ou null. extra (opcional): { semPedagio: true } → use_tolls 0 (o
-  // Valhalla evita pedágio quando dá; não é garantia).
+  // origem/destino: { lat, lon }. perfil: perfil ativo ou null. extra (opcional):
+  //  { semPedagio: true } → use_tolls 0; { semBalsa: true } → use_ferry 0 (o Valhalla evita quando dá; não é garantia: a
+  //  resposta diz se a rota ainda tem pedágio/balsa); { semTerra: true } → exclude_unpaved (Valhalla ≥ 3.4);
+  //  { paradas: [{ lat, lon }] } → paradas intermediárias ("break": viram pernas, a navegação diz "chegou à parada").
+  // Caminhão: height/width/length/weight/axle_count/axle_load do cadastro (medida ausente é omitida, nunca inventada) e
+  // hazmat só quando o cadastro marca carga perigosa (perfil.hazmat === true).
   function criarPedido(perfil, origem, destino, extra) {
+    const paradas = extra && Array.isArray(extra.paradas) ? extra.paradas.filter((p) => p && isFinite(p.lat) && isFinite(p.lon)) : [];
     const pedido = {
       locations: [
         { lat: origem.lat, lon: origem.lon, type: "break" },
+        ...paradas.map((p) => ({ lat: p.lat, lon: p.lon, type: "break" })),
         { lat: destino.lat, lon: destino.lon, type: "break" },
       ],
       costing: ehCaminhao(perfil) ? "truck" : "auto",
@@ -49,10 +55,23 @@
       }
       const eixo = cargaPorEixoT(perfil);
       if (eixo != null) opcoes.axle_load = eixo;
-      if (extra && extra.semPedagio) opcoes.use_tolls = 0;
+      if (perfil.hazmat === true) opcoes.hazmat = true;
+      Object.assign(opcoes, preferencias(extra));
       pedido.costing_options = { truck: opcoes };
-    } else if (extra && extra.semPedagio) pedido.costing_options = { auto: { use_tolls: 0 } };
+    } else {
+      const op = preferencias(extra);
+      if (Object.keys(op).length) pedido.costing_options = { auto: op };
+    }
     return { pedido, faltando };
+  }
+
+  // Preferências de rota → opções do costing (iguais para "truck" e "auto")
+  function preferencias(extra) {
+    const o = {};
+    if (extra && extra.semPedagio) o.use_tolls = 0;
+    if (extra && extra.semBalsa) o.use_ferry = 0;
+    if (extra && extra.semTerra) o.exclude_unpaved = true;
+    return o;
   }
 
   function decodificarPolyline6(texto) {

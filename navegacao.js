@@ -201,6 +201,8 @@
           lado: Number(m.type) === 5 ? "direita" : Number(m.type) === 6 ? "esquerda" : null,
           ruas: (m.street_names && m.street_names.length ? m.street_names : (m.begin_street_names || [])).slice(),
           indice_forma: ini,
+          // saída da rodovia (sign do Valhalla: número, ramo, sentido): ui/faixas.js mostra "Saída km N"; sem sign, null
+          sign: m.sign && typeof m.sign === "object" ? m.sign : null,
           inicio_m: geo.acum[ini] || 0,
           tempo_s: typeof m.time === "number" && isFinite(m.time) ? m.time : null,
           destino: ehDestino,
@@ -529,6 +531,37 @@
     ];
   }
 
+  // ------------------------------------------------------------ desvios da viagem (r6)
+  // Cada rota adotada com `rota.desvios` (registros de desvio.js: id, descricao, extraKm, extraMin…) soma os ids novos num
+  // grupo; o km a mais da viagem é a soma de um valor por grupo (os registros do mesmo desvio repetem o mesmo extraKm).
+  // acum: { itens: [{ id, descricao, grupo, extraKm }], grupos: n }. Devolve um acumulado novo (puro).
+  function mesclarDesvios(acum, regs) {
+    const base = acum && Array.isArray(acum.itens) ? acum : { itens: [], grupos: 0 };
+    const vistos = new Set(base.itens.map((i) => String(i.id)));
+    const novos = (Array.isArray(regs) ? regs : []).filter((r) => r && r.id != null && !vistos.has(String(r.id)));
+    if (!novos.length) return base;
+    const grupo = base.grupos + 1;
+    return { grupos: grupo, itens: base.itens.concat(novos.map((r) => ({ id: r.id, descricao: String(r.descricao || r.nome || "restrição"),
+      grupo, extraKm: typeof r.extraKm === "number" && isFinite(r.extraKm) ? r.extraKm : 0 }))) };
+  }
+  function listaCompacta(acum) { return (acum && acum.itens ? acum.itens : []).map((i) => ({ id: i.id, descricao: i.descricao, grupo: i.grupo, extraKm: i.extraKm })); }
+  // Resumo para a tela: { n, extraKm, linha, itens (até 3 + "e mais N"), aceitas, linhaAceitas } ou null sem desvio nem aceite.
+  // aceitas: restrições que o motorista decidiu enfrentar ("Mesmo assim"): [{ id, descricao }].
+  function resumoDesvios(itens, aceitas) {
+    const l = Array.isArray(itens) ? itens.filter(Boolean) : [], ac = Array.isArray(aceitas) ? aceitas.filter(Boolean) : [];
+    if (!l.length && !ac.length) return null;
+    const porGrupo = new Map();
+    for (const i of l) porGrupo.set(i.grupo || 1, Math.max(porGrupo.get(i.grupo || 1) || 0, Number(i.extraKm) || 0));
+    const extraKm = Math.round([...porGrupo.values()].reduce((a, b) => a + b, 0));
+    const nomes = l.map((i) => i.descricao);
+    const itensTxt = nomes.length > 3 ? nomes.slice(0, 3).concat("e mais " + (nomes.length - 3)) : nomes;
+    return {
+      n: l.length, extraKm, itens: itensTxt, aceitas: ac.length,
+      linha: l.length ? "\u21aa " + l.length + (l.length === 1 ? " desvio de restrição evitada" : " desvios de restrição evitadas") + " (" + extraKm + " km a mais)" : "",
+      linhaAceitas: ac.length ? "\u26a0 " + ac.length + (ac.length === 1 ? " restrição mantida por decisão sua" : " restrições mantidas por decisão sua") + ": " + ac.slice(0, 3).map((a) => a.descricao || "restrição").join("; ") : "",
+    };
+  }
+
   // ------------------------------------------------------------ armazenamento (copiloto.nav.v1)
   function lerDados(storage) {
     let o = null;
@@ -557,7 +590,8 @@
     return { id, chegou: false, interrompida: true, destino: a.rotulo || null, veiculo: a.perfilNome || null, carga: a.carga || null,
       data: typeof a.inicio === "number" ? a.inicio : a.atualizado, inicio: r.inicio == null ? null : r.inicio, fim: r.fim == null ? null : r.fim,
       leituras: n(r.leituras), distancia_m: n(r.distancia_m), total_s: n(r.total_s), movimento_s: n(r.movimento_s), parado_s: n(r.parado_s),
-      vel_media_kmh: typeof r.vel_media_kmh === "number" ? r.vel_media_kmh : null };
+      vel_media_kmh: typeof r.vel_media_kmh === "number" ? r.vel_media_kmh : null,
+      desvios: Array.isArray(a.desvios) ? a.desvios : [], aceitas: Array.isArray(a.aceitas) ? a.aceitas : [] };
   }
   function gravarDados(storage, d) { try { storage && storage.setItem(CHAVE, JSON.stringify(d)); } catch (e) { /* ignora */ } }
   function adicionarViagem(lista, viagem, max) { return [viagem].concat(lista || []).slice(0, max || 20); }
@@ -755,7 +789,7 @@
     kmFalado, duracaoFalada, horaFalada, textoRotaTracada, viaFalada, textoInicio, posTransicao, textoMarcoViagem, textoViagem, criarMarcosViagem,
     formatarDistancia, formatarDuracao, formatarHora, textoChegada,
     lerToneladas, pesoParaRota, aplicarPeso,
-    criarRegistro, linhasResumo, lerDados, gravarDados, adicionarViagem, adicionarRecente,
+    mesclarDesvios, listaCompacta, resumoDesvios, criarRegistro, linhasResumo, lerDados, gravarDados, adicionarViagem, adicionarRecente,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoNavegacao = api;

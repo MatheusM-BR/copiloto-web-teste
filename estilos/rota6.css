@@ -1,0 +1,78 @@
+/* Rota, rodada 6: preferências, selo de compatibilidade, paradas, faixas/saída, lugares salvos, desvio do posto. */
+/* ---- chips de preferência na folha da rota ---- */
+.rota-prefs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 6px; }
+.rota-pref {
+  flex: 1 1 0; min-width: 96px; min-height: 64px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 6px 10px; font: inherit; font-size: 14px; font-weight: 700; line-height: 1.15; text-align: center;
+  background: var(--campo); color: var(--texto); border: 2px solid var(--linha); border-radius: 12px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.rota-pref .ico { width: 22px; height: 22px; flex: none; }
+.rota-pref.ligada { border-color: #2f80ed; background: rgba(47, 128, 237, .18); }
+.rota-pref.ligada::after { content: "✓"; color: #6aa8ff; font-size: 14px; }
+.rota-pref-info { display: grid; gap: 4px; margin: 0 0 6px; }
+.rota-pref-info:empty { display: none; }
+.rota-pref-info p { margin: 0; font-size: 14px; }
+.rota-comp strong { font-weight: 700; }
+/* ---- selo "compatível" no cartão de alternativa ---- */
+.rota-selo { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--linha); color: var(--texto); }
+.rota-selo[hidden] { display: none; }
+.rota-selo .ico { width: 15px; height: 15px; flex: none; }
+.rota-selo.ok { background: rgba(63, 182, 122, .22); color: #9be3bd; }
+.rota-selo.condicional { background: rgba(242, 164, 58, .22); color: #ffd9a1; }
+.rota-selo.viola { background: rgba(235, 87, 87, .25); color: #ff9b94; }
+.rota-selo.pendente, .rota-selo.indisponivel { color: var(--suave); font-weight: 400; }
+/* ---- paradas ---- */
+.rota-paradas { display: grid; gap: 6px; margin: 0 0 6px; }
+.rota-parada { display: flex; align-items: center; gap: 10px; min-height: 48px; }
+.rota-parada-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.rota-parada-x { width: 48px; height: 48px; flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--campo); color: var(--texto); border: 2px solid var(--linha); border-radius: 12px; cursor: pointer; }
+.rota-parada-x .ico { width: 20px; height: 20px; }
+.pino-parada { width: 26px; height: 26px; border-radius: 50%; background: #f2a43a; color: #1a1204; border: 3px solid #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
+.pino-parada-lista { box-shadow: none; flex: none; }
+/* ---- faixas e saída (painel da navegação) ---- */
+.nav-faixas { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 2px 0 0; min-height: 0; }
+.nav-faixas[hidden] { display: none; }
+.nav-faixas-fila { display: inline-flex; gap: 3px; }
+.nav-faixa { min-width: 28px; height: 34px; padding: 0 3px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid currentColor; border-radius: 6px; font-size: 20px; font-weight: 800; line-height: 1; opacity: .45; }
+.nav-faixa.valida { opacity: .85; }
+.nav-faixa.indicada { opacity: 1; background: #2f80ed; border-color: #2f80ed; color: #fff; }
+.nav-saida { font-size: 16px; font-weight: 800; padding: 3px 10px; border-radius: 8px; background: #1f8a4c; color: #fff; }
+.nav-saida small { font-weight: 400; font-size: 13px; opacity: .92; margin-left: 6px; }
+/* ---- lugares salvos ---- */
+.busca-lugares { list-style: none; margin: 0 0 8px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 8px; }
+.busca-lugares:empty { display: none; }
+.busca-lugar { width: 100%; min-height: 64px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; text-align: left; font: inherit; font-weight: 700; background: var(--campo); color: var(--texto); border: 2px solid var(--linha); border-radius: 12px; cursor: pointer; touch-action: manipulation; }
+.busca-lugar .ico { width: 26px; height: 26px; flex: none; }
+.busca-lugar-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lugares-escolha { display: grid; gap: 8px; }
+.lugares-escolha .btn, .lugares-lista .btn { min-height: 64px; display: flex; align-items: center; justify-content: flex-start; gap: 10px; }
+.lugares-escolha .ico, .lugares-lista .ico { width: 26px; height: 26px; flex: none; }
+.lugares-nome { width: 100%; min-height: 56px; font: inherit; font-size: 18px; padding: 8px 12px; background: var(--campo); color: var(--texto); border: 2px solid var(--linha); border-radius: 12px; box-sizing: border-box; }
+.lugares-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.lugares-item { display: flex; gap: 8px; align-items: stretch; }
+.lugares-item .btn:first-child { flex: 1; min-width: 0; }
+.lugares-item .btn-x { width: 64px; flex: none; justify-content: center; }
+/* ---- desvio do posto (lista "Postos à frente") ---- */
+.postos-desvio { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--suave); white-space: nowrap; }
+.postos-desvio .ico { width: 15px; height: 15px; }
+.postos-desvio.pista { color: #9be3bd; }
+.pc-acoes .pc-ir-parada { min-height: 64px; }
+/* ---- tema claro ---- */
+:root[data-tema="claro"] .rota-pref.ligada { border-color: #1f6fd6; background: #e8f1fd; }
+:root[data-tema="claro"] .rota-pref.ligada::after { color: #1f6fd6; }
+:root[data-tema="claro"] .rota-selo { background: #e6eaf0; color: #1f2733; }
+:root[data-tema="claro"] .rota-selo.ok { background: #dff3e8; color: #17603a; }
+:root[data-tema="claro"] .rota-selo.condicional { background: #fdf0d8; color: #7a4a00; }
+:root[data-tema="claro"] .rota-selo.viola { background: #fde7e5; color: #a3231b; }
+:root[data-tema="claro"] .rota-selo.pendente, :root[data-tema="claro"] .rota-selo.indisponivel { color: #5b6677; }
+:root[data-tema="claro"] .postos-desvio { color: #4a5565; }
+:root[data-tema="claro"] .postos-desvio.pista { color: #17603a; }
+
+.toque-botoes2 { flex-wrap: wrap; }
+.toque-botoes2 .btn { min-width: 120px; }
+#app.nav-ativa:has(#folha:not([hidden])) .nav-painel .nav-faixas { display: none; }
+/* ---- Configurações: interruptor da câmera na manobra (fora do menu) ---- */
+.cfg-linha { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; width: 100%;
+  background: var(--painel); color: var(--texto); border: 1px solid var(--linha); border-radius: 16px; font: inherit; font-size: 16px; font-weight: 600; text-align: left; cursor: pointer; }
+.cfg-linha[aria-checked="true"] .cfg-valor { color: var(--ok-texto, #9be3bd); }

@@ -112,7 +112,7 @@
     caixa.className = "alerta nivel-" + r.level + (cruz && cruz.estado === "excede" ? " critico" : "");
     $("alerta-sigla").textContent = (Relatos.TIPOS[tipo] || {}).sigla || "!";
     $("alerta-titulo").textContent = C.comunidade.titulo(r);
-    $("alerta-dist").textContent = "a " + (dist < 10 ? "menos de 10" : Math.round(dist / 10) * 10) + " m";
+    $("alerta-dist").textContent = "a " + (dist < 10 ? "menos de 10" : Math.round(dist / 10) * 10) + " m" + (NuvemLib.textoRodovia(r) ? " · " + NuvemLib.textoRodovia(r) : "");
     // COM-05: indicador discreto; "Contestado" continua escrito
     const ind = NuvemLib.indicadorNivel(r.level);
     const nv = $("alerta-nivel");

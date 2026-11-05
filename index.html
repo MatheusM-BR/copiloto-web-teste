@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="estilos/conta.css">
 <link rel="stylesheet" href="estilos/interface.css">
 <link rel="stylesheet" href="estilos/toque.css">
+<link rel="stylesheet" href="estilos/simbolos.css">
 </head>
 <body>
 <div id="app">
@@ -116,6 +117,11 @@
           <button type="button" role="radio" aria-checked="false" id="cfg-orient-rumo" data-orient="rumo">Rumo para cima</button>
           <button type="button" role="radio" aria-checked="false" id="cfg-orient-norte" data-orient="norte">Norte para cima</button>
         </div>
+      </div>
+      <!-- Rodada 6: a câmera aproxima e inclina quando falta pouco para a manobra (ui/mapa.js); fora do menu (a ordem do menu é fixa) -->
+      <div class="cfg-grupo">
+        <h2 class="cfg-titulo" id="cfg-camera-titulo">Câmera na manobra</h2>
+        <button type="button" id="cfg-camera" class="cfg-linha" role="switch" aria-checked="true" aria-labelledby="cfg-camera-titulo cfg-camera-valor"><span class="cfg-item">Zoom antes da manobra</span><small class="cfg-valor" id="cfg-camera-valor">Ligado</small></button>
       </div>
       <!-- Menu: as telas (Veículo, Conta, Emergência e as dos pacotes) abrem daqui; os pacotes entram por Copiloto.abas.registrar -->
       <nav class="cfg-menu" aria-label="Menu">
@@ -240,6 +246,8 @@
 <script src="velocidade.js"></script>
 <script src="rota.js"></script>
 <script src="alternativas.js"></script>
+<script src="rotapref.js"></script>
+<script src="lugares.js"></script>
 <script src="relatos.js"></script>
 <script src="config.js"></script>
 <script src="nuvem.js"></script>
@@ -269,6 +277,7 @@
 <script src="ui/conta.js"></script>
 <script src="ui/configuracoes.js"></script>
 <script src="ui/busca.js"></script>
+<script src="ui/lugares.js"></script>
 
 <!-- MÓDULOS DE PACOTE: uma linha por pacote -->
 <script src="ui/navegacao.js"></script>
@@ -278,7 +287,7 @@
 <script src="ui/privacidade.js"></script>
 <script src="ui/endereco.js"></script>
 <script src="ui/fachada.js"></script>
-<script src="tracecache.js"></script><script src="limite.js"></script><script src="ui/limite.js"></script>
+<script src="tracecache.js"></script><script src="limite.js"></script><script src="ui/limite.js"></script><script src="ui/faixas.js"></script>
 <script src="custos.js"></script><script src="ui/custos.js"></script>
 <script src="rotalonga.js"></script><script src="viaqualidade.js"></script><script src="ui/rotalonga.js"></script><script src="ui/via.js"></script>
 <script src="desvio.js"></script><script src="dados.js"></script><script src="ruido.js"></script><script src="kmcache.js"></script><script src="ui/km.js"></script><script src="ui/avisos.js"></script><script src="ui/desvio.js"></script>

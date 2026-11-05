@@ -23,10 +23,13 @@
     const fach = T.fachada();
     $("cfg-fachada").setAttribute("aria-checked", String(fach));
     $("cfg-fachada-valor").textContent = fach ? "Ligada" : "Desligada";
+    const cam = C.cameraManobra ? C.cameraManobra.config().ligado : true;
+    $("cfg-camera").setAttribute("aria-checked", String(cam));
+    $("cfg-camera-valor").textContent = cam ? "Ligado" : "Desligado";
     try {
       const p = C.voz && C.voz.preferencias ? C.voz.preferencias() : null;
       const perfis = window.CopilotoVoz && window.CopilotoVoz.PERFIS;
-      $("cfg-voz-valor").textContent = !p ? "" : !p.ligada ? "Desligada" : (perfis && perfis[p.perfil] ? perfis[p.perfil].rotulo : "Ligada");
+      $("cfg-voz-valor").textContent = !p ? "" : !p.ligada ? "Desligada" : (perfis && perfis[p.perfil] ? perfis[p.perfil].rotulo : "Ligada") + (p.modo === "alertas" ? " · Só alertas" : "");
     } catch (e) { /* sem voz */ }
     let conta = "Entrar";
     try { if (C.nuvem.logado()) { const u = C.nuvem.usuario(); conta = (u && u.email) || "Conectado"; } } catch (e) { /* ignora */ }
@@ -57,9 +60,21 @@
     if (acoes && r && acoes.lastElementChild !== r) acoes.appendChild(r);
   }
 
+  // r6: símbolo antes de cada item do menu e nos botões de tema/mapa (o texto continua; só reforça)
+  const ICONES_MENU = { "nav-veiculo": "caminhao", "cfg-voz": "voz_tudo", "cfg-fachada": "predio", "btn-tela": "celular", "cfg-privacidade": "escudo",
+    "cfg-diagnostico": "pulso", "nav-conta": "pessoa" };
+  const ICONES_SEG = { "cfg-tema-claro": "sol", "cfg-tema-escuro": "lua", "cfg-tema-auto": "tema_auto", "cfg-mapa-ruas": "mapa", "cfg-mapa-predios": "predio",
+    "cfg-orient-rumo": "ir", "cfg-orient-norte": "bandeira" };
+  function simbolos() {
+    const I = window.CopilotoIcones; if (!I) return;
+    for (const [id, nome] of Object.entries(ICONES_MENU)) { const b = $(id), it = b && b.querySelector(".cfg-item"); if (it) I.prefixar(it, nome); }
+    for (const [id, nome] of Object.entries(ICONES_SEG)) { const b = $(id); if (b) I.prefixar(b, nome); }
+  }
+
   C.configuracoes = { abrir: () => C.abas.irPara("config"), irPara };
 
   C.aoIniciar(() => {
+    simbolos();
     C.abas.registrar({ id: "config", rotulo: "Configurações", tela: $("tela-config"), botao: $("btn-config"), aoAbrir: desenhar });
     for (const b of document.querySelectorAll("#tela-config [data-tema]")) b.addEventListener("click", () => { C.tema.escolha(b.dataset.tema); desenhar(); });
     for (const b of document.querySelectorAll("#tela-config [data-tipo]")) b.addEventListener("click", () => { C.tema.tipoMapa(b.dataset.tipo); desenhar(); });
@@ -67,6 +82,8 @@
     for (const b of document.querySelectorAll("#tela-config [data-orient]")) b.addEventListener("click", () => { if (C.orientacao) C.orientacao(b.dataset.orient); desenhar(); });
     C.on("orientacao", () => { if (C.abas.atual() === "config") desenhar(); });
     $("cfg-fachada").addEventListener("click", () => { C.tema.fachada(!C.tema.fachada()); desenhar(); });
+    // rodada 6: a câmera aproxima e inclina quando falta pouco para a manobra (ui/mapa.js)
+    $("cfg-camera").addEventListener("click", () => { if (C.cameraManobra) C.cameraManobra.definir({ ligado: !C.cameraManobra.config().ligado }); desenhar(); });
     for (const b of document.querySelectorAll("#tela-config [data-ir]")) b.addEventListener("click", () => irPara(b.dataset.ir, b.dataset.alvo));
     // "‹ Mapa": só nas telas
     C.on("aba", (id) => { $("nav-mapa").hidden = id === "mapa"; });

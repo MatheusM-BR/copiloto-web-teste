@@ -17,6 +17,8 @@
 // falar(texto, { critica: true }): segurança/chegada. Nunca descartada por tempo na fila; com o microfone aberto, aborta a
 // escuta e fala (com { manobra: true } fala já; com { naoInterromper: true } espera só alerta/manobra em curso).
 // falar sem manobra/crítica e com { naoInterromper }: também espera a fala anterior acabar (não corta a frase de ninguém).
+// falar(texto, { conversa: true }): conversa pelo caminho (marcos, "Continue por…"); no modo "Só alertas" não sai (falar devolve false).
+// Copiloto.voz.modo() / definirModo("tudo"|"alertas"): modo de fala, persistente em copiloto.voz.v1; emite "voz:modo".
 // Emite "voz:falar" ({ texto, manobra }) logo antes de cada fala (o mãos-livres do E4 fecha o microfone).
 (function (C) {
   "use strict";
@@ -34,6 +36,7 @@
   function falar(texto, opcoes) {
     if (!prefVoz.ligada) return false;
     const op = opcoes || {};
+    if (!Voz.permiteFala(prefVoz.modo, texto, op)) return false; // "Só alertas": conversa não sai
     const critica = !!op.critica;
     // crítica (manobra "agora", chegada, restrição): o microfone aberto (ou surdo) não pode emudecê-la. Só espera quem
     // aceita esperar (naoInterromper) e há alerta/manobra falando.
@@ -113,11 +116,52 @@
     $("voz-ligada").checked = prefVoz.ligada;
     $("voz-perfil").value = prefVoz.perfil;
     $("voz-perfil").disabled = !prefVoz.ligada;
+    desenharModo();
     $("voz-msg").textContent = falador.disponivel() ? "" : MSG_INDISPONIVEL;
   }
   function salvar() { const s = C.util.storage(); if (s) Voz.gravarPreferencias(s, prefVoz); desenhar(); }
 
-  C.voz = { falar, preferencias: () => Object.assign({}, prefVoz), falador, disponivel: () => falador.disponivel(),
+  // Seletor "Quanto falar" (criado aqui, como a caixa do bipe): dois botões grandes com símbolo (radiogroup).
+  function desenharModo() {
+    const g = $("voz-modo"); if (!g) return;
+    for (const b of g.querySelectorAll("[data-modo]")) {
+      const v = b.dataset.modo === prefVoz.modo;
+      b.setAttribute("aria-checked", String(v)); b.classList.toggle("escolhido", v); b.disabled = !prefVoz.ligada;
+    }
+    const d = $("voz-modo-dica"); if (d) d.textContent = Voz.MODOS[prefVoz.modo].dica + ".";
+  }
+  // Muda o modo (botão ou comando de voz). Devolve a frase de confirmação.
+  function definirModo(modo, opcoes) {
+    if (!Voz.MODOS[modo]) return null;
+    const mudou = prefVoz.modo !== modo;
+    prefVoz.modo = modo;
+    const s = C.util.storage(); if (s) Voz.gravarPreferencias(s, prefVoz);
+    desenharModo();
+    if (mudou) C.emit("voz:modo", { modo });
+    return modo === "alertas" ? "Só alertas." : "Falando tudo.";
+  }
+  function criarSeletorModo() {
+    const cartao = $("cartao-voz");
+    if (!cartao || $("voz-modo")) return;
+    const rot = document.createElement("p"); rot.className = "voz-modo-titulo"; rot.id = "voz-modo-titulo"; rot.textContent = "Quanto falar";
+    const g = document.createElement("div"); g.id = "voz-modo"; g.className = "voz-modo"; g.setAttribute("role", "radiogroup"); g.setAttribute("aria-labelledby", "voz-modo-titulo");
+    for (const [id, m] of Object.entries(Voz.MODOS)) {
+      const b = document.createElement("button"); b.type = "button"; b.dataset.modo = id; b.className = "voz-modo-btn";
+      b.setAttribute("role", "radio"); b.setAttribute("aria-label", m.rotulo + ". " + m.dica);
+      b.innerHTML = window.CopilotoIcones.svg(m.simbolo, { classe: "voz-modo-ico" }) + '<span class="voz-modo-nome"></span>';
+      b.querySelector(".voz-modo-nome").textContent = m.rotulo;
+      b.addEventListener("click", () => {
+        definirModo(id);
+        if (prefVoz.ligada) { falador.destravar(); falador.falar(id === "alertas" ? "Só alertas." : "Falando tudo."); }
+      });
+      g.appendChild(b);
+    }
+    const d = document.createElement("p"); d.className = "dica"; d.id = "voz-modo-dica";
+    const perfil = $("voz-perfil") && $("voz-perfil").closest("label");
+    if (perfil && perfil.parentNode === cartao) perfil.before(rot, g, d); else cartao.append(rot, g, d);
+  }
+
+  C.voz = { modo: () => prefVoz.modo, definirModo, falar, preferencias: () => Object.assign({}, prefVoz), falador, disponivel: () => falador.disponivel(),
     bipe, bipeLigado: () => bipeLigado, emAlerta, emManobra, falando: () => falando(ultimaFala),
     calar, sintetizando: () => falador.falando(),
     // microfone abrindo/fechando (ui/comandos.js): o áudio mudo em laço sai enquanto o microfone está aberto
@@ -225,6 +269,7 @@
     C.on("voto", () => falar(Voz.agradecimento(prefVoz.perfil, contAgradecimento++), { naoInterromper: true }));
     // alerta.js fala o alerta e logo em seguida emite "alerta" com abriu: marca essa fala como alerta de segurança
     C.on("alerta", (d) => { if (d && d.abriu && ultimaFala && Date.now() - ultimaFala.t < 500) falaAlerta = ultimaFala; });
+    criarSeletorModo();
     criarCaixaBipe();
     criarAvisoSemSom();
     criarBotaoTestar();
