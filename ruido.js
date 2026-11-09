@@ -85,7 +85,7 @@
       const ponto = r.fim_m == null;
       const off = num(r.fora_da_rota_m);
       if (num(a.rota_sobreposicao) != null && a.rota_sobreposicao < SOBREPOSICAO_MIN) continue;
-      if (off != null && off > (ponto ? OFF_PONTO_M : OFF_LINHA_M)) continue;
+      if (off != null && off > (ponto ? OFF_PONTO_M : OFF_LINHA_M) && r.proveniencia !== "relato") continue; // relato de motorista: GPS do celular, a faixa de 12 m não vale
       if (num(a.camada) != null && a.camada !== 0 && off != null && off > OFF_CAMADA_M) continue;
       if (!/^[wnr]\d+\//.test(String(r.source_key || ""))) { semWay.push(r); continue; }
       const k = way(r), antes = porWay.get(k);

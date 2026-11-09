@@ -28,6 +28,8 @@
     neblina: "fog",
     pista_escorregadia: "slippery_road",
     balanca: "weigh_station",
+    // lote 1b
+    risco_seguranca: "security_risk",
   };
   const SERVIDOR_PARA_APP = {};
   for (const k of Object.keys(APP_PARA_SERVIDOR)) SERVIDOR_PARA_APP[APP_PARA_SERVIDOR[k]] = k;

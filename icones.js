@@ -66,6 +66,7 @@
     r_parado: '<path d="M2.500 16.500v-3.500l2.200-4.500h8.600l2.200 4.500v3.500zM2.500 16.500v1.500M15.500 16.500v1.500"/><path d="M19 4.500l3 5.500h-6z"/>',
     r_alagamento: '<path d="M2.500 9c2 0 2-2 4.500-2s2.500 2 4.500 2 2.500-2 4.500-2 2.500 2 4.500 2M2.500 14c2 0 2-2 4.500-2s2.500 2 4.500 2 2.500-2 4.500-2 2.500 2 4.500 2M2.500 19c2 0 2-2 4.500-2s2.500 2 4.500 2 2.500-2 4.500-2 2.500 2 4.500 2"/>',
     r_neblina: '<path d="M4 7h13M7 11.500h13M4 16h10M8 20.500h12"/>',
+    r_risco: '<path d="M12 2.500l8 3v6c0 5-3.400 8.600-8 10-4.600-1.400-8-5-8-10v-6z"/><path d="M12 8v5M12 16v.4"/>',
     r_lisa: '<path d="M8 3c4 3-4 6 0 9s-4 6 0 9M16 3c4 3-4 6 0 9s-4 6 0 9"/>',
     balsa: '<path d="M3 16.500l1.800 3.500h14.400l1.800-3.500zM6.500 16.500V11.500h11v5M9.500 11.500V7.500h5v4M12 7.500V4"/>',
     terra: '<path d="M7 20.500L10 3.500M17 20.500L14 3.500M12 6.500v2.500M12 11.500v2.500M12 16.500v2.500"/>',
@@ -95,7 +96,7 @@
   // Ícone de cada tipo de relato (app): usado na grade do formulário e nas listas.
   const ICONE_RELATO = { altura_maxima: "r_altura", limite_peso: "r_peso", obra: "obras", buraco: "r_buraco", acidente: "r_acidente", radar_movel: "r_radar",
     animal: "r_animal", fila: "r_fila", objeto: "r_objeto", veiculo_parado: "r_parado", alagamento: "r_alagamento", neblina: "r_neblina",
-    pista_escorregadia: "r_lisa", balanca: "balanca" };
+    pista_escorregadia: "r_lisa", balanca: "balanca", risco_seguranca: "r_risco" };
   // Põe o ícone (decorativo) no começo de um elemento, sem mexer no texto. Devolve o elemento.
   function prefixar(elemento, nome, classe) {
     if (!elemento || elemento.querySelector(":scope > svg.ico")) return elemento;

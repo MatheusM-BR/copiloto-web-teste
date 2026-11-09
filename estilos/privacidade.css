@@ -59,3 +59,24 @@
 
 /* Revisão 4 (item 18): o link da política na tela Conta é um alvo de 64 px */
 .e5-link-politica { display: flex; align-items: center; min-height: 64px; }
+
+/* Lote 4 (onboarding): o que o app pede ao aparelho, em 3 linhas curtas (ícone 40 px + nome + frase) */
+.e5-permissoes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.e5-perm { display: flex; align-items: center; gap: 10px; padding: 4px 10px; min-height: 44px; background: var(--painel); border: 1px solid var(--linha); border-radius: 12px; }
+.e5-perm-ico { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--primaria-suave); color: var(--primaria); }
+.e5-perm-ico svg { width: 20px; height: 20px; }
+.e5-perm-txt { display: block; font-size: 14px; line-height: 1.25; color: var(--suave); }
+.e5-perm-txt b { margin-right: 6px; }
+.e5-perm-txt b { color: var(--texto); font-size: 15px; }
+
+/* Lote 4: SOS. Coordenadas copiáveis e contatos que o motorista cadastrou (nada vem pronto) */
+.e5-copiar { width: 100%; min-height: 64px; margin-top: 4px; }
+.e5-contatos h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); }
+.e5-contato { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.e5-contato .e5-contato-rm { min-height: 64px; }
+.e5-ligar-contato b { font-size: 18px; color: var(--primaria); }
+.e5-contato-form { display: grid; gap: 8px; }
+.e5-contato-form input { min-height: 64px; border-radius: 12px; border: 1px solid var(--linha); background: var(--campo); padding: 0 14px; font-size: 17px; }
+.e5-contato-form .btn { min-height: 64px; }
+.e5-contato-erro { color: var(--perigo-txt); font-size: 14px; }
+.e5-contato-erro[hidden] { display: none; }

@@ -127,6 +127,12 @@
     const res = C.dadosRota.restricoesJa(rota);
     if (res && res.violadas.length) buscar(rota, res.violadas, true);
   }
+  // "Sugerir desvio" do cartão âmbar (confiança média): só quando o motorista toca; nunca automático
+  function sugerir(rota) {
+    if (!rota || !C.dadosRota) return;
+    const res = C.dadosRota.restricoesJa(rota);
+    if (res && res.possiveis && res.possiveis.length) buscar(rota, res.possiveis, true);
+  }
   function aceitar(rota) {
     aceitoDestino = chaveDestino(rota && rota.destino);
     // r6: o resumo da viagem registra as restrições que o motorista decidiu enfrentar
@@ -230,7 +236,7 @@
     }
   }
 
-  C.desvio = { estado, desviar, aceitar, navegando, desviarAgora, procurar, buscar };
+  C.desvio = { estado, desviar, sugerir, aceitar, navegando, desviarAgora, procurar, buscar };
   C.aoIniciar(() => {
     C.on("dados:rota", aoRestricoes);
     C.on("rota-limpa", () => { estados.clear(); tentadasNav.clear(); aceitoDestino = null; ultimaFalhaNav = 0; ultimoDestino = null; });

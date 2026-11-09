@@ -501,6 +501,7 @@
     rotaAtual = r;
     desenharRota(r.coords, false);
     desenharAlternativas();
+    atualizarResumo();
     atualizarCartoes();
     C.emit("rota", rotaAtual);
     trocarExtras(r);
@@ -572,7 +573,9 @@
   function rotuloVeiculo(perfil) { return perfil && Rota.ehCaminhao(perfil) ? perfil.nome : "carro"; }
   function botaoIniciar() {
     // ao iniciar, as alternativas somem (a escolhida fica)
-    return botao("Iniciar navegação", "btn btn-principal btn-iniciar-nav", () => { esconderAlternativas(); C.navegacao.iniciar(); });
+    const b = botao("Iniciar navegação", "btn btn-principal btn-iniciar-nav", () => { esconderAlternativas(); C.navegacao.iniciar(); });
+    if (window.CopilotoIcones) window.CopilotoIcones.prefixar(b, "ir"); // lote 2: botão azul grande com o símbolo de navegar
+    return b;
   }
 
   // Custos da rota (ui/custos.js): lugar reservado logo depois de "Iniciar navegação" (modo Padrão/Avançado, pedágio,
@@ -667,6 +670,31 @@
     });
   }
 
+  // Cabeçalho da folha de planejamento (lote 2, P1.4): origem → destino, distância · tempo e chegada da rota ESCOLHIDA, e a carga.
+  // Só dado que existe: a origem é a posição do motorista; carregado/vazio vêm do cadastro do veículo (a escolha é feita ao iniciar).
+  function textoT(v) { return String(v).replace(".", ","); }
+  function resumoRota(r, perfil) {
+    const caixa = el("section", "rota-resumo"); caixa.id = "rota-resumo"; caixa.setAttribute("aria-label", "Resumo da rota");
+    const trecho = el("p", "rota-resumo-trecho");
+    trecho.append(el("span", "rota-resumo-de", "Sua posição"), el("span", "rota-resumo-seta", "→"), el("span", "rota-resumo-para", rotuloDestino || "Destino escolhido"));
+    const nums = el("div", "rota-resumo-nums");
+    nums.append(el("b", "rota-resumo-dados", ""), el("span", "rota-resumo-chegada", ""));
+    caixa.append(trecho, nums);
+    if (perfil && Rota.ehCaminhao(perfil)) {
+      const partes = [];
+      partes.push("Carregado " + (typeof perfil.pbtc === "number" ? textoT(perfil.pbtc) + " t (PBTC)" : "não informado"));
+      partes.push("Vazio " + (typeof perfil.tara === "number" ? textoT(perfil.tara) + " t" : "não informado"));
+      const c = el("p", "rota-resumo-carga", partes.join(" · ") + ". Escolha ao iniciar."); c.id = "rota-resumo-carga";
+      caixa.append(c);
+    }
+    return caixa;
+  }
+  function atualizarResumo() {
+    const caixa = document.getElementById("rota-resumo"); const r = rotaAtual; if (!caixa || !r) return;
+    caixa.querySelector(".rota-resumo-dados").textContent = Rota.formatarKm(r.km) + " · " + Rota.formatarTempo(r.minutos);
+    caixa.querySelector(".rota-resumo-chegada").textContent = Alt.chegada(Date.now(), r.minutos);
+  }
+
   function folhaRota(r, perfil) {
     const botoes = el("div", "linha-botoes");
     botoes.append(botao("Limpar rota", "btn", limparRota));
@@ -675,7 +703,7 @@
     // filho (o sticky do pé só segura o que está no fim do fluxo); as restrições do caminhão continuam ANTES dele no texto.
     const topo = el("div", "folha-topo rota-topo");
     topo.append(el("h2", null, "Rota para " + rotuloVeiculo(perfil)));
-    const itens = [topo];
+    const itens = [topo, resumoRota(r, perfil)];
     const chips = chipsPrefs();
     if (chips) itens.push(chips, el("div", "rota-pref-info", ""));
     const lp = listaParadas();
@@ -695,11 +723,10 @@
       itens.push(...trocaveis("folha", r, opcoes));
     } else {
       const c = Alt.caracteristicas(r.resposta);
-      itens.push(el("div", "grande", Rota.formatarKm(r.km) + " · " + Rota.formatarTempo(r.minutos)));
       for (const a of r.avisos) itens.push(el("p", "aviso-rota", a));
       itens.push(...extras("antesIniciar", r, null));
       itens.push(lugarCustos());
-      const extra = [Alt.chegada(Date.now(), r.minutos)].concat(Alt.etiquetas(c, Alt.relatosNaRota(r.coords, relatosConhecidos(), Date.now())));
+      const extra = Alt.etiquetas(c, Alt.relatosNaRota(r.coords, relatosConhecidos(), Date.now()));
       itens.push(el("p", "rota-detalhe", extra.join(" · ")));
       itens.push(el("p", "rota-dica", r.resposta && r.resposta.longa ? "Rota longa: só a principal, sem alternativas." : "O servidor de rotas não sugeriu outro caminho."));
       itens.push(...extras("folha", r, null));
@@ -707,6 +734,7 @@
     itens.push(botoes);
     if (temNav) { const pe = el("div", "folha-rodape rota-rodape"); pe.append(botaoIniciar()); itens.push(pe); }
     C.folha.abrir(itens);
+    atualizarResumo();
     atualizarCartoes();
     atualizarInfoPref();
     conferirCompatibilidade();

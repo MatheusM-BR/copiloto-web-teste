@@ -156,7 +156,12 @@
 
   function abrirDetalhes() {
     const e = estadoAtual();
-    const itens = [el("h2", null, e.online ? "Com internet" : "Sem internet")];
+    // Lote 4: cartão de estado (texto curto: o que acontece e o que continua funcionando)
+    const itens = [];
+    if (C.estados) itens.push(C.estados.montar(e.online
+      ? { id: "e3-cartao-estado", tipo: "info", icone: "wifi", titulo: "Com internet", texto: "Relatos, rotas e endereços funcionam." }
+      : { id: "e3-cartao-estado", tipo: "atencao", icone: "wifi", titulo: "Sem internet", texto: "O mapa e a rota guardados continuam. Relato novo espera a internet." }));
+    else itens.push(el("h2", null, e.online ? "Com internet" : "Sem internet"));
     itens.push(el("p", null, O.textoEstado(e)));
     if (!e.online) {
       const ul = el("ul", "e3-lista");

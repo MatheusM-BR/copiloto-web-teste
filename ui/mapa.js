@@ -463,7 +463,7 @@
   const DISPENSAVEIS = ["e3-btn-baixar", "btn-orientacao"];
   function visivel(e) { return !!e && !e.hidden && e.offsetParent !== null && getComputedStyle(e).display !== "none"; }
   // (a folha aberta também é "pé": os botões ficam acima dela, nunca por baixo — "Falar" e "!" continuam tocáveis; R5 toque)
-  const SEL_PE = ".maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *, .painel-mapa > .velocidade, .painel-mapa > .btn-recentralizar, .painel-mapa > .btn-sos, .painel-mapa > .nav-rodape, #folha";
+  const SEL_PE = ".maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *, .painel-mapa > .velocidade, .painel-mapa > .btn-recentralizar, .painel-mapa > .btn-sos, .painel-mapa > .nav-rodape, .painel-mapa > .mapa-atalhos, #folha";
   const SEL_TOPO = "#nav-painel, #alerta, .maplibregl-ctrl-top-right > *, .maplibregl-ctrl-top-left > *, .painel-mapa > .barra-topo";
   function retangulos(sel) {
     const out = [];
@@ -574,7 +574,7 @@
     const mo = new MutationObserver(agendarArrumar);
     // a atribuição muda de tamanho ao abrir/fechar (botão "i") e quando o texto das fontes chega
     for (const e of [document.querySelector("main"), $("nav-painel"), $("alerta"), document.querySelector(".velocidade"),
-      $("barra-topo"), $("nav-rodape"), document.querySelector(".maplibregl-ctrl-attrib"), $("btn-recentralizar"), $("folha"), $("btn-sos")]) {
+      $("barra-topo"), $("nav-rodape"), document.querySelector(".maplibregl-ctrl-attrib"), $("btn-recentralizar"), $("folha"), $("btn-sos"), $("mapa-atalhos"), $("mapa-veiculo")]) {
       if (!e) continue;
       if (ro) ro.observe(e);
       mo.observe(e, { attributes: true, attributeFilter: ["hidden", "class"] });

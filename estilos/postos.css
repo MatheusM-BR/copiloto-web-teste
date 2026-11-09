@@ -120,3 +120,57 @@
 .postos-desvio, .pc-desvio { display: inline-flex; align-items: center; gap: 3px; color: var(--suave); font-size: 13px; white-space: nowrap; }
 .pc-atualizado { display: flex; align-items: center; gap: 6px; }
 .pc-atualizado .ico { width: 16px; height: 16px; }
+
+/* ------------------------------------------------------------ Lote 3 (Stitch P3.1, P3.2, P3.4): cartões, grade tem/não tem/?, mini-mapa, aviso de parada */
+.postos-cartao { display: grid; gap: 0; background: var(--campo); border: 1px solid var(--linha); border-radius: 14px; overflow: hidden; }
+.postos-cartao > .postos-item { border: 0; border-radius: 0; background: transparent; min-height: 84px; padding: 12px; }
+.postos-cartao > .postos-item.alcance-fora { opacity: .85; }
+.postos-cartao:has(.postos-proximo) { border-color: var(--ok); border-width: 2px; }
+.postos-cartao > .postos-item.postos-proximo { border: 0; }
+.postos-cartao > .postos-item.postos-proximo .postos-selo { top: 0; }
+.postos-dist { flex-direction: row; font-size: 20px; }
+.postos-dist-rot { font-size: 13px; font-weight: 600; color: var(--suave); margin-left: 2px; }
+.postos-am { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--texto); }
+.postos-am .ico { width: 20px; height: 20px; color: var(--ok-texto, var(--ok)); }
+.postos-icones { gap: 4px 12px; }
+.postos-add { margin: 0 12px 12px; width: calc(100% - 24px); display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 64px; font-size: 18px; font-weight: 800;
+  background: var(--primaria-suave); color: var(--texto); border: 2px solid var(--primaria); border-radius: 12px; }
+.postos-add .ico { width: 24px; height: 24px; color: var(--primaria); }
+.folha p.postos-media { margin: 0; padding: 8px 12px; background: var(--campo); border: 1px solid var(--linha); border-radius: 10px; font-size: 14px; color: var(--texto); font-variant-numeric: tabular-nums; }
+.postos-filtros2 .postos-chip, .postos-filtros .postos-chip { font-size: 13px; }
+
+/* detalhe: grade tem / não tem / ? em 3 colunas, rótulo de 13 px e a palavra do estado à vista */
+.pc-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 6px; }
+.pc-amen-rot { font-size: 13px; line-height: 1.15; }
+.pc-amen-estado { font-size: 13px; font-weight: 800; color: var(--suave); }
+.pc-sim .pc-amen-estado { color: var(--ok-texto); }
+.pc-nao .pc-amen-estado { color: var(--suave); }
+.pc-mini { display: grid; gap: 4px; }
+.pc-minimapa { position: relative; height: 150px; border-radius: 12px; overflow: hidden; border: 1px solid var(--linha); background: var(--campo); }
+.folha p.pc-mini-fonte { font-size: 12px; margin: 0; }
+.pc-mini-pino { width: 22px; height: 22px; border-radius: 50%; background: var(--primaria); border: 3px solid #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, .5); }
+.pc-atualizado { font-size: 13px; }
+
+/* aviso de posto na navegação: alvos de 64 px (o principal 84 px), texto a 7:1 sobre o painel */
+.postos-aviso { display: grid; gap: 12px; }
+.postos-aviso-cab { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.postos-aviso-txt { flex: 1; min-width: 0; }
+.folha .postos-aviso-txt h2 { font-size: 22px; margin: 0; overflow-wrap: anywhere; }
+.folha .postos-aviso-dist { margin: 2px 0 0; font-size: 17px; font-weight: 700; color: var(--texto); font-variant-numeric: tabular-nums; }
+.postos-aviso-am { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 10px 12px; background: var(--campo); border-radius: 10px; font-size: 15px; color: var(--texto); }
+.folha .postos-aviso-perg { margin: 0; text-align: center; font-size: 20px; }
+.postos-aviso-botoes { display: grid; gap: 10px; }
+.postos-aviso-dois { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.postos-aviso .nav-grande { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "i t" "i s"; align-items: center; text-align: left; column-gap: 10px; min-height: 72px; padding: 6px 12px; }
+.postos-aviso .nav-grande .ico { grid-area: i; width: 26px; height: 26px; }
+.postos-aviso .nav-grande .postos-aviso-bt { grid-area: t; font-size: 17px; font-weight: 800; }
+.postos-aviso .nav-grande small { grid-area: s; font-size: 13px; font-weight: 500; opacity: .9; }
+.postos-aviso .pc-ir-parada { min-height: 84px; }
+@media (max-width: 380px) { .postos-aviso-dois { grid-template-columns: 1fr; } }
+.postos-lista > li { min-width: 0; }
+.postos-cartao { grid-template-columns: minmax(0, 1fr); }
+.postos-cartao > .postos-item { min-width: 0; }
+.postos-marca { max-width: 100%; }
+.postos-lista .postos-icones { min-width: 0; }
+.postos-lista .postos-topo { flex-wrap: wrap; justify-content: flex-start; align-items: center; gap: 2px 10px; }
+.postos-lista .postos-topo .postos-nome { flex: 1 1 100%; white-space: normal; overflow: visible; font-size: 18px; }

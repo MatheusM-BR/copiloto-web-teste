@@ -191,7 +191,7 @@
 
   // ------------------------------------------------------------ avisos à frente
   // prioridade: maior = mais importante (restrição > trecho perigoso crítico > balança > curva forte > passagem de nível > lombada > radar)
-  const PRIORIDADE = { restricao: 100, perigoso3: 90, perigoso2: 80, balanca: 70, balsa: 65, curva: 60, passagem_nivel: 50, area_escape: 45,
+  const PRIORIDADE = { restricao: 100, restricao_possivel: 95, perigoso3: 90, perigoso2: 80, balanca: 70, balsa: 65, curva: 60, passagem_nivel: 50, area_escape: 45,
     perigo: 42, obra: 40, lombada: 30, lombadas: 30, praca_pedagio: 20, radar: 10 };
   const TEXTO = {
     balanca: ["Balança à frente", "Balança à frente."], balsa: ["Balsa à frente", "Balsa à frente."],
@@ -276,13 +276,109 @@
   }
   function num(v) { const n = typeof v === "string" ? parseFloat(v) : v; return typeof n === "number" && isFinite(n) ? n : null; }
   function fmtNum(v) { return String(Math.round(Number(v) * 100) / 100).replace(".", ","); }
-  // copiloto_route_restrictions → avisos (só as violadas: prioridade máxima)
-  function avisosDeRestricoes(resp) {
+  // ------------------------------------------------------------ confiança da restrição (alta | media | desconhecida)
+  // Restrição é pesada: alerta falso de "você não passa" faz o motorista desviar ou perder a confiança. Só ALTA afirma e desvia.
+  //   ALTA  = violação com valor numérico + (dado verificado/editado há <= idade_alta_anos OU >= confirmacoes_alta motoristas
+  //           distintos confirmando) + folga > margem_cm + nunca contestada.   → vermelho "VOCÊ NÃO PASSA", desvio automático
+  //   MEDIA = dado antigo/sem data sem confirmação, relato de um motorista só, folga <= margem_cm, sem valor numérico, ou ALTA
+  //           contestada.  → âmbar "Possível restrição — confira na pista", só sugere
+  //   DESCONHECIDA = não deu para avaliar, ou MEDIA contestada.  → lista cinza, sem aviso falado
+  // Contestação rebaixa um nível; >= contestacoes_para_remover tira da rota (removida) e mantém o registro. A RPC já manda
+  // `confianca` e `parametros` (valem eles); sem eles (servidor antigo) a conta é refeita aqui com os mesmos padrões.
+  const CONFIANCA_PADRAO = { idade_alta_anos: 3, margem_cm: 15, contestacoes_para_remover: 2, confirmacoes_alta: 2 };
+  const NIVEIS = ["alta", "media", "desconhecida"];
+  const ANO_MS = 31557600000;
+  function paramsConfianca(p) {
+    const o = Object.assign({}, CONFIANCA_PADRAO);
+    for (const k of Object.keys(o)) if (p && typeof p[k] === "number" && isFinite(p[k]) && p[k] >= 0) o[k] = p[k];
+    return o;
+  }
+  function dataMs(v) { const t = typeof v === "number" ? v : v ? Date.parse(v) : NaN; return isFinite(t) ? t : null; }
+  // "hoje" · "há 12 dias" · "há 5 meses" · "há 1 ano" · "há 2 anos"
+  function textoIdade(ms) {
+    if (ms == null || ms < 0) return "";
+    const dias = Math.floor(ms / 86400000);
+    if (dias < 1) return "hoje";
+    if (dias < 60) return "há " + dias + (dias === 1 ? " dia" : " dias");
+    if (dias < 365) { const m = Math.floor(dias / 30.4375); return "há " + m + (m === 1 ? " mês" : " meses"); }
+    const a = Math.floor((dias + 1) / 365.25);
+    return "há " + a + (a === 1 ? " ano" : " anos");
+  }
+  const FONTE_NOME = { osm: "OpenStreetMap", relato: "relato de motoristas", oficial: "fonte oficial" };
+  const FONTE_VERBO = { osm: "editado", relato: "relatado", oficial: "verificado" };
+  // Avalia uma restrição (item de copiloto_route_restrictions). op: { agora (ms), parametros }
+  // → { nivel, removida, motivos[], fonte, fonteNome, idadeMs, idadeTexto, confirmacoes, contestacoes, margemCm, textoFonte }
+  function avaliarConfianca(r, op) {
+    const o = op || {}, x = r || {};
+    const par = paramsConfianca(o.parametros);
+    const agora = typeof o.agora === "number" ? o.agora : Date.now();
+    const fonte = FONTE_NOME[x.proveniencia] ? x.proveniencia : "osm";
+    const data = dataMs(x.data_informacao);
+    const idadeMs = data == null ? null : Math.max(0, agora - data);
+    const conf = Math.max(0, Number(x.confirmacoes) || 0), cont = Math.max(0, Number(x.contestacoes) || 0);
+    const margem = num(x.margem_cm);
+    const viola = x.status === "viola";
+    const numerico = x.numerico != null ? !!x.numerico : (x.viola || []).some((m) => /\d\s*(m|t)\s*>\s*limite/.test(String(m)));
+    const confirmado = conf >= par.confirmacoes_alta;
+    const recente = fonte !== "relato" && idadeMs != null && idadeMs <= par.idade_alta_anos * ANO_MS;
+    const curta = margem != null && margem <= par.margem_cm;
+    const motivos = [];
+    let nivel;
+    if (viola) {
+      if (!numerico) { nivel = "media"; motivos.push("sem_valor_numerico"); }
+      else if (curta) { nivel = "media"; motivos.push("margem_curta"); }
+      else if (recente || confirmado) nivel = "alta";
+      else {
+        nivel = "media";
+        motivos.push(fonte === "relato" ? "relato_unico" : idadeMs == null ? "sem_data" : "dado_antigo");
+      }
+      if (confirmado) motivos.push("confirmada_por_motoristas");
+    } else nivel = x.status === "condicional" ? "media" : "desconhecida";
+    if (cont >= 1) { nivel = nivel === "alta" ? "media" : "desconhecida"; motivos.push("contestada"); }
+    let removida = cont >= par.contestacoes_para_remover;
+    // a RPC (parâmetros configuráveis no banco) manda o nível e a remoção; valem eles
+    if (NIVEIS.includes(x.confianca)) nivel = x.confianca;
+    if (typeof x.removida === "boolean") removida = x.removida;
+    const idadeTexto = idadeMs == null ? "sem data" : textoIdade(idadeMs);
+    const partes = [FONTE_NOME[fonte] + ", " + (idadeMs == null ? "sem data" : FONTE_VERBO[fonte] + " " + idadeTexto)];
+    if (conf > 0) partes.push("confirmado por " + conf + (conf === 1 ? " motorista" : " motoristas"));
+    if (cont > 0) partes.push("contestado por " + cont + (cont === 1 ? " motorista" : " motoristas"));
+    return { nivel, removida, motivos, fonte, fonteNome: FONTE_NOME[fonte], idadeMs, idadeTexto, confirmacoes: conf, contestacoes: cont, margemCm: margem,
+      textoFonte: partes.join(" · ") };
+  }
+  const NIVEL_ROTULO = { alta: "Confiança alta", media: "Confiança média", desconhecida: "Confiança desconhecida" };
+  // dimensão que estourou, para a fala "possível restrição de altura, confira"
+  function dimensaoDe(r) {
+    const txt = ((r && r.viola) || []).join(" ").toLowerCase();
+    for (const d of ["altura", "peso", "comprimento", "largura", "eixo"]) if (txt.includes(d)) return d === "eixo" ? "peso por eixo" : d;
+    const a = (r && r.attrs) || {};
+    if (num(a.altura_max_m) != null || num(a.altura_fisica_m) != null) return "altura";
+    if (num(a.peso_max_t) != null || num(a.peso_max_hgv_t) != null) return "peso";
+    if (num(a.comprimento_max_m) != null) return "comprimento";
+    if (num(a.largura_max_m) != null) return "largura";
+    return null;
+  }
+  // copiloto_route_restrictions → avisos. ALTA: "VOCÊ NÃO PASSA" (tipo restricao, fala "…não passa"). MEDIA: "Possível restrição —
+  // confira na pista" (tipo restricao_possivel; fala "possível restrição de altura, confira"). Removidas e desconhecidas: sem aviso.
+  function avisosDeRestricoes(resp, op) {
     const out = [];
+    const parametros = resp && resp.parametros;
     for (const r of resp && Array.isArray(resp.restricoes) ? resp.restricoes : []) {
       if (!r || r.status !== "viola" || typeof r.ao_longo_m !== "number") continue;
-      out.push(aviso({ id: "restr:" + r.id, tipo: "restricao", ao_longo_m: r.ao_longo_m, lat: r.lat, lon: r.lon,
-        texto: "Restrição: " + textoRestricao(r), fala: "Atenção: " + textoRestricao(r).toLowerCase() + ". Seu caminhão não passa.", detalhe: (r.viola || []).join("; "), fonte: r.fonte || resp.attribution || null }));
+      const c = avaliarConfianca(r, Object.assign({ parametros }, op));
+      if (c.removida || c.nivel === "desconhecida") continue;
+      const fonte = r.fonte || (resp && resp.attribution) || null;
+      if (c.nivel === "alta") {
+        out.push(Object.assign(aviso({ id: "restr:" + r.id, tipo: "restricao", ao_longo_m: r.ao_longo_m, lat: r.lat, lon: r.lon,
+          texto: "Restrição: " + textoRestricao(r), fala: "Atenção: " + textoRestricao(r).toLowerCase() + ". Seu caminhão não passa.", detalhe: (r.viola || []).join("; "), fonte }),
+          { confianca: "alta", fonteInfo: c.textoFonte }));
+      } else {
+        const d = dimensaoDe(r);
+        out.push(Object.assign(aviso({ id: "restr:" + r.id, tipo: "restricao_possivel", ao_longo_m: r.ao_longo_m, lat: r.lat, lon: r.lon,
+          texto: "Possível restrição — confira na pista: " + textoRestricao(r),
+          fala: d ? "Possível restrição de " + d + ", confira." : "Possível restrição para caminhão, confira.", detalhe: (r.viola || []).join("; "), fonte }),
+          { confianca: "media", fonteInfo: c.textoFonte }));
+      }
     }
     return out;
   }
@@ -322,7 +418,7 @@
   }
   // Contagens para o modo Avançado: "3 curvas fortes · 2 trechos perigosos · 1 balança"
   function contagens(avisos) {
-    const c = { curva: 0, perigoso: 0, balanca: 0, lombada: 0, passagem_nivel: 0, radar: 0, restricao: 0, balsa: 0, obra: 0 };
+    const c = { curva: 0, perigoso: 0, balanca: 0, lombada: 0, passagem_nivel: 0, radar: 0, restricao: 0, restricao_possivel: 0, balsa: 0, obra: 0 };
     for (const a of avisos || []) { if (a.tipo === "lombadas") c.lombada += 1; else if (c[a.tipo] != null) c[a.tipo]++; }
     return c;
   }
@@ -330,6 +426,7 @@
     const p = [];
     const pl = (n, s, pp) => n + " " + (n === 1 ? s : pp);
     if (c.restricao) p.push(pl(c.restricao, "restrição", "restrições"));
+    if (c.restricao_possivel) p.push(pl(c.restricao_possivel, "possível restrição", "possíveis restrições"));
     if (c.curva) p.push(pl(c.curva, "curva forte", "curvas fortes"));
     if (c.perigoso) p.push(pl(c.perigoso, "trecho perigoso", "trechos perigosos"));
     if (c.balanca) p.push(pl(c.balanca, "balança", "balanças"));
@@ -437,12 +534,24 @@
     if (!(typeof p.pbtc === "number" && isFinite(p.pbtc))) falta.push("peso");
     return falta;
   }
-  function resumoRestricoes(resp) {
+  // violadas = só ALTA (vermelho, desvio automático); possiveis = MEDIA (âmbar, só sugere); desconhecidas = lista cinza;
+  // removidas = contestadas o bastante para sair da rota (o registro fica). Cada item ganha `confianca` (nível) e `info` (avaliarConfianca).
+  function resumoRestricoes(resp, op) {
     const r = resp || {};
     const lista = Array.isArray(r.restricoes) ? r.restricoes : [];
-    return { violadas: lista.filter((x) => x.status === "viola"), condicionais: lista.filter((x) => x.status === "condicional"),
-      desconhecidas: lista.filter((x) => x.status === "desconhecido"), total: lista.length, fonte: r.attribution || null, estimado: r.estimado !== false };
+    const out = { violadas: [], possiveis: [], condicionais: [], desconhecidas: [], removidas: [], total: lista.length, fonte: r.attribution || null, estimado: r.estimado !== false };
+    for (const x of lista) {
+      if (!x) continue;
+      const info = avaliarConfianca(x, Object.assign({ parametros: r.parametros }, op));
+      const it = Object.assign({}, x, { confianca: info.nivel, info });
+      if (info.removida) { out.removidas.push(it); continue; }
+      if (x.status === "viola") (info.nivel === "alta" ? out.violadas : info.nivel === "media" ? out.possiveis : out.desconhecidas).push(it);
+      else if (x.status === "condicional") out.condicionais.push(it);
+      else if (x.status === "desconhecido") out.desconhecidas.push(it);
+    }
+    return out;
   }
+  function tituloPossiveis(n) { return n === 1 ? "Possível restrição na rota — confira na pista" : n + " possíveis restrições na rota — confira na pista"; }
   function tituloRestricoes(n) { return "Esta rota tem " + n + (n === 1 ? " restrição que seu caminhão não passa" : " restrições que seu caminhão não passa"); }
   function fmtDistRota(m) { return m < 1000 ? Math.round(m / 10) * 10 + " m" : m < 10000 ? (Math.round(m / 100) / 10).toFixed(1).replace(".", ",") + " km" : Math.round(m / 1000) + " km"; }
 
@@ -468,7 +577,7 @@
   const api = { CHAVE_DADOS, lerGuardados, buscarGuardado, guardar, UFS, nomeUF, ufDoTexto, ufsFaladas, ordenarUfs, interpretarDestinoKm, prefixoRodovia, rotuloKm, textoKmTela, falaKm, falaSemKm, avisoPrecisao, fmtKm,
     escolherKm, chavePosicao, devePedirKm, KM_INTERVALO_MS, KM_DESLOC_M, KM_DIST_MAX_M,
     distanciaM, acumuladoM, progressoM, rotaGeoJSON, simplificar, chaveRota,
-    PRIORIDADE, KINDS_FEICOES, AVISOS_SO_TELA_NO_MODO_ALERTAS, avisosDeFeicoes, avisosDeTrechos, avisosDeArtesp, avisosDeRestricoes, textoRestricao, juntarAvisos, contagens, textoContagens,
+    PRIORIDADE, KINDS_FEICOES, AVISOS_SO_TELA_NO_MODO_ALERTAS, avisosDeFeicoes, avisosDeTrechos, avisosDeArtesp, avisosDeRestricoes, textoRestricao, CONFIANCA_PADRAO, NIVEL_ROTULO, avaliarConfianca, paramsConfianca, textoIdade, dimensaoDe, tituloPossiveis, juntarAvisos, contagens, textoContagens,
     antecedenciaM, criarAvisador, falaAviso, textoDistanciaFalada, FALA_INTERVALO_MS,
     usarSnv, textoPistaSnv, textoFonteSnv, SNV_COBERTURA_MIN, paramsRestricoes, dimensoesFaltando, resumoRestricoes, tituloRestricoes, fmtDistRota };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

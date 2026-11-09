@@ -9,6 +9,9 @@
 //  - PRI-01: sem permissão de alertas da comunidade, não alerta; sem permissão de envio, não mostra botões de voto.
 // B2: GPS sem leitura nova há mais de 10 s (Copiloto.gps.velho()) ou localização desligada: alerta e bipe fecham
 // (a distância estaria errada); voltam com a próxima leitura.
+// Lote 1b (risco à segurança): título neutro "Relatos de risco à segurança neste trecho", voz fixa ("Atenção: relatos de risco à
+// segurança neste trecho. Fique atento."), sem indicador de nível nem contagem de confirmações e com o botão "Em perigo, ligue 190"
+// (tel:190, #alerta-190, ≥ 64 px). Nunca sugere "posto de refúgio" (não há dado).
 // Com a navegação ativa, o pop-up vira faixa compacta abaixo do painel de manobra (estilos/alerta.css).
 (function (C) {
   "use strict";
@@ -101,6 +104,17 @@
     return e;
   }
 
+  // lote 1b: "Em perigo, ligue 190" (só nos tipos com aviso190); criado aqui porque o HTML da página não muda
+  function linha190() {
+    let e = $("alerta-190");
+    if (!e) {
+      e = el("a", "alerta-190", "Em perigo, ligue 190"); e.id = "alerta-190"; e.href = "tel:190"; e.hidden = true;
+      e.setAttribute("aria-label", "Em perigo, ligue 190, Polícia Militar");
+      $("alerta").insertBefore(e, $("alerta-botoes"));
+    }
+    return e;
+  }
+
   // lote 1: contagem de votos do relato, sempre visível ("6 confirmaram · 1 negou")
   function linhaContagem() {
     let e = $("alerta-contagem");
@@ -132,12 +146,15 @@
     $("alerta-titulo").textContent = C.comunidade.titulo(r);
     $("alerta-dist").textContent = "a " + (dist < 10 ? "menos de 10" : Math.round(dist / 10) * 10) + " m" + (NuvemLib.textoRodovia(r) ? " · " + NuvemLib.textoRodovia(r) : "");
     // COM-05: indicador discreto; "Contestado" continua escrito
-    const ind = NuvemLib.indicadorNivel(r.level);
+    const cfgR = cfgTipo(r), neutro = !!cfgR.neutro;
+    const ind = neutro ? "" : NuvemLib.indicadorNivel(r.level); // lote 1b: nunca "confirmado" em risco à segurança
     const nv = $("alerta-nivel");
     nv.textContent = ind; nv.hidden = !ind;
     nv.setAttribute("aria-label", NuvemLib.textoNivel(r.level));
     nv.title = NuvemLib.textoNivel(r.level);
-    linhaContagem().textContent = textoContagem(r);
+    const lc = linhaContagem();
+    lc.textContent = neutro ? "" : textoContagem(r); lc.hidden = neutro;
+    linha190().hidden = !cfgR.aviso190;
     const lv = linhaVeiculo();
     lv.textContent = cruz && cruz.texto ? cruz.texto : "";
     lv.hidden = !(cruz && cruz.texto);

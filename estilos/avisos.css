@@ -97,3 +97,17 @@
 }
 .dados-marca.viola { background: var(--perigo-forte); color: #fff; width: 34px; height: 34px; font-size: 18px; }
 .dados-marca.perigoso { background: #b3261e; color: #fff; }
+
+/* Confiança por restrição: ALTA = vermelho (acima); MÉDIA = âmbar "Possível restrição — confira na pista", só sugere */
+.critico-fonte { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.nav-painel .aviso-dado.possivel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; row-gap: 2px; }
+.nav-painel .aviso-dado.possivel .aviso-dado-texto { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.possivel-fonte { grid-column: 1 / -1; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.dados-restr-cartao.possivel { border-color: var(--dados-cond); background: var(--dados-cond-fundo); }
+.dados-restr-cartao.possivel h3, .dados-restr-possivel-titulo { color: var(--dados-cond); font-size: 18px; }
+.dados-restr-cartao.possivel .dados-restr-item { border-top-color: var(--dados-cond); }
+.dados-restr-fonte, .dados-restr-fonte-0 { font-size: 13px; overflow-wrap: anywhere; }
+.dados-restr-fonte-0 { margin: 0; font-weight: 700; }
+.dados-restr-cartao.viola .dados-restr-fonte-0 { color: #fff; }
+.dados-restr-sugerir { min-height: 64px; font-size: 16px; }
+.dados-marca.possivel { background: var(--atencao-fundo); color: var(--atencao-fundo-texto); width: 34px; height: 34px; font-size: 18px; }

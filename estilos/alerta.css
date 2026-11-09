@@ -70,3 +70,12 @@
   font: 700 16px/1.25 system-ui, sans-serif; box-shadow: 0 6px 18px rgba(0,0,0,.45); text-align: center; }
 #aviso-sem-som[hidden] { display: none; }
 #voz-testar { margin-top: 10px; min-height: 48px; width: 100%; }
+
+/* Lote 1b (risco à segurança): "Em perigo, ligue 190" (tel:190) — alvo de 64 px, branco sobre vermelho forte (>= 7:1) nos dois temas */
+.alerta-190 {
+  display: flex; align-items: center; justify-content: center; min-height: 64px; padding: 0 14px; border-radius: 14px;
+  background: var(--perigo-forte); color: #fff; font-size: 19px; font-weight: 800; line-height: 1.15; text-align: center; text-decoration: none;
+  border: 2px solid transparent; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.alerta-190[hidden] { display: none; }
+#app.nav-ativa .alerta-190 { grid-column: 1 / -1; min-height: 64px; }

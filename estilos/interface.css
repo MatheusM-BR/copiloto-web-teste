@@ -108,6 +108,9 @@
   background: transparent; border: 0; border-bottom: 1px solid var(--linha); color: var(--texto); text-align: left; font-size: 16px; font-weight: 600;
 }
 .cfg-menu > button:last-child { border-bottom: 0; }
+/* Lote 4: lista agrupada (título do grupo no alto de cada bloco; nome à esquerda, valor à direita) */
+.cfg-menu > .cfg-menu-titulo { padding: 14px 16px 6px; background: var(--campo); border-bottom: 1px solid var(--linha); }
+.cfg-menu > .cfg-menu-titulo:not(:first-child) { border-top: 1px solid var(--linha); }
 .cfg-item { flex: none; }
 .cfg-valor {
   min-width: 0; color: var(--primaria); font-size: 14px; font-weight: 600; text-align: right;

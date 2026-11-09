@@ -7,6 +7,10 @@
 // A3: o tipo se escolhe numa grade de botões grandes (#r-grade, um botão [data-tipo] por tipo); #r-tipo (select escondido)
 // guarda o tipo escolhido para os comandos de voz. M2: o relato vai no ponto do toque no "!" (com rumo/velocidade/precisão
 // de lá); passados 5 s, o formulário avisa "Relato no ponto de há X s".
+// Lote 1b (risco à segurança): botão "Risco" em vermelho de gravidade. Ao escolher, a grade mostra ANTES de enviar o aviso
+// "Em perigo agora? Ligue 190." (#r-aviso190: "Ligar 190" tel:190 e "Relatar risco", ≥ 64 px); "Relatar risco" segue o fluxo
+// normal (contagem de 4 s com Cancelar). Sem conta o botão aparece, mas explica e leva à aba Conta; nunca fica só no aparelho.
+// Copiloto.relatos.avisoSemConta() faz esse caminho (também usado pelo comando de voz).
 (function (C) {
   "use strict";
   const { $, el, botao, novoId, lerJSON, gravarJSON } = C.util;
@@ -37,6 +41,13 @@
     C.emit("relatos-locais", relatos.slice());
   }
 
+  // lote 1b: risco à segurança só com conta. Explica e leva à aba Conta (mesmo caminho do botão "Entrar na conta").
+  function avisoSemConta() {
+    if (C.folha && C.folha.aberta && C.folha.aberta()) C.folha.fechar();
+    C.mensagem(Relatos.MSG_RISCO_SEM_CONTA, 7000);
+    C.abas.irPara("conta");
+  }
+
   // M2: leitura do GPS no toque do "!". O relato vai neste ponto (com rumo, velocidade e precisão daqui),
   // mesmo que o motorista leve alguns segundos para escolher o tipo e tocar em "Salvar".
   function leituraDoToque() {
@@ -60,14 +71,20 @@
     const botoesTipo = new Map();
     for (const [id, cfg] of Object.entries(Relatos.TIPOS)) {
       sel.add(new Option(cfg.rotulo, id));
-      const b = el("button", "r-tipo-btn" + (cfg.risco ? " risco" : "") + (id === "acidente" || id === "altura_maxima" ? " grave" : "")); // lote 1: só a gravidade (acidente, ponte baixa) em vermelho
+      const b = el("button", "r-tipo-btn" + (cfg.risco ? " risco" : "") + (cfg.grave || id === "acidente" || id === "altura_maxima" ? " grave" : "")); // lote 1: só a gravidade (acidente, ponte baixa, risco à segurança) em vermelho
       b.type = "button"; b.dataset.tipo = id; b.setAttribute("role", "radio"); b.setAttribute("aria-checked", "false");
       b.setAttribute("aria-label", cfg.rotulo);
       if (window.CopilotoIcones) b.append(window.CopilotoIcones.no(window.CopilotoIcones.ICONE_RELATO[id] || "aviso", { classe: "r-ico" })); // r6: ícone grande em cima do nome
       b.append(el("span", "r-nome", cfg.curto || cfg.rotulo)); // o nome continua: tipo de risco não fica só no desenho
       b.addEventListener("click", () => {
+        if (cfg.soConta) { // lote 1b: sem conta explica e leva à tela Conta; sem permissão de envio não há como relatar
+          if (!C.nuvem.logado()) { pararContagem(); clearInterval(relogio); avisoSemConta(); return; }
+          if (!podeEnviar()) { pararContagem(); erro.textContent = "O envio de relatos está desligado nas suas escolhas de privacidade (Configurações → Privacidade). Risco à segurança só vale enviado."; return; }
+        }
         sel.value = id; sel.dispatchEvent(new Event("change"));
-        if (cfg.valor) { pararContagem(); inp.focus(); } else iniciarContagem(cfg);
+        if (cfg.valor) { pararContagem(); inp.focus(); }
+        else if (cfg.aviso190) { pararContagem(); aviso190.scrollIntoView({ block: "start" }); } // o aviso vem ANTES de enviar
+        else iniciarContagem(cfg);
       });
       grade.appendChild(b);
       botoesTipo.set(id, b);
@@ -78,12 +95,21 @@
     const rotValor = el("label", "r-valor-rotulo", ""); const spanRot = el("span", null, "");
     rotValor.append(spanRot, inp);
     const erro = el("p", "erro r-erro"); erro.setAttribute("role", "alert");
+    // lote 1b: aviso do 190 (grande) com "Ligar 190" e "Relatar risco"; só aparece com o tipo de risco escolhido
+    const aviso190 = el("div", "r-aviso190"); aviso190.id = "r-aviso190"; aviso190.hidden = true; aviso190.setAttribute("role", "group"); aviso190.setAttribute("aria-label", "Em perigo agora? Ligue 190");
+    const ligar190 = el("a", "btn r-ligar190", "Ligar 190"); ligar190.id = "r-ligar190"; ligar190.href = "tel:190"; ligar190.setAttribute("aria-label", "Ligar 190, Polícia Militar");
+    const relatarRisco = botao("Relatar risco", "btn btn-principal r-relatar-risco", () => { if (sel.value === "risco_seguranca") iniciarContagem(Relatos.TIPOS.risco_seguranca); });
+    relatarRisco.id = "r-relatar-risco";
+    const botoes190 = el("div", "r-aviso190-botoes"); botoes190.append(ligar190, relatarRisco);
+    aviso190.append(el("p", "r-aviso190-titulo", Relatos.AVISO_190), botoes190,
+      el("p", "r-aviso190-nota", "Este relato não leva texto nem descrição de pessoas ou veículos. Só avisa outros motoristas quando mais de uma pessoa relatar o mesmo trecho."));
     const rotTipo = el("p", "r-pergunta", "O que você viu?");
     const idade = el("p", "r-idade"); idade.id = "r-idade"; idade.hidden = true;
     function ajustar() {
       const cfg = Relatos.TIPOS[sel.value];
       for (const [id, b] of botoesTipo) { const v = id === sel.value; b.classList.toggle("escolhido", v); b.setAttribute("aria-checked", v ? "true" : "false"); }
       rotValor.hidden = !(cfg && cfg.valor);
+      aviso190.hidden = !(cfg && cfg.aviso190);
       if (cfg && cfg.valor) { spanRot.textContent = cfg.valor.rotulo; inp.placeholder = cfg.valor.unidade === "m" ? "4,30" : "30"; }
       erro.textContent = ""; inp.removeAttribute("aria-invalid");
     }
@@ -127,8 +153,10 @@
     const salvar = botao("Salvar relato", "btn btn-principal btn-grande", () => {
       pararContagem();
       if (!sel.value) { erro.textContent = "Toque no tipo do relato."; return; }
-      const r = Relatos.criarRelato(sel.value, { lat: toque.lat, lon: toque.lon, rumo: toque.rumo }, inp.value, Date.now(), novoId());
+      const r = Relatos.criarRelato(sel.value, { lat: toque.lat, lon: toque.lon, rumo: toque.rumo }, inp.value, Date.now(), novoId(), { logado: C.nuvem.logado() });
+      if (r.semConta) { clearInterval(relogio); avisoSemConta(); return; } // lote 1b: risco à segurança nunca fica só no aparelho
       if (!r.ok) { erro.textContent = r.erro; inp.setAttribute("aria-invalid", "true"); return; }
+      if (Relatos.TIPOS[sel.value].soConta && !podeEnviar()) { erro.textContent = "O envio de relatos está desligado nas suas escolhas de privacidade (Configurações → Privacidade). Risco à segurança só vale enviado."; return; }
       clearInterval(relogio);
       const aviso = Relatos.textoIdadePosicao(Date.now() - toque.t);
       if (C.nuvem.logado() && podeEnviar()) {
@@ -160,7 +188,7 @@
     sos.id = "r-sos"; sos.setAttribute("aria-label", "SOS: abrir Emergência (191, 192, 193 e sua posição)");
     const topo = el("div", "folha-topo r-topo");
     topo.append(el("h2", null, opcoes && opcoes.aqui ? "Relatar no ponto tocado" : "Reportar neste ponto"), sos);
-    const itens = [topo, rotTipo, grade, sel, rotValor, idade];
+    const itens = [topo, rotTipo, grade, aviso190, sel, rotValor, idade];
     if (logado && envia) {
       itens.push(el("p", null, "Vai para outros motoristas. Vence sozinho e ganha força quando outros motoristas confirmarem."));
     } else if (logado) {
@@ -176,7 +204,7 @@
     C.folha.abrir(itens);
   }
 
-  C.relatos = { abrirFormulario, locais: () => relatos.slice(), leituraDoToque: () => (C.estado.ultimaPos ? leituraDoToque() : null) };
+  C.relatos = { abrirFormulario, avisoSemConta, locais: () => relatos.slice(), leituraDoToque: () => (C.estado.ultimaPos ? leituraDoToque() : null) };
 
   C.aoIniciar(() => {
     $("btn-reportar").addEventListener("click", abrirFormulario);

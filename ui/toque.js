@@ -77,11 +77,11 @@
   }
 
   // ------------------------------------------------------------ tela "Voz"
-  let modoVoz = false;
+  // Lote 2: a Voz é uma aba própria (#tela-voz, ui/voztela.js); só o diagnóstico do microfone continua na tela Conta.
   function abrirVoz(alvo) {
-    modoVoz = true;
-    C.abas.irPara("conta");
-    const t = $("tela-conta"); if (t) t.scrollTop = 0;
+    const conta = alvo === "cmd-diag";
+    C.abas.irPara(conta ? "conta" : "voz");
+    const t = $(conta ? "tela-conta" : "tela-voz"); if (t) t.scrollTop = 0;
     const e = alvo && $(alvo);
     if (e && e.scrollIntoView) setTimeout(() => { try { e.scrollIntoView({ block: "start" }); } catch (x) { /* ignora */ } }, 0);
   }
@@ -104,19 +104,10 @@
       el("p", "dica", "Com o app aberto e na tela, o microfone fica ouvindo e só age quando a frase começa com “Copiloto” (ex.: “Copiloto, me leva para Goiânia”)."),
       alternar);
     const voz = $("cartao-voz");
-    if (voz) voz.after(cartao); else tela.appendChild(cartao);
+    if (voz) voz.after(cartao); else tela.appendChild(cartao); // ui/voztela.js leva os dois para a aba Voz
     rotuloMaosLivres();
-    C.on("aba", (id) => {
-      const h1 = tela.querySelector("h1");
-      if (h1 && !h1.dataset.original) h1.dataset.original = h1.textContent;
-      const voz2 = id === "conta" && modoVoz;
-      tela.classList.toggle("modo-voz", voz2);
-      if (h1) h1.textContent = voz2 ? "Voz" : h1.dataset.original;
-      modoVoz = false;
-      if (id === "conta") rotuloMaosLivres();
-    });
-    const menuVoz = $("cfg-voz"), menuDiag = $("cfg-diagnostico");
-    if (menuVoz) menuVoz.addEventListener("click", () => abrirVoz());
+    C.on("aba", (id) => { if (id === "voz" || id === "conta") rotuloMaosLivres(); });
+    const menuDiag = $("cfg-diagnostico");
     if (menuDiag) menuDiag.addEventListener("click", () => abrirVoz("cmd-diag"));
   }
 

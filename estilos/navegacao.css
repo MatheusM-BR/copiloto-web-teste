@@ -114,9 +114,22 @@
 .nav-escolha { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .nav-grande { min-height: 72px; font-size: 20px; font-weight: 800; }
 .folha .btn-iniciar-nav { min-height: 64px; font-size: 19px; font-weight: 800; }
-.nav-resumo { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; }
+/* Lote 4: resumo da viagem em blocos (distância em destaque; demais em duas colunas) */
+.nav-resumo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
+.nav-resumo-item { display: grid; gap: 2px; align-content: start; background: var(--campo); border: 1px solid var(--linha); border-radius: 12px; padding: 10px 12px; }
+.nav-resumo-item:first-child { grid-column: 1 / -1; }
 .nav-resumo dt { color: var(--suave); font-size: 14px; }
-.nav-resumo dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.nav-resumo dd { margin: 0; font-weight: 800; font-size: 22px; font-variant-numeric: tabular-nums; color: var(--texto); }
+.nav-resumo-item:first-child dd { font-size: 32px; line-height: 1.1; }
+.nav-desvios { display: grid; gap: 8px; margin-top: 4px; }
+.nav-desvios-bloco { background: var(--primaria-suave); border: 1px solid var(--primaria); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.nav-desvios-bloco h3 { margin: 0; font-size: 16px; }
+.nav-desvios-bloco p, .nav-desvios-bloco ul { margin: 0; font-size: 14px; }
+.nav-desvios-lista { padding-left: 18px; color: var(--suave); }
+.nav-desvios-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.nav-desvios-km { font-weight: 800; font-size: 17px; font-variant-numeric: tabular-nums; color: var(--primaria); }
+.nav-desvios-atencao { background: var(--atencao-suave); border-color: var(--atencao); }
+.nav-desvios-atencao h3, .nav-desvios-atencao p { color: var(--atencao); }
 .folha .nav-registrado { color: var(--atencao); font-size: 13px; }
 .nav-viagens { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .nav-viagens li { display: grid; gap: 2px; border-bottom: 1px solid var(--linha); padding-bottom: 8px; }

@@ -7,6 +7,9 @@
 
   // sentido: o relato só vale para quem vai no mesmo sentido (ALT-03). risco: tipo de risco alto (bipe de aproximação, ALT-02).
   // curto: nome do botão na grade do formulário de relato (A3).
+  // lote 1b (risco à segurança): soConta = só vale com conta (nunca fica só no aparelho, nunca vira alerta local);
+  // neutro = texto sempre neutro (tituloNeutro no alerta, no popup e na voz; sem nível "confirmado", sem contagem de votos);
+  // grave = botão em vermelho de gravidade na grade; aviso190 = a grade mostra "Em perigo agora? Ligue 190." antes de enviar.
   const TIPOS = {
     altura_maxima:      { rotulo: "Altura máxima (ponte ou viaduto)", curto: "Altura máxima",  sigla: "ALT",     ttlMs: 180 * D, valor: { rotulo: "Altura (m)", min: 1.5, max: 6,   unidade: "m" } },
     limite_peso:        { rotulo: "Limite de peso (ponte)",           curto: "Peso máximo",    sigla: "PESO",    ttlMs: 180 * D, valor: { rotulo: "Peso (t)",   min: 1,   max: 100, unidade: "t" } },
@@ -23,7 +26,12 @@
     neblina:            { rotulo: "Neblina",                          curto: "Neblina",        sigla: "NEBLINA", ttlMs: 3 * H },
     pista_escorregadia: { rotulo: "Pista escorregadia",               curto: "Pista lisa",     sigla: "LISA",    ttlMs: 6 * H },
     balanca:            { rotulo: "Balança/fiscalização de peso",     curto: "Balança",        sigla: "BALANÇA", ttlMs: 30 * D, sentido: true },
+    // lote 1b: "Risco/Assalto" na fala do motorista; no app sempre "Risco à segurança" (nunca "assalto", nunca descrição de pessoa ou veículo)
+    risco_seguranca:    { rotulo: "Risco à segurança",                curto: "Risco",          sigla: "RISCO",   ttlMs: 2 * H,  sentido: false, risco: true,
+                          soConta: true, neutro: true, grave: true, aviso190: true, tituloNeutro: "Relatos de risco à segurança neste trecho" },
   };
+  const AVISO_190 = "Em perigo agora? Ligue 190.";
+  const MSG_RISCO_SEM_CONTA = "Entre na sua conta para relatar risco à segurança";
 
   function lerValor(texto, cfg) {
     const t = String(texto == null ? "" : texto).trim();
@@ -37,9 +45,11 @@
 
   // pos: { lat, lon, rumo? }; valorTexto: texto do campo de valor (ignorado nos tipos sem valor).
   // rumo (graus, opcional): sentido de quem relatou; o relato local guarda para o alerta conferir o sentido (ALT-03).
-  function criarRelato(tipo, pos, valorTexto, agoraMs, id) {
+  // contexto { logado } (lote 1b): tipo soConta (risco à segurança) sem conta não é criado, nem local.
+  function criarRelato(tipo, pos, valorTexto, agoraMs, id, contexto) {
     const cfg = TIPOS[tipo];
     if (!cfg) return { ok: false, erro: "Escolha o tipo do relato." };
+    if (cfg.soConta && !(contexto && contexto.logado)) return { ok: false, semConta: true, erro: MSG_RISCO_SEM_CONTA + "." };
     if (!pos || !isFinite(pos.lat) || !isFinite(pos.lon)) return { ok: false, erro: "Sem posição do GPS." };
     let valor = null;
     if (cfg.valor) {
@@ -55,7 +65,7 @@
   // M3: relato local (deste aparelho) no formato das linhas da nuvem (copiloto_reports_near), para o alerta à frente.
   // paraServidor: função tipo do app → tipo do servidor (CopilotoNuvem.tipoParaServidor). Sem tipo conhecido: null.
   function comoLinhaDaNuvem(r, paraServidor) {
-    const tipo = r && TIPOS[r.tipo] ? paraServidor(r.tipo) : null;
+    const tipo = r && TIPOS[r.tipo] && !TIPOS[r.tipo].soConta ? paraServidor(r.tipo) : null; // tipo só com conta nunca vira alerta local
     if (!tipo || !isFinite(r.lat) || !isFinite(r.lon)) return null;
     return {
       id: "local:" + r.id, report_type: tipo, value_numeric: r.valor == null ? null : r.valor, lat: r.lat, lon: r.lon,
@@ -75,6 +85,7 @@
 
   function titulo(r) {
     const cfg = TIPOS[r.tipo];
+    if (cfg.tituloNeutro) return cfg.tituloNeutro; // lote 1b: texto neutro, sempre
     const v = r.valor == null ? "" : " " + String(r.valor).replace(".", ",") + " " + cfg.valor.unidade;
     return cfg.rotulo.split(" (")[0] + v;
   }
@@ -95,7 +106,7 @@
     return "Relato no ponto de há " + (s < 120 ? s + " s" : Math.round(s / 60) + " min") + " (onde você tocou no \"!\").";
   }
 
-  const api = { TIPOS, criarRelato, ativos, titulo, descricao, validade, lerValor, comoLinhaDaNuvem, textoIdadePosicao };
+  const api = { TIPOS, AVISO_190, MSG_RISCO_SEM_CONTA, criarRelato, ativos, titulo, descricao, validade, lerValor, comoLinhaDaNuvem, textoIdadePosicao };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoRelatos = api;
 })(typeof window !== "undefined" ? window : globalThis);

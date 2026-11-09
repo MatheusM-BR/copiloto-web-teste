@@ -10,3 +10,24 @@
 .dados { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--suave); font-size: 14px; }
 .dados span { white-space: nowrap; }
 .nao-informado { opacity: .75; font-style: italic; }
+
+/* Lote 3 (Stitch P5.5): explicação curta por campo, Carregado/Vazio em destaque, carga perigosa */
+.campo-dica { display: block; font-size: 13px; line-height: 1.3; color: var(--suave); font-weight: 400; margin-top: 2px; }
+.v-sec { margin: 8px 0 0; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--suave); }
+.v-carga { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 6px; }
+.v-carga legend { padding: 0; font-weight: 700; margin-bottom: 6px; }
+.v-carga-opcoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.v-carga-op {
+  min-height: 64px; border-radius: 12px; border: 2px solid var(--linha); background: var(--painel); color: var(--texto);
+  font-size: 19px; font-weight: 800;
+}
+.v-carga-op[aria-checked="true"] { background: var(--primaria); border-color: var(--primaria); color: var(--primaria-texto); }
+.v-carga-select { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); opacity: 0; pointer-events: none; }
+.v-perigosa {
+  display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid var(--linha); border-radius: 12px; background: var(--painel); min-height: 64px;
+}
+.v-perigosa input { flex: none; width: 48px; height: 48px; min-height: 48px; margin: 0; accent-color: var(--primaria); }
+#tela-veiculo .v-perigosa input { min-height: 48px; }
+.v-perigosa-txt { display: grid; gap: 2px; min-width: 0; }
+.dado-perigosa { color: var(--atencao); font-weight: 700; }
+.dados .dado-carga { font-weight: 700; color: var(--texto); }

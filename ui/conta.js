@@ -116,6 +116,8 @@
     $("form-conta").addEventListener("submit", (ev) => { ev.preventDefault(); entrar(); });
     $("btn-criar-conta").addEventListener("click", criarConta);
     $("btn-sair").addEventListener("click", sair);
+    // Lote 4: visitante = segue sem conta (volta ao mapa); não cria sessão nem guarda nada
+    $("btn-visitante").addEventListener("click", () => { C.abas.irPara("mapa"); C.mensagem("Você está como visitante. Entre quando quiser em Configurações → Conta.", 6000); });
     montarGoogle();
     C.on("fila", () => { if (!$("tela-conta").hidden) desenhar(false); });
     C.on("sessao", (s) => desenhar(!!s));

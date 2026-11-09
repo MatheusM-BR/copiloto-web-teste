@@ -168,6 +168,7 @@
     const linha = el("div", "critico-linha");
     linha.append(el("span", "aviso-dado-texto", a.texto), el("span", "aviso-dado-dist", textoDist(distM)));
     faixa.append(cab, linha);
+    if (a.fonteInfo) { const f = el("p", "critico-fonte", "Fonte: " + a.fonteInfo); f.id = "critico-fonte"; faixa.append(f); } // fonte e idade do dado (nunca esconde dado antigo)
     const lim = Dv && a.detalhe ? Dv.paraLimites(String(a.detalhe).split("; ")[0]) : null;
     if (lim) {
       const caixa = (rotulo, valor, cls) => { const c = el("div", "critico-num " + cls); c.append(el("small", null, rotulo), el("b", null, valor)); return c; };
@@ -209,15 +210,20 @@
     else {
       if (window.CopilotoIcones) { const w = el("span", "dados-aviso-ico"); w.append(window.CopilotoIcones.no(ICONE_AVISO[a.tipo] || "aviso")); faixa.append(w); } // r6: símbolo do aviso
       faixa.append(el("span", "aviso-dado-texto", a.texto), el("span", "aviso-dado-dist", textoDist(distM)));
+      if (a.tipo === "restricao_possivel") { // confiança média: âmbar, só sugere; mostra de onde vem o dado
+        faixa.classList.add("possivel");
+        if (a.fonteInfo) faixa.append(el("span", "possivel-fonte", "Fonte: " + a.fonteInfo));
+      }
     }
+    if (a.tipo !== "restricao_possivel") faixa.classList.remove("possivel");
     faixa.dataset.tipo = a.tipo; faixa.hidden = false;
     clearTimeout(faixaTimer); faixaTimer = setTimeout(esconderFaixa, critico ? 60000 : 20000);
   }
-  const ICONE_AVISO = { restricao: "aviso", perigoso: "aviso", balanca: "balanca", balsa: "rota", curva: "reta", passagem_nivel: "aviso", lombada: "aviso", lombadas: "aviso",
+  const ICONE_AVISO = { restricao: "aviso", restricao_possivel: "aviso", perigoso: "aviso", balanca: "balanca", balsa: "rota", curva: "reta", passagem_nivel: "aviso", lombada: "aviso", lombadas: "aviso",
     radar: "r_radar", praca_pedagio: "pedagio", obra: "obras", area_escape: "reta", perigo: "aviso" };
   // intervalo mínimo entre falas (20 s; window.COPILOTO_AVISO_INTERVALO_MS encurta nos testes)
   function opcoesAvisador() { const ms = Number(window.COPILOTO_AVISO_INTERVALO_MS); return ms > 0 ? { intervaloMs: ms } : {}; }
-  function esconderFaixa() { clearTimeout(faixaTimer); cartaoAtivo = null; if (faixa) { faixa.hidden = true; faixa.classList.remove("critico"); } }
+  function esconderFaixa() { clearTimeout(faixaTimer); cartaoAtivo = null; if (faixa) { faixa.hidden = true; faixa.classList.remove("critico"); faixa.classList.remove("possivel"); } }
   function falar(a, distM) {
     if (!C.voz || !C.voz.falar) return;
     // restrição do caminhão é segurança: espera o alerta/manobra acabar sem ser descartada por tempo e aborta o microfone aberto
@@ -264,13 +270,13 @@
     if (C.rotaLonga && C.rotaLonga.enquadrar) { setTimeout(() => C.rotaLonga.enquadrar(alvo), 80); return; }
     C.mapaPronto(() => { try { C.mapa.fitBounds(alvo.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(alvo[0], alvo[0])), { padding: 60, duration: 500 }); } catch (x) { /* ignora */ } });
   }
-  const SIGLA = { restricao: "✕", perigoso: "⚠", balanca: "⚖", curva: "↪", passagem_nivel: "🚂", lombada: "▲", lombadas: "▲", radar: "◎", balsa: "⛴", area_escape: "⤵", perigo: "!", obra: "🚧", praca_pedagio: "$" };
+  const SIGLA = { restricao: "✕", restricao_possivel: "?", perigoso: "⚠", balanca: "⚖", curva: "↪", passagem_nivel: "🚂", lombada: "▲", lombadas: "▲", radar: "◎", balsa: "⛴", area_escape: "⤵", perigo: "!", obra: "🚧", praca_pedagio: "$" };
   // tipo: "restricoes" (só as violadas) ou null (todos os avisos)
   function verNoMapa(r, tipo) {
     const e = obter(r); if (!e) return;
     limparMarcadores();
-    const lista = tipo === "restricoes" ? e.avisos.filter((a) => a.tipo === "restricao") : e.avisos;
-    C.mapaPronto(() => { for (const a of lista) { const m = marcador(Object.assign({ sigla: SIGLA[a.tipo] }, a), a.tipo === "restricao" ? "viola" : a.tipo); m.addTo(C.mapa); marcadores.push(m); } });
+    const lista = tipo === "restricoes" ? e.avisos.filter((a) => a.tipo === "restricao" || a.tipo === "restricao_possivel") : e.avisos;
+    C.mapaPronto(() => { for (const a of lista) { const m = marcador(Object.assign({ sigla: SIGLA[a.tipo] }, a), a.tipo === "restricao" ? "viola" : a.tipo === "restricao_possivel" ? "possivel" : a.tipo); m.addTo(C.mapa); marcadores.push(m); } });
     const f = $("folha"); if (!folhaAnterior) folhaAnterior = f && !f.hidden ? Array.from(f.children) : null;
     const itens = [el("h2", null, tipo === "restricoes" ? "Restrições no mapa" : "Avisos no mapa")];
     itens.push(el("p", "dica", lista.length + (lista.length === 1 ? " ponto" : " pontos") + " marcados na rota. " + fontes(e)));
@@ -292,6 +298,7 @@
     const it = el("div", "dados-restr-item " + classe);
     const info = el("div", "dados-restr-info");
     info.append(el("b", null, D.textoRestricao(r)), el("span", null, "a " + D.fmtDistRota(r.ao_longo_m) + " da origem" + (r.uf ? " · " + r.uf : "")));
+    if (r.info && r.info.textoFonte) { const f = el("span", "dados-restr-fonte", "Fonte: " + r.info.textoFonte); info.append(f); } // proveniência + idade, sempre
     const motivos = (classe === "viola" ? r.viola : classe === "condicional" ? r.condicional : r.desconhecido) || [];
     if (motivos.length) info.append(el("span", "dados-restr-motivo", motivos.map(classe === "viola" && Dv ? Dv.textoLimites : String).join("; ")));
     it.append(info);
@@ -315,7 +322,7 @@
       const st = e.restricoes.estado;
       if (st !== "ok") { bloco.dataset.estado = st === "carregando" || st === "nada" ? "carregando" : st; return; }
       const res = D.resumoRestricoes(e.restricoes.dados);
-      bloco.dataset.estado = res.violadas.length ? "viola" : res.condicionais.length ? "condicional" : "ok";
+      bloco.dataset.estado = res.violadas.length ? "viola" : res.possiveis.length ? "possivel" : res.condicionais.length ? "condicional" : "ok";
       if (res.violadas.length && !mesmoAssim.has(e.chave)) {
         const c = el("div", "dados-restr-cartao viola"); c.id = "dados-restr-viola"; c.setAttribute("role", "alert");
         c.append(el("b", "dados-restr-nao-passa", "VOCÊ NÃO PASSA")); // lote 1 (Stitch P2.3): o aviso grande; o título abaixo diz quantas
@@ -329,6 +336,7 @@
           nums.append(caixa("Limite da via", Dv.textoMedida(lim0.limite, lim0.unidade)), caixa("Seu caminhão", Dv.textoMedida(lim0.veiculo, lim0.unidade)));
           c.append(nums);
         }
+        if (res.violadas[0].info) { const f = el("p", "dados-restr-fonte-0", "Fonte: " + res.violadas[0].info.textoFonte); f.id = "dados-restr-fonte-0"; c.append(f); }
         for (const x of res.violadas.slice(0, 12)) c.append(itemRestricao(x, e, "viola"));
         if (res.violadas.length > 12) c.append(el("p", "dica", "e mais " + (res.violadas.length - 12) + "."));
         const dv = C.desvio ? C.desvio.estado(r) : null;
@@ -349,6 +357,21 @@
         c.append(el("p", "dados-fonte", (Dv ? Dv.AVISO_FONTE : "Segundo o mapa (OSM), dado da comunidade, estimado.") + " " + (res.fonte || "© OpenStreetMap contributors (ODbL)") + ". A ausência de restrição no mapa não libera a via."));
         bloco.append(c);
       }
+      if (res.possiveis.length) { // confiança média: âmbar, sem "VOCÊ NÃO PASSA" e sem desvio automático; só sugere
+        const c = el("div", "dados-restr-cartao possivel"); c.id = "dados-restr-possivel"; c.setAttribute("role", "status");
+        c.append(el("b", "dados-restr-possivel-titulo", "Possível restrição — confira na pista"));
+        const h3 = el("h3", null, D.tituloPossiveis(res.possiveis.length));
+        if (window.CopilotoIcones) window.CopilotoIcones.prefixar(h3, "aviso");
+        c.append(h3);
+        for (const x of res.possiveis.slice(0, 12)) c.append(itemRestricao(x, e, "possivel"));
+        if (res.possiveis.length > 12) c.append(el("p", "dica", "e mais " + (res.possiveis.length - 12) + "."));
+        c.append(el("p", "dados-fonte", "Dado antigo, de um motorista só ou com folga pequena: pode estar errado. O app não desvia sozinho; você decide."));
+        const bot = el("div", "linha-botoes");
+        if (C.desvio && C.desvio.sugerir) { const sg = botao("Sugerir desvio", "btn dados-restr-sugerir", () => C.desvio.sugerir(r)); sg.id = "dados-restr-sugerir"; bot.append(sg); }
+        const ver = botao("Ver no mapa", "btn", () => verNoMapa(r, "restricoes")); ver.id = "dados-restr-ver-possivel"; bot.append(ver);
+        c.append(bot);
+        bloco.append(c);
+      }
       if (res.condicionais.length) {
         const c = el("div", "dados-restr-cartao condicional"); c.id = "dados-restr-cond";
         c.append(el("h3", null, res.condicionais.length + (res.condicionais.length === 1 ? " restrição condicional" : " restrições condicionais") + " (horário, destino ou autorização)"));
@@ -359,6 +382,12 @@
         const c = el("div", "dados-restr-cartao desconhecida"); c.id = "dados-restr-desc";
         c.append(el("h3", null, res.desconhecidas.length + (res.desconhecidas.length === 1 ? " restrição que não deu para avaliar" : " restrições que não deu para avaliar")));
         for (const x of res.desconhecidas.slice(0, 8)) c.append(itemRestricao(x, e, "desconhecida"));
+        bloco.append(c);
+      }
+      if (res.removidas.length && modo() === "avancado") { // contestadas por motoristas: fora da rota, registro mantido
+        const c = el("div", "dados-restr-cartao desconhecida"); c.id = "dados-restr-removidas";
+        c.append(el("h3", null, res.removidas.length + (res.removidas.length === 1 ? " restrição tirada da rota após contestação de motoristas" : " restrições tiradas da rota após contestação de motoristas")));
+        for (const x of res.removidas.slice(0, 8)) c.append(itemRestricao(x, e, "desconhecida"));
         bloco.append(c);
       }
     };
@@ -390,7 +419,7 @@
       const res = D.resumoRestricoes(e.restricoes.dados);
       if (res.violadas.length && mesmoAssim.has(e.chave)) {
         const p = el("p", "dados-restr-resumo viola", res.violadas.length + (res.violadas.length === 1 ? " restrição que seu caminhão não passa" : " restrições que seu caminhão não passa") + " (seguindo mesmo assim)"); p.id = "dados-restr-resumo"; bloco.append(p);
-      } else if (!res.violadas.length && !res.condicionais.length && !falta.length) { const p = el("p", "dados-restr-ok", "Verificado no mapa (OSM): nenhuma ponte ou limite cadastrado que o seu caminhão não passe. O mapa pode estar incompleto; confira a sinalização."); p.id = "dados-restr-ok"; bloco.append(p); }
+      } else if (!res.violadas.length && !res.possiveis.length && !res.condicionais.length && !falta.length) { const p = el("p", "dados-restr-ok", "Verificado no mapa (OSM): nenhuma ponte ou limite cadastrado que o seu caminhão não passe. O mapa pode estar incompleto; confira a sinalização."); p.id = "dados-restr-ok"; bloco.append(p); }
     };
     e.ouvintes.set(bloco, montar); montar();
     return bloco;

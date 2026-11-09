@@ -63,6 +63,8 @@
     neblina:            { nome: "neblina" },
     pista_escorregadia: { nome: "pista escorregadia" },
     balanca:            { nome: "balança" },
+    // lote 1b: texto neutro e fixo, sem distância, sem "confirmado" e sem descrição de pessoa ou veículo
+    risco_seguranca:    { nome: "risco à segurança", fixa: "Atenção: relatos de risco à segurança neste trecho. Fique atento." },
   };
 
   // 4.3 → "4,3"; 45 → "45"; 4.25 → "4,25"
@@ -87,6 +89,7 @@
     const f = FALA_TIPO[tipo];
     const onde = "a " + distanciaFalada(distanciaM);
     if (!f) return "Atenção: alerta " + onde + ".";
+    if (f.fixa) return f.fixa;
     if (f.unidade && valor != null && isFinite(valor)) return f.nome + " " + comUnidade(valor, f.unidade) + " " + onde + ".";
     if (f.unidade) return "Atenção: " + f.nome.toLowerCase() + " " + onde + ".";
     return "Atenção: " + f.nome + " " + onde + ".";

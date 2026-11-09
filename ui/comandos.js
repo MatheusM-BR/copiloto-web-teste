@@ -294,6 +294,14 @@
     if (!C.estado.gps || !C.estado.ultimaPos) { avisar("Ative o GPS para reportar.", true); return; }
     const gps = toque || C.relatos.leituraDoToque();
     const cfg = Relatos.TIPOS[tipo];
+    // lote 1b: risco à segurança nunca sai direto por voz. Sem conta: explica e leva à aba Conta. Com conta: abre a grade com o
+    // tipo escolhido, o aviso "Em perigo agora? Ligue 190." e a contagem de 4 s com Cancelar (o motorista decide na tela).
+    if (cfg.soConta) {
+      if (!C.nuvem.logado()) { C.relatos.avisoSemConta(); return; }
+      if (!preencherFormulario(tipo, "", gps)) { avisar(Cmd.MSG.tipoIndisponivel + ".", true); return; }
+      avisar("Risco à segurança. Confira na tela. Em perigo, ligue 190.", true);
+      return;
+    }
     if (cfg.valor && (r.valor == null || !isFinite(r.valor))) {
       // não adivinha a medida: o motorista digita na tela
       if (preencherFormulario(tipo, null, gps)) { const inp = $("r-valor"); if (inp) inp.focus(); }

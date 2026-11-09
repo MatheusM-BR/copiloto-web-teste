@@ -25,6 +25,8 @@
     const tipo = NuvemLib.tipoParaApp(r.report_type);
     return Relatos.titulo({ tipo, valor: r.value_numeric == null ? null : Number(r.value_numeric) });
   }
+  // lote 1b: tipo de texto neutro (risco à segurança): sem "confirmado", sem contagem de confirmações
+  function ehNeutro(r) { const c = Relatos.TIPOS[NuvemLib.tipoParaApp(r.report_type)]; return !!(c && c.neutro); }
   function siglaServidor(r) {
     const cfg = Relatos.TIPOS[NuvemLib.tipoParaApp(r.report_type)];
     return cfg.sigla + (r.value_numeric == null ? "" : " " + String(Number(r.value_numeric)).replace(".", ","));
@@ -46,7 +48,7 @@
 
   function popupNuvem(r) {
     const pop = el("div", "popup-relato");
-    const detalhe = el("small", "detalhe-nivel", NuvemLib.detalheNivel(r) + (r.mine ? " · relato seu" : ""));
+    const detalhe = el("small", "detalhe-nivel", ehNeutro(r) ? (r.mine ? "Relato seu" : "Relato de motoristas") : NuvemLib.detalheNivel(r) + (r.mine ? " · relato seu" : ""));
     const exp = Date.parse(r.expires_at);
     pop.append(el("b", null, tituloServidor(r)), detalhe);
     if (r.level === "disputed") pop.append(el("small", "nivel-disputed", "? Contestado por outros motoristas"));
@@ -84,7 +86,7 @@
       const antes = marcasNuvem.get(r.id);
       if (antes && antes.chave === chave) continue;
       if (antes) antes.m.remove();
-      const prefixo = r.level === "disputed" ? "? " : r.level === "confirmed" ? "✓ " : "";
+      const prefixo = r.level === "disputed" ? "? " : r.level === "confirmed" && !ehNeutro(r) ? "✓ " : "";
       const marca = el("div", "relato-marca nuvem nivel-" + r.level + (r.mine ? " meu" : ""), prefixo + siglaServidor(r));
       marca.dataset.id = r.id;
       marca.title = tituloServidor(r) + (r.level === "disputed" ? " · Contestado" : "");
@@ -276,6 +278,11 @@
     C.folha.abrir([el("h2", null, "Já existe " + tituloServidor(c) + " a " + Math.round(Number(c.distance_m) || 0) + " m. É este?"),
       el("p", null, (c.level === "disputed" ? "Contestado por outros motoristas. " : "") + "Se for o mesmo, o seu relato vira uma confirmação."), col]);
   }
+  // lote 1b: risco à segurança fica guardado e só avisa os outros quando outra pessoa relatar o mesmo trecho
+  function msgEnviado(relato, r) {
+    const c = Relatos.TIPOS[relato.tipo];
+    return c && c.neutro ? "Risco registrado. Outros motoristas só serão avisados quando mais de uma pessoa relatar este trecho. Em perigo, ligue 190." : "Relato enviado. Outros motoristas vão ver.";
+  }
   async function submeter(relato, params, mesmoQue) {
     if (!pode("enviar")) { folhaErro("Envio desligado", MSG_SEM_ENVIO); return; }
     const corpo = Object.assign({}, params);
@@ -289,13 +296,13 @@
       if (env.cancelado) {
         // B3: chegou ao servidor depois do Cancelar: tira da fila (não manda duas vezes) e não mexe na folha atual
         nuvem.retirar(relato.id); desenharPendentes();
-        C.mensagem("Relato enviado. Outros motoristas vão ver.", 5000);
+        C.mensagem(msgEnviado(relato, r), 5000);
         C.emit("relato-enviado", { relato, resposta: r });
         buscarNuvem();
         return;
       }
       C.folha.fechar();
-      C.mensagem(r && r.action === "confirmed_existing" ? "Obrigado! Você confirmou o relato que já existia." : "Relato enviado. Outros motoristas vão ver.", 5000);
+      C.mensagem(r && r.action === "confirmed_existing" ? "Obrigado! Você confirmou o relato que já existia." : msgEnviado(relato, r), 5000);
       C.emit("relato-enviado", { relato, resposta: r });
       buscarNuvem();
     } catch (e) {

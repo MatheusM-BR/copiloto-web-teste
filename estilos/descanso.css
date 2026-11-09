@@ -1,0 +1,33 @@
+/* Cronômetro de descanso (ui/descanso.js): pílula discreta e faixa âmbar no painel da navegação. Informativo: não cobre o centro. */
+.nav-painel .descanso-pilula {
+  justify-self: start; max-width: 100%; display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: nowrap; white-space: nowrap; overflow: hidden;
+  font-size: 14px; line-height: 1.2; color: var(--texto); background: var(--campo); border: 1px solid var(--linha); border-radius: 10px; padding: 4px 10px;
+  font-variant-numeric: tabular-nums;
+}
+.nav-painel .descanso-pilula[hidden] { display: none; }
+.descanso-num { font-size: 22px; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.descanso-sec { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.nav-painel .descanso-pilula[data-nivel="aviso"], .nav-painel .descanso-pilula[data-nivel="limite"] {
+  background: var(--atencao-suave); border-color: var(--atencao);
+}
+
+/* faixa de aviso (30 min antes e no limite): âmbar, nunca vermelha, nunca bloqueia */
+.nav-painel .descanso-aviso {
+  display: grid; gap: 8px; max-width: 100%; min-width: 0;
+  font-size: 16px; font-weight: 700; color: var(--texto); background: var(--atencao-suave); border-left: 6px solid var(--atencao); border-radius: 12px; padding: 8px 12px;
+}
+.nav-painel .descanso-aviso[hidden] { display: none; }
+.descanso-aviso-texto { min-width: 0; }
+.descanso-aviso-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.descanso-aviso .btn { min-height: 64px; padding: 0 14px; font-size: 16px; }
+
+/* cartão na aba Conta */
+.descanso-cartao .descanso-status { font-variant-numeric: tabular-nums; font-weight: 700; margin: 10px 0; }
+
+/* celular deitado / tela baixa: a pílula some (como o km); a faixa fica compacta */
+@media (orientation: landscape) and (max-height: 540px) {
+  .nav-painel .descanso-pilula { display: none; }
+  .nav-painel .descanso-aviso { font-size: 14px; padding: 4px 8px; grid-template-columns: 1fr auto; align-items: center; }
+  .descanso-aviso .btn { min-height: 56px; }
+}
+@media (orientation: portrait) and (max-height: 600px) { #app.nav-ativa:has(#alerta:not([hidden])) .nav-painel .descanso-pilula { display: none; } }

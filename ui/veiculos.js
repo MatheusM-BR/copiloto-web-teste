@@ -40,7 +40,8 @@
       d.append(dado("Altura", p.altura, "m"), dado("Largura", p.largura, "m"), dado("Comprimento", p.comprimento, "m"),
                dado("PBTC", p.pbtc, "t"), dado("Peso vazio", p.tara, "t"), dado("Eixos", p.eixos, ""),
                dado("Tanque", p.tanque, "L"), dado("Consumo", p.consumo, "km/L"));
-      const c = document.createElement("span"); c.textContent = "Carga: " + p.carga; d.appendChild(c);
+      const c = document.createElement("span"); c.className = "dado-carga"; c.textContent = "Carga: " + p.carga; d.appendChild(c);
+      if (p.cargaPerigosa === true) { const g = document.createElement("span"); g.className = "dado-perigosa"; g.textContent = "Carga perigosa: sim"; d.appendChild(g); }
       const b = document.createElement("div"); b.className = "linha-botoes";
       if (p.id !== estado.ativoId) b.appendChild(botao("Usar este", "btn btn-pequeno btn-principal", () => { estado.ativoId = p.id; gravar(); atualizarTudo(); }));
       b.appendChild(botao("Editar", "btn btn-pequeno", () => editar(p.id)));
@@ -58,7 +59,7 @@
 
   const CAMPOS_NUM = ["altura", "largura", "comprimento", "pbtc", "eixos", "tara", "tanque", "consumo"];
   function lerForm() {
-    const o = { nome: $("f-nome").value, tipo: $("f-tipo").value, carga: $("f-carga").value };
+    const o = { nome: $("f-nome").value, tipo: $("f-tipo").value, carga: $("f-carga").value, cargaPerigosa: $("f-perigosa").checked };
     for (const c of CAMPOS_NUM) o[c] = $("f-" + c).value;
     return o;
   }
@@ -69,13 +70,13 @@
     }
   }
   function limparForm() {
-    editandoId = null; $("form-perfil").reset(); $("f-tipo").value = "Carreta"; mostrarErros({});
+    editandoId = null; $("form-perfil").reset(); $("f-tipo").value = "Carreta"; mostrarErros({}); marcarCarga();
     $("titulo-form").textContent = "Novo veículo"; $("btn-cancelar").hidden = true; $("btn-salvar").textContent = "Salvar veículo";
   }
   function editar(id) {
     const p = estado.perfis.find((x) => x.id === id); if (!p) return;
     editandoId = id; mostrarErros({});
-    $("f-nome").value = p.nome; $("f-tipo").value = p.tipo; $("f-carga").value = p.carga;
+    $("f-nome").value = p.nome; $("f-tipo").value = p.tipo; $("f-carga").value = p.carga; $("f-perigosa").checked = p.cargaPerigosa === true; marcarCarga();
     for (const c of CAMPOS_NUM) $("f-" + c).value = p[c] == null ? "" : String(p[c]).replace(".", ",");
     $("titulo-form").textContent = "Editar veículo"; $("btn-cancelar").hidden = false; $("btn-salvar").textContent = "Salvar alterações";
     $("f-nome").focus();
@@ -97,6 +98,17 @@
     gravar(); limparForm(); atualizarTudo();
   }
 
+  // Carregado / Vazio em destaque (botões grandes); o <select id="f-carga"> continua sendo a fonte do valor. Tocar no marcado volta a "Não informado".
+  function marcarCarga() {
+    const v = $("f-carga").value;
+    for (const b of document.querySelectorAll(".v-carga-op")) b.setAttribute("aria-checked", String(b.dataset.carga === v));
+  }
+  function ligarCarga() {
+    for (const b of document.querySelectorAll(".v-carga-op")) b.addEventListener("click", () => {
+      $("f-carga").value = $("f-carga").value === b.dataset.carga ? "Não informado" : b.dataset.carga; marcarCarga();
+    });
+  }
+
   function atualizarTudo() {
     desenharLista();
     const a = ativo();
@@ -107,14 +119,16 @@
   // Campos de autonomia (E2) na mesma grade das medidas.
   function criarCamposAutonomia() {
     if ($("f-tanque")) return;
-    const grade = $("f-eixos").closest(".grade");
-    const campo = (id, rotulo, modo, exemplo) => {
+    const grade = $("grade-combustivel") || $("f-eixos").closest(".grade");
+    const campo = (id, rotulo, modo, exemplo, ajuda) => {
       const l = document.createElement("label"); l.htmlFor = "f-" + id; l.append(rotulo);
-      const i = document.createElement("input"); i.id = "f-" + id; i.inputMode = modo; i.autocomplete = "off"; i.placeholder = exemplo;
+      const i = document.createElement("input"); i.id = "f-" + id; i.inputMode = modo; i.autocomplete = "off"; i.placeholder = exemplo; i.setAttribute("aria-describedby", "d-" + id);
+      const d = document.createElement("span"); d.className = "campo-dica"; d.id = "d-" + id; d.textContent = ajuda;
       const e = document.createElement("span"); e.className = "erro"; e.id = "e-" + id;
-      l.append(i, e); return l;
+      l.append(i, d, e); return l;
     };
-    grade.append(campo("tanque", "Tanque (L)", "decimal", "600"), campo("consumo", "Consumo (km/L)", "decimal", "2,5"));
+    grade.append(campo("tanque", "Tanque (L)", "decimal", "600", "Capacidade do tanque de diesel. Entra no alcance estimado."),
+      campo("consumo", "Consumo (km/L)", "decimal", "2,5", "Média real do conjunto. Entra no alcance estimado."));
   }
 
   C.veiculos = { ativo, lista: () => estado.perfis.slice() };
@@ -124,7 +138,7 @@
     criarCamposAutonomia();
     for (const t of V.TIPOS) $("f-tipo").add(new Option(t, t));
     for (const c of V.CARGAS) $("f-carga").add(new Option(c, c));
-    $("f-tipo").value = "Carreta";
+    $("f-tipo").value = "Carreta"; ligarCarga(); marcarCarga();
     $("form-perfil").addEventListener("submit", aoSalvar);
     $("btn-cancelar").addEventListener("click", limparForm);
     C.abas.registrar({ id: "veiculo", rotulo: "Veículo", tela: $("tela-veiculo") });

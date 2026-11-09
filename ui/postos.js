@@ -118,8 +118,14 @@
     return A.alcance(v, lit.valor);
   }
 
-  async function abrirProximo() {
+  // opcoes.banho (cronômetro de descanso): abre a lista já com "Só com banho confirmado" ligado, sem gravar o filtro; a
+  // próxima abertura sem a opção volta ao filtro que o motorista tinha. Estacionamento não é filtro: a fonte não o confirma.
+  let banhoAntes = null;
+  function gravarFiltros() { gravarJSON(CHAVE_FILTROS, banhoAntes === null ? filtros : Object.assign({}, filtros, { banho: banhoAntes })); }
+  async function abrirProximo(opcoes) {
     litrosTexto = "";
+    if (opcoes && opcoes.banho) { if (banhoAntes === null) banhoAntes = filtros.banho; filtros.banho = true; }
+    else if (banhoAntes !== null) { filtros.banho = banhoAntes; banhoAntes = null; }
     desenharFolha({ carregando: true });
     await atualizarLista();
   }
@@ -171,7 +177,7 @@
       b.append(ic(icone), el("span", null, rotulo));
       b.setAttribute("aria-label", completo); b.setAttribute("aria-pressed", String(filtros[chave]));
       b.addEventListener("click", () => {
-        filtros[chave] = !filtros[chave]; gravarJSON(CHAVE_FILTROS, filtros);
+        if (chave === "banho") banhoAntes = null; filtros[chave] = !filtros[chave]; gravarFiltros();
         desenharFolha({ carregando: true }); atualizarLista();
       });
       f.appendChild(b);
@@ -185,7 +191,7 @@
     const ab = el("button", "btn btn-pequeno postos-chip postos-chip-aberto"); ab.type = "button"; ab.id = "postos-chip-aberto";
     ab.append(ic("relogio"), el("span", null, "Aberto agora"));
     ab.setAttribute("aria-label", "Só abertos agora (horário confirmado)"); ab.setAttribute("aria-pressed", String(filtros.aberto));
-    ab.addEventListener("click", () => { filtros.aberto = !filtros.aberto; gravarJSON(CHAVE_FILTROS, filtros); refazer(); });
+    ab.addEventListener("click", () => { filtros.aberto = !filtros.aberto; gravarFiltros(); refazer(); });
     f.appendChild(ab);
     for (const [chave, rotulo] of P.GRUPOS_BANDEIRA) {
       const b = el("button", "btn btn-pequeno postos-chip postos-chip-bandeira"); b.type = "button"; b.id = "postos-bandeira-" + chave;
@@ -210,6 +216,7 @@
   }
 
   function desenharFolha(o) {
+    limparMini();
     // ordem pensada para a tela pequena: título, filtros e os POSTOS primeiro; dicas e litros (opcionais) depois
     const h2 = el("h2", "postos-titulo"); h2.append(ic("bomba"), document.createTextNode(o.carregando ? "Buscando postos…" : titulo()));
     const itens = [h2, filtrosUi(), filtrosUi2()];
@@ -224,6 +231,7 @@
       if (!marcados.length) itens.push(el("p", null, temFiltro()
         ? "Nenhum posto à frente com esse filtro confirmado. Desligue o filtro para ver os que não informam."
         : "Nenhum posto encontrado à frente nos próximos 30 km."));
+      if (marcados.length) itens.push(blocoMediaLista(marcados[0]));
       const ul = el("ul", "postos-lista"); ul.id = "postos-lista";
       const prox = P.proximoComDiesel(marcados);
       for (const p of marcados) ul.appendChild(itemPosto(p, prox && prox.station_key === p.station_key));
@@ -277,7 +285,7 @@
 
   // Item da lista: logo, nome, distância em destaque, ícones só do que está CONFIRMADO. Texto completo para o leitor de tela.
   function itemPosto(p, proximo) {
-    const li = document.createElement("li");
+    const li = document.createElement("li"); li.className = "postos-cartao";
     const b = document.createElement("button"); b.type = "button";
     b.className = "postos-item" + (p.alcance ? " alcance-" + p.alcance : "") + (proximo ? " postos-proximo" : ""); b.dataset.key = p.station_key;
     const r = P.resumoAtributos(p.attributes);
@@ -285,7 +293,8 @@
     const topo = el("span", "postos-topo");
     const nome = el("span", "postos-nome", P.nomePosto(p));
     const dist = el("span", "postos-dist"); dist.setAttribute("aria-hidden", "true");
-    dist.append(ic(modoLista === "rota" ? "rota" : "reta"), document.createTextNode(P.formatarDistancia(p.distancia_m)));
+    dist.append(ic(modoLista === "rota" ? "rota" : "reta"), document.createTextNode(P.formatarDistancia(p.distancia_m)),
+      el("small", "postos-dist-rot", modoLista === "rota" ? "à frente" : "em linha reta"));
     topo.append(nome, dist);
     const dv = modoLista === "rota" ? chipDesvio(p) : null;
     if (dv) topo.appendChild(dv);
@@ -293,7 +302,7 @@
     marca.append(document.createTextNode(P.nomeBandeira(p.brand) + " "), estrelas(p, "postos-estrelas"));
     const icones = el("span", "postos-icones"); icones.setAttribute("aria-hidden", "true");
     const sim = P.amenidadesSim(p.attributes);
-    for (const x of sim) icones.appendChild(ic(x.icone, null, "ico-sim"));
+    for (const x of sim) { const am = el("span", "postos-am"); am.append(ic(x.icone, null, "ico-sim"), el("span", null, x.rotulo)); icones.appendChild(am); }
     if (!sim.length) icones.append(ic("ajuda", null, "ico-desc"), el("span", "postos-sem", "sem informação"));
     const ab = P.situacaoAbertura(p, new Date());
     if (ab.estado !== "?") icones.appendChild(seloAbertura(p, false));
@@ -313,7 +322,23 @@
     }
     b.addEventListener("click", () => mostrarDetalhe(p, modoLista));
     li.appendChild(b);
+    // "Adicionar parada": com rota entra como parada (destino mantido; navegando, pergunta antes); sem rota o posto vira o destino
+    const add = botao("", "btn postos-add", () => irPara(p)); add.dataset.key = p.station_key;
+    add.append(ic(temRota() ? "parada" : "ir"), el("span", null, temRota() ? "Adicionar parada" : "Ir até lá"));
+    add.setAttribute("aria-label", (temRota() ? "Adicionar parada: " : "Ir até lá: ") + P.nomePosto(p));
+    li.appendChild(add);
     return li;
+  }
+
+  // Diesel na lista: SÓ a média ANP da região (uma consulta, pelo 1º posto), rotulada. Nunca como preço de um posto.
+  function blocoMediaLista(p) {
+    const caixa = el("p", "postos-media dica"); caixa.id = "postos-media"; caixa.hidden = true;
+    precoDaRegiao(p, "diesel_s10").then((r) => P.precoDaRegiao(r, "Diesel S10"), () => null).then((x) => {
+      if (!caixa.isConnected || !x || !x.ok) return;
+      caixa.textContent = "Diesel S10, média ANP da região (" + x.uf + ")" + (x.semana ? ", semana de " + x.semana : "") + ": " + P.formatarReais(x.preco) + "/L. Não é o preço de cada posto.";
+      caixa.hidden = false;
+    });
+    return caixa;
   }
 
   // ------------------------------------------------------------ card do posto (R5)
@@ -362,7 +387,8 @@
     ico.appendChild(ic(a.icone));
     ico.appendChild(a.estado === "sim" ? ic("ok", null, "pc-selo") : a.estado === "nao" ? ic("fechar", null, "pc-selo") : el("span", "pc-selo pc-selo-q", "?"));
     const rot = el("span", "pc-amen-rot", a.rotulo); rot.setAttribute("aria-hidden", "true");
-    li.append(ico, rot, el("span", "so-leitor", a.rotulo + ": " + a.texto));
+    const est = el("span", "pc-amen-estado", a.estado === "sim" ? "Tem" : a.estado === "nao" ? "Não tem" : "?"); est.setAttribute("aria-hidden", "true");
+    li.append(ico, rot, est, el("span", "so-leitor", a.rotulo + ": " + a.texto));
     return li;
   }
   function blocoComodidades(p) {
@@ -384,6 +410,29 @@
     }
     const leg = el("p", "dica pc-legenda"); leg.append(ic("ok"), "tem ", ic("fechar"), "não tem ", el("span", "pc-selo-q-leg", "?"), " sem informação");
     sec.appendChild(leg);
+    return sec;
+  }
+
+  // Mini-mapa do posto: mesmo estilo do mapa principal, sem interação; sem o mapa (ou sem tiles) fica só o texto de coordenadas.
+  let miniPosto = null;
+  function limparMini() { try { if (miniPosto) miniPosto.remove(); } catch (e) { /* já saiu */ } miniPosto = null; }
+  function blocoMini(p) {
+    const sec = el("section", "pc-mini"); sec.id = "postos-mini";
+    const caixa = el("div", "pc-minimapa"); caixa.setAttribute("role", "img"); caixa.setAttribute("aria-label", "Mapa com a posição de " + P.nomePosto(p));
+    sec.appendChild(caixa);
+    sec.appendChild(el("p", "dica pc-mini-fonte", "Posição " + p.lat.toFixed(5).replace(".", ",") + ", " + p.lon.toFixed(5).replace(".", ",") + " · © OpenStreetMap contributors"));
+    setTimeout(() => {
+      if (!caixa.isConnected || !window.maplibregl) return;
+      limparMini();
+      try {
+        const st = C.mapa && C.mapa.getStyle && C.mapa.getStyle();
+        if (!st || !st.version) return;
+        miniPosto = new maplibregl.Map({ container: caixa, style: JSON.parse(JSON.stringify(st)), center: [p.lon, p.lat], zoom: 14, interactive: false, attributionControl: false, fadeDuration: 0 });
+        const pino = el("div", "pc-mini-pino"); pino.setAttribute("aria-hidden", "true");
+        new maplibregl.Marker({ element: pino }).setLngLat([p.lon, p.lat]).addTo(miniPosto);
+        const m = miniPosto, t = setInterval(() => { if (!caixa.isConnected || miniPosto !== m) { clearInterval(t); if (miniPosto === m) limparMini(); } }, 1500);
+      } catch (e) { miniPosto = null; }
+    }, 0);
     return sec;
   }
 
@@ -437,7 +486,8 @@
       if (s === "fora") raiz.appendChild(el("p", "postos-fora", "Fora do alcance estimado (" + A.formatarAlcance(est.km) + ")."));
       else if (s === "limite") raiz.appendChild(el("p", "postos-limite", "No limite do alcance estimado (" + A.formatarAlcance(est.km) + ")."));
     }
-    raiz.append(blocoPreco(p), blocoComodidades(p));
+    limparMini();
+    raiz.append(blocoMini(p), blocoPreco(p), blocoComodidades(p));
     // fonte, datas e licença
     const rodape = el("footer", "pc-rodape");
     if (p.cnpj) rodape.appendChild(el("p", "dica", "CNPJ " + p.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")));
@@ -499,27 +549,44 @@
     if (temRota()) { comoParada(p); return; }
     virarDestino(p);
   }
+  // Aviso de posto na navegação (Stitch P3.4): nome, à frente, desvio, só o que está confirmado e "Deseja parar neste posto?".
+  // Sim, parar aqui = parada (o destino final e a rota continuam); Não, seguir = nada muda; Trocar destino = o posto vira o fim.
   function perguntarTroca(p) {
     const nome = P.nomePosto(p);
-    const b = el("div", "linha-botoes postos-troca");
-    // parada: o destino e a rota seguem; a navegação recalcula daqui → posto → destino
+    const cab = el("div", "postos-aviso-cab");
+    const txt = el("div", "postos-aviso-txt");
+    const dist = p.distancia_m != null ? el("p", "postos-aviso-dist", "À frente a " + P.formatarDistancia(p.distancia_m) + (modoLista === "rota" ? " pela rota" : " em linha reta")) : null;
+    txt.append(el("h2", null, nome), ...(dist ? [dist] : []));
+    cab.append(logoBandeira(p), txt);
+    const dv = modoLista === "rota" ? chipDesvio(p) : null;
+    if (dv) cab.appendChild(dv);
+    const sim = P.amenidadesSim(p.attributes);
+    const am = el("p", "postos-aviso-am");
+    if (sim.length) for (const x of sim) { const a = el("span", "postos-am"); a.append(ic(x.icone, null, "ico-sim"), el("span", null, x.rotulo)); am.appendChild(a); }
+    else am.textContent = "Serviços: não informados na fonte.";
+    const b = el("div", "postos-aviso-botoes");
     const parada = temRota() ? botao("", "btn btn-principal nav-grande pc-ir-parada", async () => {
       C.folha.fechar();
       const r = await C.rota.adicionarParada(paradaDe(p));
-      if (r === "longa") C.mensagem("Rota muito longa para acrescentar parada. Use \"Sim, trocar\" para ir ao posto.", 7000);
+      if (r === "longa") C.mensagem("Rota muito longa para acrescentar parada. Use \"Trocar destino\" para ir ao posto.", 7000);
       else if (r === "repetida") C.mensagem("Este posto já é uma parada da rota.", 5000);
     }) : null;
-    if (parada) { parada.id = "postos-parada"; parada.append(ic("parada"), el("span", null, "Parada no posto (mantém o destino)")); b.appendChild(parada); }
-    const sim = botao("Sim, trocar", "btn nav-grande", () => {
+    if (parada) { parada.id = "postos-parada"; parada.append(ic("parada"), el("span", "postos-aviso-bt", "Sim, parar aqui"), el("small", null, "Mantém o destino final")); b.appendChild(parada); }
+    const nao = botao("", "btn nav-grande", C.folha.fechar); nao.id = "postos-trocar-nao";
+    nao.append(ic("fechar"), el("span", "postos-aviso-bt", "Não, seguir"), el("small", null, "Mantém a rota"));
+    const troca = botao("", "btn nav-grande", () => {
       C.folha.fechar();
       C.emit("postos:destino", p);
       C.navegacao.trocarDestino({ lat: p.lat, lon: p.lon, rotulo: nome });
     });
-    sim.id = "postos-trocar-sim"; if (!parada) sim.classList.add("btn-principal");
-    const nao = botao("Não", "btn nav-grande", C.folha.fechar); nao.id = "postos-trocar-nao";
-    b.append(sim, nao);
-    C.folha.abrir([el("h2", null, "Trocar o destino para " + nome + "?"),
-      el("p", null, "A navegação recalcula a rota daqui até o posto, com o mesmo veículo e carga."), b]);
+    troca.id = "postos-trocar-sim"; if (!parada) troca.classList.add("btn-principal");
+    troca.append(ic("ir"), el("span", "postos-aviso-bt", "Trocar destino"), el("small", null, "O posto vira o fim"));
+    const dois = el("div", "postos-aviso-dois"); dois.append(nao, troca);
+    b.appendChild(dois);
+    const raiz = el("section", "postos-aviso"); raiz.id = "postos-aviso";
+    raiz.append(cab, am, el("h3", "postos-aviso-perg", "Deseja parar neste posto?"), b,
+      el("p", "dica", "Trocar o destino recalcula a rota daqui até o posto, com o mesmo veículo e carga."));
+    C.folha.abrir([raiz]);
   }
 
   C.postos = { abrirProximo, buscarProximos, naVista: () => naVista.slice(), lista: () => lista.slice() };

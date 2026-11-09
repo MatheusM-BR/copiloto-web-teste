@@ -37,6 +37,7 @@
     neblina:            { falado: "neblina" },
     pista_escorregadia: { falado: "pista escorregadia" },
     balanca:            { falado: "balança" },
+    risco_seguranca:    { falado: "risco à segurança" }, // lote 1b: texto neutro, sempre
   };
 
   // Faixas padrão (as mesmas de relatos.js); a interface passa as do app em opcoes.faixas.
@@ -197,6 +198,8 @@
     neblina: [/\b(neblina|nevoeiro|cerracao|serracao|nevoa|cerrado de neblina|visibilidade (baixa|ruim|zero)|nao (da|esta dando) pra ver nada|fumaca na pista|fumaceira)\b/],
     pista_escorregadia: [/\b(escorregadi[ao]|escorregando|escorrega|derrapando|pista (molhada|lisa|ensaboada)|oleo|graxa|lama na pista|barro na pista|pista com lama|pista com barro|lisa)\b/],
     balanca: [/\b(balanca|balancas|pesagem|posto de pesagem|posto fiscal de peso)\b/],
+    // lote 1b: "Risco/Assalto". Só frases claras: "risco" solto ("risco de acidente") NÃO é este tipo.
+    risco_seguranca: [/\b(riscos? (a|de|para a|pra) seguranca|risco de (assalto|roubo|arrastao)|assalto|assaltos|assaltaram|assaltante|assaltantes|arrastao|(relatar|reportar|avisar|registrar|marcar) (um |o )?risco\b(?! de ))\b/, /^(?:copiloto )?risco$/],
   };
   // a ponte sozinha pode ser altura ou peso: a unidade decide
   const PONTE = /\b(ponte|pontes)\b/;

@@ -23,6 +23,8 @@
 <link rel="stylesheet" href="estilos/interface.css">
 <link rel="stylesheet" href="estilos/toque.css">
 <link rel="stylesheet" href="estilos/simbolos.css">
+<link rel="stylesheet" href="estilos/barra.css">
+<link rel="stylesheet" href="estilos/voztela.css">
 </head>
 <body>
 <div id="app">
@@ -125,10 +127,13 @@
       </div>
       <!-- Menu: as telas (Veículo, Conta, Emergência e as dos pacotes) abrem daqui; os pacotes entram por Copiloto.abas.registrar -->
       <nav class="cfg-menu" aria-label="Menu">
+        <h2 class="cfg-titulo cfg-menu-titulo">Veículo e voz</h2>
         <button id="nav-veiculo"><span class="cfg-item">Veículo</span><small class="cfg-valor chip-veiculo" id="chip-veiculo">Nenhum veículo ativo</small></button>
         <button id="cfg-voz"><span class="cfg-item">Voz</span><small class="cfg-valor" id="cfg-voz-valor"></small></button>
+        <h2 class="cfg-titulo cfg-menu-titulo">Tela e mapa</h2>
         <button id="cfg-fachada" role="switch" aria-checked="false"><span class="cfg-item">Fachada na chegada</span><small class="cfg-valor" id="cfg-fachada-valor">Desligada</small></button>
         <button id="btn-tela" aria-pressed="false"><span class="cfg-item">Manter a tela ligada</span><small class="cfg-valor cfg-ligado">Ligada</small><small class="cfg-valor cfg-desligado">Desligada</small></button>
+        <h2 class="cfg-titulo cfg-menu-titulo">Privacidade e conta</h2>
         <button id="cfg-privacidade" data-ir="conta" data-alvo="e5-privacidade"><span class="cfg-item">Privacidade</span><small class="cfg-valor">Ver</small></button>
         <button id="cfg-diagnostico"><span class="cfg-item">Diagnóstico de voz</span><small class="cfg-valor">Ver</small></button>
         <button id="nav-conta"><span class="cfg-item">Conta</span><small class="cfg-valor" id="cfg-conta-valor"></small></button>
@@ -145,42 +150,65 @@
           <input id="f-nome" maxlength="80" autocomplete="off" placeholder="Ex.: Scania 113 carreta">
           <span class="erro" id="e-nome"></span>
         </label>
+        <fieldset class="v-carga" id="v-carga-grupo">
+          <legend>Carga agora</legend>
+          <div class="v-carga-opcoes" role="radiogroup" aria-label="Carga agora">
+            <button type="button" class="v-carga-op" role="radio" data-carga="Carregado" aria-checked="false">Carregado</button>
+            <button type="button" class="v-carga-op" role="radio" data-carga="Vazio" aria-checked="false">Vazio</button>
+          </div>
+          <select id="f-carga" class="v-carga-select" tabindex="-1" aria-hidden="true"></select>
+          <span class="campo-dica" id="d-carga">Carregado usa o PBTC; Vazio usa o peso vazio. A rota e o pedágio mudam com isso. Tocar de novo limpa a escolha.</span>
+        </fieldset>
         <div class="grade">
           <label for="f-tipo">Tipo
-            <select id="f-tipo"></select>
+            <select id="f-tipo" aria-describedby="d-tipo"></select>
+            <span class="campo-dica" id="d-tipo">Escolha o que mais se parece com o seu conjunto.</span>
             <span class="erro" id="e-tipo"></span>
           </label>
-          <label for="f-carga">Carga agora
-            <select id="f-carga"></select>
-            <span class="erro"></span>
-          </label>
         </div>
+        <h3 class="v-sec">Medidas</h3>
         <div class="grade">
           <label for="f-altura">Altura (m)
-            <input id="f-altura" inputmode="decimal" autocomplete="off" placeholder="4,40">
+            <input id="f-altura" inputmode="decimal" autocomplete="off" placeholder="4,40" aria-describedby="d-altura">
+            <span class="campo-dica" id="d-altura">Do chão ao ponto mais alto, com a carga. Evita viaduto e túnel baixo.</span>
             <span class="erro" id="e-altura"></span>
           </label>
           <label for="f-largura">Largura (m)
-            <input id="f-largura" inputmode="decimal" autocomplete="off" placeholder="2,60">
+            <input id="f-largura" inputmode="decimal" autocomplete="off" placeholder="2,60" aria-describedby="d-largura">
+            <span class="campo-dica" id="d-largura">Parte mais larga, com a carga.</span>
             <span class="erro" id="e-largura"></span>
           </label>
           <label for="f-comprimento">Comprimento (m)
-            <input id="f-comprimento" inputmode="decimal" autocomplete="off" placeholder="18,60">
+            <input id="f-comprimento" inputmode="decimal" autocomplete="off" placeholder="18,60" aria-describedby="d-comprimento">
+            <span class="campo-dica" id="d-comprimento">Conjunto inteiro, da frente do cavalo ao fim da carreta.</span>
             <span class="erro" id="e-comprimento"></span>
           </label>
+        </div>
+        <h3 class="v-sec">Pesos</h3>
+        <div class="grade">
           <label for="f-pbtc">PBTC (t)
-            <input id="f-pbtc" inputmode="decimal" autocomplete="off" placeholder="45">
+            <input id="f-pbtc" inputmode="decimal" autocomplete="off" placeholder="45" aria-describedby="d-pbtc">
+            <span class="campo-dica" id="d-pbtc">Peso bruto total combinado: conjunto carregado. Vale para pontes e balanças.</span>
             <span class="erro" id="e-pbtc"></span>
           </label>
           <label for="f-tara">Peso vazio (t)
-            <input id="f-tara" inputmode="decimal" autocomplete="off" placeholder="15">
+            <input id="f-tara" inputmode="decimal" autocomplete="off" placeholder="15" aria-describedby="d-tara">
+            <span class="campo-dica" id="d-tara">Conjunto sem carga. Usado quando você escolhe Vazio.</span>
             <span class="erro" id="e-tara"></span>
           </label>
           <label for="f-eixos">Eixos
-            <input id="f-eixos" inputmode="numeric" autocomplete="off" placeholder="6">
+            <input id="f-eixos" inputmode="numeric" autocomplete="off" placeholder="6" aria-describedby="d-eixos">
+            <span class="campo-dica" id="d-eixos">Total do conjunto. Muda o pedágio e o limite por eixo.</span>
             <span class="erro" id="e-eixos"></span>
           </label>
         </div>
+        <h3 class="v-sec">Combustível</h3>
+        <div class="grade" id="grade-combustivel"></div>
+        <label class="v-perigosa" for="f-perigosa">
+          <input type="checkbox" id="f-perigosa" aria-describedby="d-perigosa">
+          <span class="v-perigosa-txt"><b>Carga perigosa</b>
+            <span class="campo-dica" id="d-perigosa">Só fica guardado no perfil por enquanto. Ainda não muda a rota nem o aviso de túneis.</span></span>
+        </label>
         <p class="dica">Deixe em branco o que você não sabe. O Copiloto não inventa medida: campo vazio fica como "não informado".</p>
         <div class="linha-botoes">
           <button type="submit" class="btn btn-principal" id="btn-salvar">Salvar veículo</button>
@@ -195,7 +223,7 @@
 
       <div id="conta-fora">
         <form id="form-conta" novalidate>
-          <h2 style="margin:0;font-size:17px">Entrar ou criar conta</h2>
+          <h2 class="conta-titulo">Entrar ou criar conta</h2>
           <p class="dica">Com a conta, seus relatos aparecem para outros motoristas e você confirma os deles na estrada.</p>
           <label for="c-email">E-mail
             <input id="c-email" type="email" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="voce@exemplo.com">
@@ -208,6 +236,12 @@
             <button type="button" class="btn" id="btn-criar-conta">Criar conta</button>
           </div>
         </form>
+        <!-- Lote 4: visitante. Sem conta o app funciona; os relatos novos ficam só neste aparelho. (Sem "Entrar com a Apple": ver docs/AVALIACAO_STITCH_20261105.md) -->
+        <div class="conta-visitante">
+          <p class="ou-separador">ou sem conta</p>
+          <button type="button" class="btn" id="btn-visitante">Continuar como visitante</button>
+          <p class="dica">Como visitante, o mapa, a rota e os alertas funcionam. Seus relatos ficam só neste aparelho.</p>
+        </div>
       </div>
 
       <div id="conta-dentro" hidden>
@@ -236,7 +270,20 @@
         <p class="dica" id="voz-msg" role="status"></p>
       </div>
     </section>
+
+    <!-- Aba Voz (lote 2): a central de voz. ui/voztela.js traz para cá os cartões de voz que ficavam na tela Conta (ids intactos) -->
+    <section id="tela-voz" class="tela tela-voz" hidden aria-label="Voz">
+      <h1>Voz</h1>
+    </section>
   </main>
+
+  <!-- Barra de 4 abas (lote 2, ui/barra.js): fica EMBAIXO do mapa, fora do <main> (o mapa e tudo que é posicionado nele já respeitam a altura da barra) -->
+  <nav class="barra-abas" id="barra-abas" aria-label="Abas principais">
+    <button type="button" class="barra-aba" id="tab-mapa" data-aba="mapa"><span class="barra-aba-icone" aria-hidden="true"></span><span class="barra-aba-rotulo">Mapa</span></button>
+    <button type="button" class="barra-aba" id="tab-veiculo" data-aba="veiculo"><span class="barra-aba-icone" aria-hidden="true"></span><span class="barra-aba-rotulo">Veículo</span></button>
+    <button type="button" class="barra-aba" id="tab-voz" data-aba="voz"><span class="barra-aba-icone" aria-hidden="true"></span><span class="barra-aba-rotulo">Voz</span></button>
+    <button type="button" class="barra-aba" id="tab-conta" data-aba="conta"><span class="barra-aba-icone" aria-hidden="true"></span><span class="barra-aba-rotulo">Conta</span></button>
+  </nav>
 
 </div>
 
@@ -278,6 +325,7 @@
 <script src="ui/configuracoes.js"></script>
 <script src="ui/busca.js"></script>
 <script src="ui/lugares.js"></script>
+<script src="ui/estados.js"></script>
 
 <!-- MÓDULOS DE PACOTE: uma linha por pacote -->
 <script src="ui/navegacao.js"></script>
@@ -291,9 +339,12 @@
 <script src="custos.js"></script><script src="ui/custos.js"></script>
 <script src="rotalonga.js"></script><script src="viaqualidade.js"></script><script src="ui/rotalonga.js"></script><script src="ui/via.js"></script>
 <script src="desvio.js"></script><script src="dados.js"></script><script src="ruido.js"></script><script src="kmcache.js"></script><script src="ui/km.js"></script><script src="ui/avisos.js"></script><script src="ui/desvio.js"></script>
+<script src="descanso.js"></script><script src="ui/descanso.js"></script>
 <!-- FIM DOS MÓDULOS DE PACOTE -->
 
 <script src="ui/toque.js"></script>
+<script src="ui/voztela.js"></script>
+<script src="ui/barra.js"></script>
 <script src="ui/inicio.js"></script>
 </body>
 </html>

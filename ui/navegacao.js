@@ -198,7 +198,9 @@
     $("app").classList.add("nav-ativa");
     $("nav-painel").hidden = false;
     nav.aviso = escolha.aviso || "";
-    mostrarAviso(true);
+    // lote 2: a nota de carga confirmatória ("Carregado: rota calculada com 45 t (PBTC do cadastro).") sai do topo: fica no ⓘ (e na folha
+    // de planejamento); só o que é ALERTA (peso não informado, rota guardada/offline) aparece sozinho por ~8 s como antes
+    mostrarAviso(/não foi informad|sem peso|guardada|offline|sem internet/i.test(nav.aviso));
     status("");
     $("nav-reentrada").hidden = true;
     faixa(nav);
@@ -308,6 +310,11 @@
     $("nav-instrucao").textContent = m ? m.instrucao : "Siga a rota destacada.";
     const ruas = m && m.ruas && m.ruas.length ? m.ruas.join(" / ") : "";
     $("nav-rua").textContent = ruas; $("nav-rua").hidden = !ruas;
+    // lote 2: a instrução já traz o nome da via ("Vire à direita na SP-330."): a linha da via não repete (fica no DOM, fora da vista e
+    // do leitor de tela; aparece sozinha quando a instrução não cita a via ou cita só parte dela)
+    { const ins = ($("nav-instrucao").textContent || "").toLowerCase(); const nomes = m && m.ruas ? m.ruas : [];
+      const redundante = nomes.length > 0 && nomes.every((r) => ins.indexOf(String(r).toLowerCase()) >= 0);
+      $("nav-rua").classList.toggle("redundante", redundante); $("nav-rua").setAttribute("aria-hidden", String(redundante)); }
     if (C.faixas && C.faixas.desenhar) C.faixas.desenhar(m, n.rota); // faixas e "Saída km N" (ui/faixas.js); sem dado, nada aparece
     const s = u && u.sit.seguinte >= 0 ? n.manobras[u.sit.seguinte] : null;
     $("nav-seguinte").textContent = s ? "Depois: " + s.instrucao : ""; $("nav-seguinte").hidden = !s;
@@ -810,7 +817,8 @@
 
   function blocoResumo(v) {
     const caixa = el("dl", "nav-resumo");
-    for (const [rotulo, valor] of Nav.linhasResumo(v)) caixa.append(el("dt", null, rotulo), el("dd", null, valor));
+    // Lote 4: cada medida vira um bloco (rótulo pequeno + número grande, tabular); só o que o GPS registrou, sem custo em R$
+    for (const [rotulo, valor] of Nav.linhasResumo(v)) { const b = el("div", "nav-resumo-item"); b.append(el("dt", null, rotulo), el("dd", null, valor)); caixa.append(b); }
     return caixa;
   }
   // "↪ 2 desvios de restrição evitadas (7 km a mais)" + lista curta; "⚠ 1 restrição mantida por decisão sua"
@@ -818,8 +826,16 @@
     const r = Nav.resumoDesvios(v && v.desvios, v && v.aceitas);
     if (!r) return null;
     const caixa = el("div", "nav-desvios"); caixa.id = "nav-resumo-desvios";
-    if (r.linha) { caixa.append(el("p", "nav-desvios-linha", r.linha)); const ul = el("ul", "nav-desvios-lista"); for (const t of r.itens) ul.append(el("li", null, t)); caixa.append(ul); }
-    if (r.linhaAceitas) caixa.append(el("p", "nav-desvios-aceitas", r.linhaAceitas));
+    if (r.linha) {
+      const bl = el("div", "nav-desvios-bloco");
+      const topo = el("div", "nav-desvios-topo"); topo.append(el("h3", null, "Desvios de restrição"), el("span", "nav-desvios-km", "+" + r.extraKm + " km"));
+      bl.append(topo, el("p", "nav-desvios-linha", r.linha));
+      const ul = el("ul", "nav-desvios-lista"); for (const t of r.itens) ul.append(el("li", null, t)); bl.append(ul); caixa.append(bl);
+    }
+    if (r.linhaAceitas) {
+      const bl = el("div", "nav-desvios-bloco nav-desvios-atencao");
+      bl.append(el("h3", null, "Restrição mantida por decisão do motorista"), el("p", "nav-desvios-aceitas", r.linhaAceitas)); caixa.append(bl);
+    }
     return caixa;
   }
 

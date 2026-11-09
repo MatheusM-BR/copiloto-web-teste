@@ -51,6 +51,8 @@
     const carga = CARGAS.includes(entrada.carga) ? entrada.carga : "Não informado";
 
     const perfil = { nome, tipo: entrada.tipo, carga };
+    // Carga perigosa (lote 3): só guardada no perfil; nenhuma lógica de rota usa ainda. Sempre booleano.
+    perfil.cargaPerigosa = entrada.cargaPerigosa === true || entrada.cargaPerigosa === "true";
     for (const campo of Object.keys(LIMITES)) {
       const r = lerNumero(entrada[campo], campo);
       if (r.ok) perfil[campo] = r.valor;

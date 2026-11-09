@@ -85,6 +85,7 @@
       if (C.privacidade && C.privacidade.oferecerLocalizacao) { C.privacidade.oferecerLocalizacao(); return; }
     }
     $("cartao-gps").hidden = true;
+    { const h = $("cartao-gps").querySelector("h2"); if (h && h.textContent !== "Ativar o GPS") h.textContent = "Ativar o GPS"; }
     if (vigiaId == null) {
       // -1: a guarda do consentimento (ui/privacidade.js) segurou o pedido até a resposta; conta como ligado
       const id = navigator.geolocation.watchPosition(aoReceberPosicao, aoErroGps, {
@@ -141,6 +142,8 @@
     if (e.code === 1) {
       pararVigia(); // negado no aparelho: o próximo "Ativar GPS" pede de novo
       $("cartao-gps").hidden = false;
+      // Lote 4: permissão negada em texto curto, com título
+      $("cartao-gps").querySelector("h2").textContent = "Localização bloqueada";
       $("cartao-gps").querySelector("p").textContent =
         "A localização está bloqueada. No iPhone: Ajustes > Privacidade > Serviços de Localização > Safari, e permita. Depois toque em Ativar GPS.";
     } else if (e.code === 2) C.mensagem("Sem sinal de GPS agora.", 6000);

@@ -99,6 +99,14 @@
       "Busca e endereço — o que você digita e o ponto tocado vão ao Photon e ao Nominatim (OpenStreetMap).",
       "Postos e alertas — sua posição vai ao nosso servidor, sem guardar o trajeto.",
     ],
+    // Lote 4 (onboarding): o que o app pede ao APARELHO, em linguagem simples. Não são escolhas daqui: quem pede é o
+    // iPhone/Android. Notificações: o app não usa (sem inventar permissão); os avisos vêm na tela e em voz.
+    permissoes: [
+      { id: "localizacao", icone: "pino", nome: "Localização", texto: "Mapa, velocidade e alertas." },
+      { id: "microfone", icone: "voz_tudo", nome: "Microfone", texto: "Só depois do seu toque em Falar." },
+      { id: "notificacoes", icone: "voz_alertas", nome: "Notificações", texto: "Não usamos. Avisos na tela e em voz." },
+    ],
+    permissoesTitulo: "O que o app pede ao aparelho",
     saidaFoto: "Foto de rua — só se você marcar (Mapillary).",
     rodape: "Mude quando quiser em Configurações → Privacidade.",
     politica: "Política completa",

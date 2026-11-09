@@ -111,7 +111,18 @@
     const h = el("h1", null, novidade ? "Antes de continuar" : Consent.TEXTOS.titulo); h.id = "e5-cons-titulo";
     caixa.append(h);
     if (!novidade) {
-      caixa.append(el("p", "e5-cons-abertura", Consent.TEXTOS.abertura));
+      // Lote 4: permissões do aparelho em linguagem simples (3 linhas), antes do que sai do aparelho
+      const perm = el("ul", "e5-permissoes"); perm.setAttribute("aria-label", Consent.TEXTOS.permissoesTitulo);
+      const Ic = window.CopilotoIcones;
+      for (const p of Consent.TEXTOS.permissoes) {
+        const li = el("li", "e5-perm"); li.dataset.perm = p.id;
+        const ic = el("span", "e5-perm-ico"); ic.setAttribute("aria-hidden", "true"); if (Ic) ic.append(Ic.no(p.icone));
+        const tx = el("span", "e5-perm-txt"); tx.append(el("b", null, p.nome), el("span", null, p.texto));
+        li.append(ic, tx); perm.append(li);
+      }
+      caixa.append(perm);
+      // a 1ª frase da abertura (localização para o mapa…) já está na linha "Localização" acima: aqui só o que sai do aparelho
+      caixa.append(el("p", "e5-cons-abertura", Consent.TEXTOS.abertura.split(". ").pop()));
       const ul = el("ul", "e5-cons-saidas");
       const linhas = Consent.TEXTOS.saidas.slice();
       if (pend.indexOf("foto") >= 0) linhas.push(Consent.TEXTOS.saidaFoto);
@@ -354,7 +365,9 @@
     const end = el("div", "e5-endereco"); end.id = "e5-endereco"; end.hidden = true;
     const endLinha = el("div", "e5-endereco-linha"); endLinha.id = "e5-endereco-linha"; endLinha.hidden = true;
     const coordEl = el("div", "e5-coord"); coordEl.id = "e5-coord";
-    pos.append(el("h2", null, "Você está em"), end, endLinha, coordEl);
+    // Lote 4: coordenadas copiáveis (lat, lon com ponto: cola no mapa ou na mensagem). Desligado sem GPS.
+    const copiar = botao("Copiar coordenadas", "btn e5-copiar", () => { copiarCoordenadas(); }); copiar.id = "e5-copiar-coord"; copiar.disabled = true;
+    pos.append(el("h2", null, "Você está em"), end, endLinha, coordEl, copiar);
     const frase = el("p", "e5-frase"); frase.id = "e5-frase"; frase.hidden = true;
     const lista = el("div", "e5-numeros");
     for (const n of NUMEROS) {
@@ -368,7 +381,55 @@
     env.id = "e5-enviar-local"; env.setAttribute("aria-label", "Enviar minha localização por mensagem, com endereço e links do mapa");
     const aviso = el("p", "e5-aviso"); aviso.id = "e5-aviso-rede";
     const fonte = el("p", "e5-aviso e5-fonte-endereco"); fonte.id = "e5-fonte-endereco"; fonte.hidden = true;
-    telaEmerg.append(pos, frase, lista, env, aviso, fonte);
+    // Lote 4: contatos de emergência SÓ os que o motorista cadastrou (guardados neste aparelho; nada vem pronto)
+    const contatos = el("div", "cartao e5-contatos"); contatos.id = "e5-contatos";
+    telaEmerg.append(pos, frase, lista, env, contatos, aviso, fonte);
+    desenharContatos();
+  }
+  // ---- contatos do motorista (localStorage; sem nuvem)
+  const CHAVE_CONTATOS = "copiloto.contatos.emergencia.v1", MAX_CONTATOS = 3;
+  function lerContatos() {
+    const l = C.util.lerJSON(CHAVE_CONTATOS, []);
+    return Array.isArray(l) ? l.filter((c) => c && typeof c.nome === "string" && typeof c.tel === "string").slice(0, MAX_CONTATOS) : [];
+  }
+  function telefoneValido(t) { const d = String(t).replace(/\D/g, ""); return /^[\d\s()+-]+$/.test(String(t).trim()) && d.length >= 8 && d.length <= 15; }
+  function hrefTel(t) { const x = String(t).trim(); return "tel:" + (x[0] === "+" ? "+" : "") + x.replace(/\D/g, ""); }
+  function desenharContatos() {
+    const c = $("e5-contatos"); if (!c) return;
+    c.textContent = "";
+    c.append(el("h2", null, "Seus contatos de emergência"));
+    const lista = lerContatos();
+    if (!lista.length) c.append(el("p", "dica", "Nenhum contato cadastrado. Cadastre quem deve ser avisado; fica só neste aparelho."));
+    for (const k of lista) {
+      const linha = el("div", "e5-contato");
+      const a = el("a", "e5-ligar e5-ligar-contato"); a.href = hrefTel(k.tel);
+      a.append(el("b", null, "Ligar"), el("span", null, k.nome), el("small", null, k.tel));
+      const rm = botao("Remover", "btn btn-pequeno e5-contato-rm", () => {
+        C.util.gravarJSON(CHAVE_CONTATOS, lerContatos().filter((x) => !(x.nome === k.nome && x.tel === k.tel))); desenharContatos();
+      }); rm.setAttribute("aria-label", "Remover contato " + k.nome);
+      linha.append(a, rm); c.append(linha);
+    }
+    if (lista.length >= MAX_CONTATOS) { c.append(el("p", "dica", "Limite de " + MAX_CONTATOS + " contatos. Remova um para cadastrar outro.")); return; }
+    const f = el("form", "e5-contato-form"); f.id = "e5-contato-form"; f.noValidate = true;
+    const nome = el("input"); nome.id = "e5-contato-nome"; nome.maxLength = 40; nome.placeholder = "Nome (ex.: esposa)"; nome.setAttribute("aria-label", "Nome do contato"); nome.autocomplete = "off";
+    const tel = el("input"); tel.id = "e5-contato-tel"; tel.type = "tel"; tel.inputMode = "tel"; tel.placeholder = "Telefone com DDD"; tel.setAttribute("aria-label", "Telefone do contato"); tel.autocomplete = "off";
+    const erro = el("p", "dica e5-contato-erro"); erro.id = "e5-contato-erro"; erro.hidden = true; erro.setAttribute("role", "alert");
+    const ok = botao("Cadastrar contato", "btn", () => {}); ok.type = "submit"; ok.id = "e5-contato-salvar";
+    f.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const n = nome.value.trim(), t = tel.value.trim();
+      if (!n) { erro.textContent = "Digite o nome do contato."; erro.hidden = false; return; }
+      if (!telefoneValido(t)) { erro.textContent = "Digite um telefone válido, com DDD."; erro.hidden = false; return; }
+      C.util.gravarJSON(CHAVE_CONTATOS, lerContatos().concat([{ nome: n, tel: t }])); desenharContatos();
+    });
+    f.append(nome, tel, erro, ok); c.append(f);
+  }
+  async function copiarCoordenadas() {
+    const g = C.estado.gps;
+    if (!g || !isFinite(g.lat) || !isFinite(g.lon)) { C.mensagem("Ainda sem posição: o GPS não deu sinal.", 5000); return false; }
+    const ok = await copiarTexto(g.lat.toFixed(6) + ", " + g.lon.toFixed(6));
+    C.mensagem(ok ? "Coordenadas copiadas." : "Não foi possível copiar. Leia as coordenadas na tela.", 5000);
+    return ok;
   }
   // Texto para compartilhar: endereço (se já se sabe), coordenada com precisão e os dois links de mapa (coordenada com ponto)
   function textoCompartilhar() {
@@ -416,6 +477,7 @@
     let trechoEl = $("e5-trecho");
     if (coordEl.textContent !== p.pos) coordEl.textContent = p.pos;
     coordEl.classList.toggle("e5-velha", !!p.velha);
+    { const cp = $("e5-copiar-coord"); const tem = !!C.estado.gps; if (cp && cp.disabled === tem) cp.disabled = !tem; }
     // trecho da rota: só existe quando há o que dizer
     if (!p.trecho && trechoEl) trechoEl.remove();
     else if (p.trecho) {
