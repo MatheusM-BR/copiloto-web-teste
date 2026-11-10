@@ -19,12 +19,18 @@
 // falar sem manobra/crítica e com { naoInterromper }: também espera a fala anterior acabar (não corta a frase de ninguém).
 // falar(texto, { conversa: true }): conversa pelo caminho (marcos, "Continue por…"); no modo "Só alertas" não sai (falar devolve false).
 // Copiloto.voz.modo() / definirModo("tudo"|"alertas"): modo de fala, persistente em copiloto.voz.v1; emite "voz:modo".
+// Voz gravada: Copiloto.voz.clipes (tocador de vozclipes.js; null sem o script): vozes(), escolher(id), ativa(), baixarTudo(), tamanhoBaixado(), amostra().
 // Emite "voz:falar" ({ texto, manobra }) logo antes de cada fala (o mãos-livres do E4 fecha o microfone).
 (function (C) {
   "use strict";
   const { $ } = C.util;
   const Voz = window.CopilotoVoz;
-  const falador = Voz.criarFalador();
+  // Vozes gravadas (vozclipes.js): frases fixas tocam como arquivo (voz/<voz>/); sem clipe, a voz do aparelho. Sem voz gerada: igual a antes.
+  const VozClipes = window.CopilotoVozClipes;
+  let clipes = null;
+  try { clipes = VozClipes ? VozClipes.criarTocador({ storage: C.util.storage(), silencioUri: Voz.wavSilencioDataUri(0.25) }) : null; } catch (e) { clipes = null; }
+  const falador = Voz.criarFalador({ clipes });
+  if (clipes) { try { clipes.iniciar().catch(() => {}); } catch (e) { /* sem clipes */ } }
   const bipador = Voz.criarBipe();
   const prefVoz = Voz.lerPreferencias(C.util.storage());
   let bipeLigado = Voz.lerBipe(C.util.storage());
@@ -161,7 +167,7 @@
     if (perfil && perfil.parentNode === cartao) perfil.before(rot, g, d); else cartao.append(rot, g, d);
   }
 
-  C.voz = { modo: () => prefVoz.modo, definirModo, falar, preferencias: () => Object.assign({}, prefVoz), falador, disponivel: () => falador.disponivel(),
+  C.voz = { clipes, modo: () => prefVoz.modo, definirModo, falar, preferencias: () => Object.assign({}, prefVoz), falador, disponivel: () => falador.disponivel(),
     bipe, bipeLigado: () => bipeLigado, emAlerta, emManobra, falando: () => falando(ultimaFala),
     calar, sintetizando: () => falador.falando(),
     // microfone abrindo/fechando (ui/comandos.js): o áudio mudo em laço sai enquanto o microfone está aberto

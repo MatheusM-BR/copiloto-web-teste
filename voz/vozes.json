@@ -1,0 +1,9 @@
+{
+  "versão": 1,
+  "vozes": [
+    {
+      "id": "voz_principal",
+      "nome": "Voz principal"
+    }
+  ]
+}

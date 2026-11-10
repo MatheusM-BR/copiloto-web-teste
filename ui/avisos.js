@@ -163,7 +163,8 @@
   function montarCritico(a, distM) {
     cartaoAtivo = a;
     const cab = el("div", "critico-cab");
-    if (window.CopilotoIcones) cab.append(window.CopilotoIcones.no("aviso"));
+    if (window.CopilotoPlacas) cab.append(window.CopilotoPlacas.placa("restricao_caminhao", { tamanho: 56, decorativa: true }));
+    else if (window.CopilotoIcones) cab.append(window.CopilotoIcones.no("aviso"));
     cab.append(el("b", "critico-titulo", "VOCÊ NÃO PASSA"));
     const linha = el("div", "critico-linha");
     linha.append(el("span", "aviso-dado-texto", a.texto), el("span", "aviso-dado-dist", textoDist(distM)));
@@ -205,10 +206,11 @@
     faixa.textContent = "";
     cartaoAtivo = null;
     const critico = a.tipo === "restricao";
-    faixa.classList.toggle("critico", critico);
+    faixa.classList.toggle("critico", critico); faixa.classList.remove("com-placa");
     if (critico) montarCritico(a, distM);
     else {
-      if (window.CopilotoIcones) { const w = el("span", "dados-aviso-ico"); w.append(window.CopilotoIcones.no(ICONE_AVISO[a.tipo] || "aviso")); faixa.append(w); } // r6: símbolo do aviso
+      if (window.CopilotoPlacas) { faixa.append(window.CopilotoPlacas.placa(window.CopilotoPlacas.idDoTipo(a.tipo), { tamanho: 56, decorativa: true, classe: "aviso-dado-placa" })); faixa.classList.add("com-placa"); } // placa grande ao lado do texto
+      else if (window.CopilotoIcones) { const w = el("span", "dados-aviso-ico"); w.append(window.CopilotoIcones.no(ICONE_AVISO[a.tipo] || "aviso")); faixa.append(w); } // r6: símbolo do aviso
       faixa.append(el("span", "aviso-dado-texto", a.texto), el("span", "aviso-dado-dist", textoDist(distM)));
       if (a.tipo === "restricao_possivel") { // confiança média: âmbar, só sugere; mostra de onde vem o dado
         faixa.classList.add("possivel");
@@ -262,7 +264,13 @@
   // ------------------------------------------------------------ mapa: marcadores
   function limparMarcadores() { for (const m of marcadores) m.remove(); marcadores = []; }
   function marcador(a, classe) {
-    const d = el("div", "dados-marca " + classe); d.textContent = a.sigla || "!"; d.title = a.texto;
+    const d = el("div", "dados-marca " + classe); d.title = a.texto;
+    if (C.lista && window.CopilotoPlacas) { // placa no lugar da sigla (a sigla fica só para o leitor de tela); um toque abre a lista de avisos
+      C.lista.preencherMarca(d, window.CopilotoPlacas.idDoTipo(a.tipo), { leitor: a.texto, tamanho: a.tipo === "restricao" || a.tipo === "restricao_possivel" ? 40 : 34 });
+      d.setAttribute("role", "button"); d.tabIndex = 0;
+      const abrir = (ev) => { ev.stopPropagation(); C.lista.abrir({ foco: "aviso:" + a.id }); };
+      d.addEventListener("click", abrir); d.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); abrir(ev); } });
+    } else d.textContent = a.sigla || "!";
     return new maplibregl.Marker({ element: d }).setLngLat([a.lon, a.lat]);
   }
   function enquadrar(pts, coords) {
@@ -301,6 +309,7 @@
     if (r.info && r.info.textoFonte) { const f = el("span", "dados-restr-fonte", "Fonte: " + r.info.textoFonte); info.append(f); } // proveniência + idade, sempre
     const motivos = (classe === "viola" ? r.viola : classe === "condicional" ? r.condicional : r.desconhecido) || [];
     if (motivos.length) info.append(el("span", "dados-restr-motivo", motivos.map(classe === "viola" && Dv ? Dv.textoLimites : String).join("; ")));
+    if (window.CopilotoPlacas) { it.classList.add("com-placa"); it.append(window.CopilotoPlacas.placa(classe === "viola" ? "restricao_caminhao" : "atencao", { tamanho: 40, decorativa: true })); }
     it.append(info);
     return it;
   }

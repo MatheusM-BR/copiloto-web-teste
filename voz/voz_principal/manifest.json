@@ -1,0 +1,3765 @@
+{
+  "perfil": "voz_principal",
+  "voiceId": "4qH9W2UIcNczaASRboRg",
+  "modelo": "eleven_multilingual_v2",
+  "geradoEm": "2026-11-10T05:21:43.836Z",
+  "versão": 1,
+  "clipes": {
+    "0061f70c": {
+      "arquivo": "0061f70c.mp3",
+      "bytes": 10909,
+      "texto": "vire à esquerda."
+    },
+    "0076d4e8": {
+      "arquivo": "0076d4e8.mp3",
+      "bytes": 12372,
+      "texto": "pegue a saída à direita."
+    },
+    "0094be8d": {
+      "arquivo": "0094be8d.mp3",
+      "bytes": 11327,
+      "texto": "Seu veículo tem 30."
+    },
+    "00cd0e60": {
+      "arquivo": "00cd0e60.mp3",
+      "bytes": 12790,
+      "texto": "Em 450 metros,"
+    },
+    "00cfa55e": {
+      "arquivo": "00cfa55e.mp3",
+      "bytes": 11745,
+      "texto": "Parada acrescentada."
+    },
+    "0114985e": {
+      "arquivo": "0114985e.mp3",
+      "bytes": 12790,
+      "texto": "Acima do limite de 60."
+    },
+    "01579f94": {
+      "arquivo": "01579f94.mp3",
+      "bytes": 26165,
+      "texto": "Atenção: relatos de risco à segurança neste trecho."
+    },
+    "0174fc48": {
+      "arquivo": "0174fc48.mp3",
+      "bytes": 22821,
+      "texto": "Atenção: limite de peso 9 toneladas."
+    },
+    "02b1be04": {
+      "arquivo": "02b1be04.mp3",
+      "bytes": 9865,
+      "texto": "Continue em frente."
+    },
+    "02ea7ec7": {
+      "arquivo": "02ea7ec7.mp3",
+      "bytes": 25538,
+      "texto": "Rota ajustada para evitar 7 restrições do caminhão."
+    },
+    "0346949b": {
+      "arquivo": "0346949b.mp3",
+      "bytes": 14671,
+      "texto": "Acima de 40, limite estimado."
+    },
+    "038c0edf": {
+      "arquivo": "038c0edf.mp3",
+      "bytes": 10492,
+      "texto": "Em 80 metros,"
+    },
+    "03ae71e5": {
+      "arquivo": "03ae71e5.mp3",
+      "bytes": 19896,
+      "texto": "entre na rotatória e pegue a 2ª saída.",
+      "tts": "entre na rotatória e pegue a segunda saída."
+    },
+    "041706de": {
+      "arquivo": "041706de.mp3",
+      "bytes": 17597,
+      "texto": "Altura máxima 2,6 metros",
+      "tts": "Altura máxima 2,6 metros,"
+    },
+    "0512b476": {
+      "arquivo": "0512b476.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: limite de peso 29 toneladas."
+    },
+    "064fabb8": {
+      "arquivo": "064fabb8.mp3",
+      "bytes": 16552,
+      "texto": "Atenção: animal na pista",
+      "tts": "Atenção: animal na pista,"
+    },
+    "068400d5": {
+      "arquivo": "068400d5.mp3",
+      "bytes": 27001,
+      "texto": "Rota alterada para desviar da ponte de 30 toneladas."
+    },
+    "06d04f1f": {
+      "arquivo": "06d04f1f.mp3",
+      "bytes": 18433,
+      "texto": "Trecho crítico, próximos 7 quilômetros."
+    },
+    "06e42419": {
+      "arquivo": "06e42419.mp3",
+      "bytes": 25120,
+      "texto": "Rota ajustada para evitar 9 restrições do caminhão."
+    },
+    "06f5c78b": {
+      "arquivo": "06f5c78b.mp3",
+      "bytes": 18851,
+      "texto": "Limite de peso 67 toneladas",
+      "tts": "Limite de peso 67 toneladas,"
+    },
+    "07346d95": {
+      "arquivo": "07346d95.mp3",
+      "bytes": 39540,
+      "texto": "Risco à segurança. Confira na tela. Em perigo, ligue 190.",
+      "tts": "Risco à segurança. Confira na tela. Em perigo, ligue um, nove, zero."
+    },
+    "07412f6d": {
+      "arquivo": "07412f6d.mp3",
+      "bytes": 11327,
+      "texto": "Acima do limite de 100."
+    },
+    "077c9d78": {
+      "arquivo": "077c9d78.mp3",
+      "bytes": 18015,
+      "texto": "Altura máxima 4,6 metros",
+      "tts": "Altura máxima 4,6 metros,"
+    },
+    "07fe7b5a": {
+      "arquivo": "07fe7b5a.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar da ponte de 60 toneladas."
+    },
+    "08f7d352": {
+      "arquivo": "08f7d352.mp3",
+      "bytes": 17597,
+      "texto": "Altura máxima 5,5 metros",
+      "tts": "Altura máxima 5,5 metros,"
+    },
+    "09633ddd": {
+      "arquivo": "09633ddd.mp3",
+      "bytes": 9029,
+      "texto": "a 10 metros."
+    },
+    "098b57a8": {
+      "arquivo": "098b57a8.mp3",
+      "bytes": 18433,
+      "texto": "Comando de voz indisponível neste aparelho."
+    },
+    "0b02ee98": {
+      "arquivo": "0b02ee98.mp3",
+      "bytes": 12790,
+      "texto": "Nenhuma rota para cancelar."
+    },
+    "0b69b844": {
+      "arquivo": "0b69b844.mp3",
+      "bytes": 12372,
+      "texto": "Digite a altura na tela."
+    },
+    "0bbcffd6": {
+      "arquivo": "0bbcffd6.mp3",
+      "bytes": 12790,
+      "texto": "Seu veículo tem 2,8."
+    },
+    "0bf5cacb": {
+      "arquivo": "0bf5cacb.mp3",
+      "bytes": 27628,
+      "texto": "Rota alterada para desviar da ponte de 4,2 metros."
+    },
+    "0c121a85": {
+      "arquivo": "0c121a85.mp3",
+      "bytes": 12163,
+      "texto": "Valeu, parceiro, registrado."
+    },
+    "0c387dba": {
+      "arquivo": "0c387dba.mp3",
+      "bytes": 23866,
+      "texto": "Atenção: limite de peso 32 toneladas."
+    },
+    "0c3fa5cf": {
+      "arquivo": "0c3fa5cf.mp3",
+      "bytes": 16970,
+      "texto": "Limite de peso 52 toneladas",
+      "tts": "Limite de peso 52 toneladas,"
+    },
+    "0c81661f": {
+      "arquivo": "0c81661f.mp3",
+      "bytes": 17597,
+      "texto": "Altura máxima 2,7 metros",
+      "tts": "Altura máxima 2,7 metros,"
+    },
+    "0ce01e75": {
+      "arquivo": "0ce01e75.mp3",
+      "bytes": 13835,
+      "texto": "Você ainda não salvou a casa."
+    },
+    "0cf9d6fe": {
+      "arquivo": "0cf9d6fe.mp3",
+      "bytes": 11327,
+      "texto": "Saia da rotatória."
+    },
+    "0dc9ceef": {
+      "arquivo": "0dc9ceef.mp3",
+      "bytes": 12790,
+      "texto": "Seu veículo tem 2,5."
+    },
+    "0dcfd3f4": {
+      "arquivo": "0dcfd3f4.mp3",
+      "bytes": 11327,
+      "texto": "entre na rotatória."
+    },
+    "0e263aae": {
+      "arquivo": "0e263aae.mp3",
+      "bytes": 18851,
+      "texto": "Limite de peso 59 toneladas",
+      "tts": "Limite de peso 59 toneladas,"
+    },
+    "0f3783e4": {
+      "arquivo": "0f3783e4.mp3",
+      "bytes": 12790,
+      "texto": "Seu veículo tem 4,4."
+    },
+    "0fd382c1": {
+      "arquivo": "0fd382c1.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 72 toneladas",
+      "tts": "Limite de peso 72 toneladas,"
+    },
+    "0ff9f56c": {
+      "arquivo": "0ff9f56c.mp3",
+      "bytes": 19478,
+      "texto": "Trecho com muitos acidentes, 600 metros."
+    },
+    "10015285": {
+      "arquivo": "10015285.mp3",
+      "bytes": 11327,
+      "texto": "Mantenha-se à direita."
+    },
+    "101fe64d": {
+      "arquivo": "101fe64d.mp3",
+      "bytes": 19060,
+      "texto": "Faltam 5 quilômetros pela rota destacada."
+    },
+    "103b184c": {
+      "arquivo": "103b184c.mp3",
+      "bytes": 17179,
+      "texto": "Altura máxima 1,7 metros",
+      "tts": "Altura máxima 1,7 metros,"
+    },
+    "1045b98d": {
+      "arquivo": "1045b98d.mp3",
+      "bytes": 12790,
+      "texto": "Vire levemente à direita."
+    },
+    "108e818b": {
+      "arquivo": "108e818b.mp3",
+      "bytes": 60020,
+      "texto": "Você completou 6 horas de direção. Faça uma pausa de 15 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "10fc7487": {
+      "arquivo": "10fc7487.mp3",
+      "bytes": 10909,
+      "texto": "Esse relato é seu."
+    },
+    "112ebc61": {
+      "arquivo": "112ebc61.mp3",
+      "bytes": 21358,
+      "texto": "Esse tipo de relato ainda não está disponível."
+    },
+    "12417dcf": {
+      "arquivo": "12417dcf.mp3",
+      "bytes": 19896,
+      "texto": "Rota ajustada para evitar uma ponte baixa."
+    },
+    "13887149": {
+      "arquivo": "13887149.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 21 toneladas",
+      "tts": "Limite de peso 21 toneladas,"
+    },
+    "138dda92": {
+      "arquivo": "138dda92.mp3",
+      "bytes": 21776,
+      "texto": "Atenção: limite de peso 10 toneladas."
+    },
+    "13dc2119": {
+      "arquivo": "13dc2119.mp3",
+      "bytes": 22821,
+      "texto": "Atenção: limite de peso 62 toneladas."
+    },
+    "14d2fd46": {
+      "arquivo": "14d2fd46.mp3",
+      "bytes": 12372,
+      "texto": "Em 250 metros,"
+    },
+    "150b479e": {
+      "arquivo": "150b479e.mp3",
+      "bytes": 19478,
+      "texto": "A rota tem 2 restrições para o seu caminhão."
+    },
+    "1537a89c": {
+      "arquivo": "1537a89c.mp3",
+      "bytes": 12163,
+      "texto": "Em 2,1 quilômetros,"
+    },
+    "15736998": {
+      "arquivo": "15736998.mp3",
+      "bytes": 19060,
+      "texto": "Faltam 20 quilômetros pela rota destacada."
+    },
+    "158dfca5": {
+      "arquivo": "158dfca5.mp3",
+      "bytes": 24702,
+      "texto": "Atenção: limite de peso 48 toneladas."
+    },
+    "16117340": {
+      "arquivo": "16117340.mp3",
+      "bytes": 12790,
+      "texto": "Já tem veículo parado",
+      "tts": "Já tem veículo parado,"
+    },
+    "1662853f": {
+      "arquivo": "1662853f.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: altura máxima 1,9 metros."
+    },
+    "16ff8d74": {
+      "arquivo": "16ff8d74.mp3",
+      "bytes": 20314,
+      "texto": "A rota tem 4 restrições para o seu caminhão."
+    },
+    "1711c10a": {
+      "arquivo": "1711c10a.mp3",
+      "bytes": 24702,
+      "texto": "Rota alterada para desviar da ponte de 5 metros."
+    },
+    "172dd6c1": {
+      "arquivo": "172dd6c1.mp3",
+      "bytes": 18851,
+      "texto": "Trecho crítico, próximos 16 quilômetros."
+    },
+    "173251e3": {
+      "arquivo": "173251e3.mp3",
+      "bytes": 25120,
+      "texto": "Atenção: limite de peso 68 toneladas."
+    },
+    "178537d7": {
+      "arquivo": "178537d7.mp3",
+      "bytes": 22821,
+      "texto": "Atenção: limite de peso 15 toneladas."
+    },
+    "17a975da": {
+      "arquivo": "17a975da.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 55 toneladas",
+      "tts": "Limite de peso 55 toneladas,"
+    },
+    "1887dd25": {
+      "arquivo": "1887dd25.mp3",
+      "bytes": 11327,
+      "texto": "mantenha-se à direita."
+    },
+    "1a123bed": {
+      "arquivo": "1a123bed.mp3",
+      "bytes": 18015,
+      "texto": "Trecho crítico, próximos 12 quilômetros."
+    },
+    "1ac34fe0": {
+      "arquivo": "1ac34fe0.mp3",
+      "bytes": 10283,
+      "texto": "Já tem balança",
+      "tts": "Já tem balança,"
+    },
+    "1b13e64c": {
+      "arquivo": "1b13e64c.mp3",
+      "bytes": 17597,
+      "texto": "Altura máxima 3,5 metros",
+      "tts": "Altura máxima 3,5 metros,"
+    },
+    "1ba0ce95": {
+      "arquivo": "1ba0ce95.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: altura máxima 3,9 metros."
+    },
+    "1c5a5003": {
+      "arquivo": "1c5a5003.mp3",
+      "bytes": 13626,
+      "texto": "vire levemente à esquerda."
+    },
+    "1cb0fe1f": {
+      "arquivo": "1cb0fe1f.mp3",
+      "bytes": 25747,
+      "texto": "Rota alterada para desviar de 6 restrições do caminhão."
+    },
+    "1d191e50": {
+      "arquivo": "1d191e50.mp3",
+      "bytes": 12372,
+      "texto": "Faça o retorno à direita."
+    },
+    "1da9af94": {
+      "arquivo": "1da9af94.mp3",
+      "bytes": 25538,
+      "texto": "Atenção: limite de peso 34 toneladas."
+    },
+    "1ddae679": {
+      "arquivo": "1ddae679.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 31 toneladas."
+    },
+    "1ddb4aba": {
+      "arquivo": "1ddb4aba.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar do túnel de 4,1 metros."
+    },
+    "1e462e4e": {
+      "arquivo": "1e462e4e.mp3",
+      "bytes": 9447,
+      "texto": "Falando tudo."
+    },
+    "1ed89a37": {
+      "arquivo": "1ed89a37.mp3",
+      "bytes": 19478,
+      "texto": "Trecho crítico, próximos 25 quilômetros."
+    },
+    "1ef87f83": {
+      "arquivo": "1ef87f83.mp3",
+      "bytes": 14253,
+      "texto": "Atenção: alagamento",
+      "tts": "Atenção: alagamento,"
+    },
+    "1f523e5e": {
+      "arquivo": "1f523e5e.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 50 toneladas."
+    },
+    "1f708c7d": {
+      "arquivo": "1f708c7d.mp3",
+      "bytes": 9865,
+      "texto": "Faça o retorno."
+    },
+    "1f9799a7": {
+      "arquivo": "1f9799a7.mp3",
+      "bytes": 27628,
+      "texto": "Rota alterada para desviar do túnel de 4,2 metros."
+    },
+    "1f98b77c": {
+      "arquivo": "1f98b77c.mp3",
+      "bytes": 9029,
+      "texto": "Só alertas."
+    },
+    "1fcd2893": {
+      "arquivo": "1fcd2893.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar do túnel de 3,9 metros."
+    },
+    "211e604a": {
+      "arquivo": "211e604a.mp3",
+      "bytes": 19896,
+      "texto": "A rota tem 6 restrições para o seu caminhão."
+    },
+    "212a9b86": {
+      "arquivo": "212a9b86.mp3",
+      "bytes": 26165,
+      "texto": "Rota alterada para desviar da ponte de 20 toneladas."
+    },
+    "21ae3835": {
+      "arquivo": "21ae3835.mp3",
+      "bytes": 10283,
+      "texto": "a 90 metros."
+    },
+    "2236181f": {
+      "arquivo": "2236181f.mp3",
+      "bytes": 18851,
+      "texto": "Limite de peso 38 toneladas",
+      "tts": "Limite de peso 38 toneladas,"
+    },
+    "233137ec": {
+      "arquivo": "233137ec.mp3",
+      "bytes": 10492,
+      "texto": "Vire à esquerda."
+    },
+    "2347005d": {
+      "arquivo": "2347005d.mp3",
+      "bytes": 22403,
+      "texto": "Atenção: altura máxima 3,1 metros."
+    },
+    "238a4260": {
+      "arquivo": "238a4260.mp3",
+      "bytes": 17597,
+      "texto": "Altura máxima 5,7 metros",
+      "tts": "Altura máxima 5,7 metros,"
+    },
+    "23ae8214": {
+      "arquivo": "23ae8214.mp3",
+      "bytes": 15716,
+      "texto": "Atenção: limite de peso",
+      "tts": "Atenção: limite de peso,"
+    },
+    "23c2f43e": {
+      "arquivo": "23c2f43e.mp3",
+      "bytes": 23866,
+      "texto": "Atenção: altura máxima 3,4 metros."
+    },
+    "24113d66": {
+      "arquivo": "24113d66.mp3",
+      "bytes": 25538,
+      "texto": "Atenção: limite de peso 72 toneladas."
+    },
+    "241ee963": {
+      "arquivo": "241ee963.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 81 toneladas",
+      "tts": "Limite de peso 81 toneladas,"
+    },
+    "24300596": {
+      "arquivo": "24300596.mp3",
+      "bytes": 10492,
+      "texto": "Lombada à frente."
+    },
+    "24e19f06": {
+      "arquivo": "24e19f06.mp3",
+      "bytes": 65871,
+      "texto": "Atenção: faltam 30 minutos para o limite de direção contínua. Procure um lugar seguro para uma pausa de 45 minutos."
+    },
+    "2520d689": {
+      "arquivo": "2520d689.mp3",
+      "bytes": 11745,
+      "texto": "Praça de pedágio à frente."
+    },
+    "256396a3": {
+      "arquivo": "256396a3.mp3",
+      "bytes": 11745,
+      "texto": "Em 150 metros,"
+    },
+    "258af105": {
+      "arquivo": "258af105.mp3",
+      "bytes": 11745,
+      "texto": "entre na via à direita."
+    },
+    "25a6370a": {
+      "arquivo": "25a6370a.mp3",
+      "bytes": 17179,
+      "texto": "Limite de peso 82 toneladas",
+      "tts": "Limite de peso 82 toneladas,"
+    },
+    "25c288aa": {
+      "arquivo": "25c288aa.mp3",
+      "bytes": 18433,
+      "texto": "Trecho crítico, próximos 4 quilômetros."
+    },
+    "25d344ba": {
+      "arquivo": "25d344ba.mp3",
+      "bytes": 27628,
+      "texto": "Rota alterada para desviar da ponte de 3,2 metros."
+    },
+    "25d9ea88": {
+      "arquivo": "25d9ea88.mp3",
+      "bytes": 12790,
+      "texto": "Já tem altura máxima",
+      "tts": "Já tem altura máxima,"
+    },
+    "25daa376": {
+      "arquivo": "25daa376.mp3",
+      "bytes": 18015,
+      "texto": "Trecho com muitos acidentes, 1 quilômetro."
+    },
+    "264567b8": {
+      "arquivo": "264567b8.mp3",
+      "bytes": 12372,
+      "texto": "Seu veículo tem 3,7."
+    },
+    "2649e4e6": {
+      "arquivo": "2649e4e6.mp3",
+      "bytes": 12163,
+      "texto": "Seu veículo tem 3,1."
+    },
+    "269b9ba1": {
+      "arquivo": "269b9ba1.mp3",
+      "bytes": 35569,
+      "texto": "Atenção: relatos de risco à segurança neste trecho. Fique atento."
+    },
+    "26e71aa1": {
+      "arquivo": "26e71aa1.mp3",
+      "bytes": 17179,
+      "texto": "Altura máxima 2,9 metros",
+      "tts": "Altura máxima 2,9 metros,"
+    },
+    "277bfd96": {
+      "arquivo": "277bfd96.mp3",
+      "bytes": 9447,
+      "texto": "a 20 metros."
+    },
+    "278f93a7": {
+      "arquivo": "278f93a7.mp3",
+      "bytes": 26583,
+      "texto": "Rota alterada para desviar da ponte de 3,1 metros."
+    },
+    "286c6245": {
+      "arquivo": "286c6245.mp3",
+      "bytes": 18015,
+      "texto": "Trecho crítico, próximos 9 quilômetros."
+    },
+    "2917eebc": {
+      "arquivo": "2917eebc.mp3",
+      "bytes": 15716,
+      "texto": "Acima de 120, limite estimado."
+    },
+    "296d2dad": {
+      "arquivo": "296d2dad.mp3",
+      "bytes": 25120,
+      "texto": "Rota ajustada para evitar 5 restrições do caminhão."
+    },
+    "29941e7e": {
+      "arquivo": "29941e7e.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 33 toneladas",
+      "tts": "Limite de peso 33 toneladas,"
+    },
+    "29f72eb7": {
+      "arquivo": "29f72eb7.mp3",
+      "bytes": 10283,
+      "texto": "Em 2 quilômetros,"
+    },
+    "2a451492": {
+      "arquivo": "2a451492.mp3",
+      "bytes": 16552,
+      "texto": "Atenção, ponto de perigo à frente."
+    },
+    "2a781c30": {
+      "arquivo": "2a781c30.mp3",
+      "bytes": 19896,
+      "texto": "A rota tem 8 restrições para o seu caminhão."
+    },
+    "2b35c51f": {
+      "arquivo": "2b35c51f.mp3",
+      "bytes": 9447,
+      "texto": "Mapa simples."
+    },
+    "2c45c4be": {
+      "arquivo": "2c45c4be.mp3",
+      "bytes": 10492,
+      "texto": "Destino à direita."
+    },
+    "2c561b91": {
+      "arquivo": "2c561b91.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 65 toneladas",
+      "tts": "Limite de peso 65 toneladas,"
+    },
+    "2cf3a058": {
+      "arquivo": "2cf3a058.mp3",
+      "bytes": 16134,
+      "texto": "Já tem trânsito parado aqui perto."
+    },
+    "2cf7b636": {
+      "arquivo": "2cf7b636.mp3",
+      "bytes": 11745,
+      "texto": "a 550 metros."
+    },
+    "2d4f5c26": {
+      "arquivo": "2d4f5c26.mp3",
+      "bytes": 18851,
+      "texto": "Trecho crítico, próximos 13 quilômetros."
+    },
+    "2e115b2d": {
+      "arquivo": "2e115b2d.mp3",
+      "bytes": 16552,
+      "texto": "Limite de peso 14 toneladas",
+      "tts": "Limite de peso 14 toneladas,"
+    },
+    "2ecc065c": {
+      "arquivo": "2ecc065c.mp3",
+      "bytes": 12163,
+      "texto": "Acima do limite de 80."
+    },
+    "2ed30110": {
+      "arquivo": "2ed30110.mp3",
+      "bytes": 12163,
+      "texto": "Digite o peso na tela."
+    },
+    "2f28abba": {
+      "arquivo": "2f28abba.mp3",
+      "bytes": 12790,
+      "texto": "Seu veículo tem 4,2."
+    },
+    "2f3e1f32": {
+      "arquivo": "2f3e1f32.mp3",
+      "bytes": 19478,
+      "texto": "Trecho com muitos acidentes, 400 metros."
+    },
+    "2fa9ad56": {
+      "arquivo": "2fa9ad56.mp3",
+      "bytes": 12790,
+      "texto": "Já tem objeto na pista",
+      "tts": "Já tem objeto na pista,"
+    },
+    "3037870d": {
+      "arquivo": "3037870d.mp3",
+      "bytes": 15507,
+      "texto": "Pode haver curva forte à frente."
+    },
+    "303f5c2d": {
+      "arquivo": "303f5c2d.mp3",
+      "bytes": 16134,
+      "texto": "Já tem animal na pista aqui perto."
+    },
+    "3123a006": {
+      "arquivo": "3123a006.mp3",
+      "bytes": 22821,
+      "texto": "Atenção: limite de peso 14 toneladas."
+    },
+    "31308de1": {
+      "arquivo": "31308de1.mp3",
+      "bytes": 20940,
+      "texto": "Sem GPS, não sei em que quilômetro você está."
+    },
+    "3139f801": {
+      "arquivo": "3139f801.mp3",
+      "bytes": 12790,
+      "texto": "Seu veículo tem 4,5."
+    },
+    "313c3008": {
+      "arquivo": "313c3008.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 12 toneladas."
+    },
+    "31b37b62": {
+      "arquivo": "31b37b62.mp3",
+      "bytes": 28046,
+      "texto": "Rota alterada para desviar do túnel de 4,9 metros."
+    },
+    "31b555a2": {
+      "arquivo": "31b555a2.mp3",
+      "bytes": 10492,
+      "texto": "a 150 metros."
+    },
+    "31d2d3dd": {
+      "arquivo": "31d2d3dd.mp3",
+      "bytes": 18433,
+      "texto": "Possível restrição de comprimento, confira."
+    },
+    "31d30487": {
+      "arquivo": "31d30487.mp3",
+      "bytes": 16552,
+      "texto": "Limite de peso 16 toneladas",
+      "tts": "Limite de peso 16 toneladas,"
+    },
+    "325f35a9": {
+      "arquivo": "325f35a9.mp3",
+      "bytes": 24702,
+      "texto": "Rota alterada para desviar do túnel de 4 metros."
+    },
+    "32f19d6b": {
+      "arquivo": "32f19d6b.mp3",
+      "bytes": 11745,
+      "texto": "Mantenha-se à esquerda."
+    },
+    "333e1a36": {
+      "arquivo": "333e1a36.mp3",
+      "bytes": 16552,
+      "texto": "Já tem objeto na pista aqui perto."
+    },
+    "34205e6f": {
+      "arquivo": "34205e6f.mp3",
+      "bytes": 13208,
+      "texto": "Em 2,4 quilômetros,"
+    },
+    "3447307c": {
+      "arquivo": "3447307c.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar do túnel de 3,4 metros."
+    },
+    "358824f4": {
+      "arquivo": "358824f4.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 66 toneladas",
+      "tts": "Limite de peso 66 toneladas,"
+    },
+    "3598e32f": {
+      "arquivo": "3598e32f.mp3",
+      "bytes": 10909,
+      "texto": "Seu veículo tem 3."
+    },
+    "35a8acff": {
+      "arquivo": "35a8acff.mp3",
+      "bytes": 70051,
+      "texto": "Você completou 4 horas e 30 minutos de direção. Faça uma pausa de 30 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "362e9d50": {
+      "arquivo": "362e9d50.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 48 toneladas",
+      "tts": "Limite de peso 48 toneladas,"
+    },
+    "36782220": {
+      "arquivo": "36782220.mp3",
+      "bytes": 9865,
+      "texto": "a 40 metros."
+    },
+    "37e8f8d2": {
+      "arquivo": "37e8f8d2.mp3",
+      "bytes": 13626,
+      "texto": "Em 2,7 quilômetros,"
+    },
+    "3878d0af": {
+      "arquivo": "3878d0af.mp3",
+      "bytes": 9029,
+      "texto": "a 100 metros."
+    },
+    "39a0f1fa": {
+      "arquivo": "39a0f1fa.mp3",
+      "bytes": 9865,
+      "texto": "Em 100 metros,"
+    },
+    "39ec4a7e": {
+      "arquivo": "39ec4a7e.mp3",
+      "bytes": 15716,
+      "texto": "Limite de peso 4 toneladas",
+      "tts": "Limite de peso 4 toneladas,"
+    },
+    "39fe1155": {
+      "arquivo": "39fe1155.mp3",
+      "bytes": 15716,
+      "texto": "Limite de peso 50 toneladas",
+      "tts": "Limite de peso 50 toneladas,"
+    },
+    "3ab16bf7": {
+      "arquivo": "3ab16bf7.mp3",
+      "bytes": 10492,
+      "texto": "Seu veículo tem 10."
+    },
+    "3afa01de": {
+      "arquivo": "3afa01de.mp3",
+      "bytes": 11327,
+      "texto": "Atenção: obra",
+      "tts": "Atenção: obra,"
+    },
+    "3b6e1c8e": {
+      "arquivo": "3b6e1c8e.mp3",
+      "bytes": 19478,
+      "texto": "Trecho crítico, próximos 22 quilômetros."
+    },
+    "3b7d6fe8": {
+      "arquivo": "3b7d6fe8.mp3",
+      "bytes": 17597,
+      "texto": "Altura máxima 3,9 metros",
+      "tts": "Altura máxima 3,9 metros,"
+    },
+    "3c10c005": {
+      "arquivo": "3c10c005.mp3",
+      "bytes": 12372,
+      "texto": "Acima do limite de 30."
+    },
+    "3c8e6511": {
+      "arquivo": "3c8e6511.mp3",
+      "bytes": 10283,
+      "texto": "Balsa à frente."
+    },
+    "3cad6c0c": {
+      "arquivo": "3cad6c0c.mp3",
+      "bytes": 28464,
+      "texto": "Rota alterada para desviar da ponte de 4,7 metros."
+    },
+    "3d0408ab": {
+      "arquivo": "3d0408ab.mp3",
+      "bytes": 17179,
+      "texto": "Altura máxima 1,8 metros",
+      "tts": "Altura máxima 1,8 metros,"
+    },
+    "3d1df214": {
+      "arquivo": "3d1df214.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 35 toneladas",
+      "tts": "Limite de peso 35 toneladas,"
+    },
+    "3da74d1d": {
+      "arquivo": "3da74d1d.mp3",
+      "bytes": 14253,
+      "texto": "Anotado! A estrada agradece."
+    },
+    "3df92023": {
+      "arquivo": "3df92023.mp3",
+      "bytes": 16970,
+      "texto": "Limite de peso 23 toneladas",
+      "tts": "Limite de peso 23 toneladas,"
+    },
+    "3e4d565f": {
+      "arquivo": "3e4d565f.mp3",
+      "bytes": 17179,
+      "texto": "Altura máxima 4,9 metros",
+      "tts": "Altura máxima 4,9 metros,"
+    },
+    "3e68a7b8": {
+      "arquivo": "3e68a7b8.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 53 toneladas",
+      "tts": "Limite de peso 53 toneladas,"
+    },
+    "3ea806cf": {
+      "arquivo": "3ea806cf.mp3",
+      "bytes": 17179,
+      "texto": "Possível restrição de peso, confira."
+    },
+    "3eafb96a": {
+      "arquivo": "3eafb96a.mp3",
+      "bytes": 23239,
+      "texto": "Trecho com muitos acidentes, 1,5 quilômetros."
+    },
+    "3f052a54": {
+      "arquivo": "3f052a54.mp3",
+      "bytes": 11327,
+      "texto": "Entre na rotatória."
+    },
+    "3f3026ad": {
+      "arquivo": "3f3026ad.mp3",
+      "bytes": 12790,
+      "texto": "Em 350 metros,"
+    },
+    "3f44416b": {
+      "arquivo": "3f44416b.mp3",
+      "bytes": 9865,
+      "texto": "a 70 metros."
+    },
+    "3f77789d": {
+      "arquivo": "3f77789d.mp3",
+      "bytes": 9865,
+      "texto": "faça o retorno."
+    },
+    "3f7ead60": {
+      "arquivo": "3f7ead60.mp3",
+      "bytes": 19478,
+      "texto": "Trecho crítico, próximos 24 quilômetros."
+    },
+    "3ffb5f82": {
+      "arquivo": "3ffb5f82.mp3",
+      "bytes": 20314,
+      "texto": "entre na rotatória e pegue a 3ª saída.",
+      "tts": "entre na rotatória e pegue a terceira saída."
+    },
+    "40759589": {
+      "arquivo": "40759589.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 18 toneladas",
+      "tts": "Limite de peso 18 toneladas,"
+    },
+    "40cef7b0": {
+      "arquivo": "40cef7b0.mp3",
+      "bytes": 12372,
+      "texto": "faça o retorno à direita."
+    },
+    "40fa6c28": {
+      "arquivo": "40fa6c28.mp3",
+      "bytes": 10492,
+      "texto": "mantenha-se em frente."
+    },
+    "414ebb58": {
+      "arquivo": "414ebb58.mp3",
+      "bytes": 11745,
+      "texto": "Já tem acidente",
+      "tts": "Já tem acidente,"
+    },
+    "415016e5": {
+      "arquivo": "415016e5.mp3",
+      "bytes": 10909,
+      "texto": "Entre na via à direita."
+    },
+    "415ddcd7": {
+      "arquivo": "415ddcd7.mp3",
+      "bytes": 12790,
+      "texto": "Acima do limite de 120."
+    },
+    "416f9286": {
+      "arquivo": "416f9286.mp3",
+      "bytes": 25747,
+      "texto": "Rota alterada para desviar de 7 restrições do caminhão."
+    },
+    "41c0a300": {
+      "arquivo": "41c0a300.mp3",
+      "bytes": 10283,
+      "texto": "Em 30 metros,"
+    },
+    "41dac3d2": {
+      "arquivo": "41dac3d2.mp3",
+      "bytes": 9029,
+      "texto": "Fique atento."
+    },
+    "44130951": {
+      "arquivo": "44130951.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 29 toneladas",
+      "tts": "Limite de peso 29 toneladas,"
+    },
+    "441bf25a": {
+      "arquivo": "441bf25a.mp3",
+      "bytes": 17179,
+      "texto": "Altura máxima 1,9 metros",
+      "tts": "Altura máxima 1,9 metros,"
+    },
+    "4455d34c": {
+      "arquivo": "4455d34c.mp3",
+      "bytes": 17179,
+      "texto": "Altura máxima 5,3 metros",
+      "tts": "Altura máxima 5,3 metros,"
+    },
+    "44afea4a": {
+      "arquivo": "44afea4a.mp3",
+      "bytes": 8820,
+      "texto": "entre na via."
+    },
+    "46298a94": {
+      "arquivo": "46298a94.mp3",
+      "bytes": 9865,
+      "texto": "a 80 metros."
+    },
+    "46671866": {
+      "arquivo": "46671866.mp3",
+      "bytes": 12372,
+      "texto": "Em 1,8 quilômetros,"
+    },
+    "466ba809": {
+      "arquivo": "466ba809.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 26 toneladas."
+    },
+    "46a5a7c3": {
+      "arquivo": "46a5a7c3.mp3",
+      "bytes": 17179,
+      "texto": "Limite de peso 45 toneladas",
+      "tts": "Limite de peso 45 toneladas,"
+    },
+    "46d9743e": {
+      "arquivo": "46d9743e.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 21 toneladas."
+    },
+    "47036c87": {
+      "arquivo": "47036c87.mp3",
+      "bytes": 15507,
+      "texto": "Já tem buraco na pista aqui perto."
+    },
+    "4726ed68": {
+      "arquivo": "4726ed68.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: altura máxima 4,1 metros."
+    },
+    "47ebf875": {
+      "arquivo": "47ebf875.mp3",
+      "bytes": 17179,
+      "texto": "Altura máxima 1,6 metros",
+      "tts": "Altura máxima 1,6 metros,"
+    },
+    "481a2a22": {
+      "arquivo": "481a2a22.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 73 toneladas",
+      "tts": "Limite de peso 73 toneladas,"
+    },
+    "4847dbd5": {
+      "arquivo": "4847dbd5.mp3",
+      "bytes": 11327,
+      "texto": "Seu veículo tem 3,6."
+    },
+    "484e04df": {
+      "arquivo": "484e04df.mp3",
+      "bytes": 18433,
+      "texto": "Faltam 10 quilômetros pela rota destacada."
+    },
+    "48b267c9": {
+      "arquivo": "48b267c9.mp3",
+      "bytes": 28046,
+      "texto": "Rota alterada para desviar do túnel de 3,3 metros."
+    },
+    "4a0bd7bd": {
+      "arquivo": "4a0bd7bd.mp3",
+      "bytes": 9029,
+      "texto": "Pegue a rampa."
+    },
+    "4a59bca6": {
+      "arquivo": "4a59bca6.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 51 toneladas",
+      "tts": "Limite de peso 51 toneladas,"
+    },
+    "4a75b8ec": {
+      "arquivo": "4a75b8ec.mp3",
+      "bytes": 15716,
+      "texto": "Limite de peso 80 toneladas",
+      "tts": "Limite de peso 80 toneladas,"
+    },
+    "4a7a5533": {
+      "arquivo": "4a7a5533.mp3",
+      "bytes": 12372,
+      "texto": "Já tem limite de peso",
+      "tts": "Já tem limite de peso,"
+    },
+    "4cffce30": {
+      "arquivo": "4cffce30.mp3",
+      "bytes": 12163,
+      "texto": "pegue a rampa à direita."
+    },
+    "4d2a3e1c": {
+      "arquivo": "4d2a3e1c.mp3",
+      "bytes": 19478,
+      "texto": "Limite de peso 79 toneladas",
+      "tts": "Limite de peso 79 toneladas,"
+    },
+    "4d4eb864": {
+      "arquivo": "4d4eb864.mp3",
+      "bytes": 12790,
+      "texto": "faça o retorno à esquerda."
+    },
+    "4d761e14": {
+      "arquivo": "4d761e14.mp3",
+      "bytes": 15089,
+      "texto": "Limite de peso 2 toneladas",
+      "tts": "Limite de peso 2 toneladas,"
+    },
+    "4de96f4e": {
+      "arquivo": "4de96f4e.mp3",
+      "bytes": 18851,
+      "texto": "Limite de peso 77 toneladas",
+      "tts": "Limite de peso 77 toneladas,"
+    },
+    "4e5363d4": {
+      "arquivo": "4e5363d4.mp3",
+      "bytes": 16970,
+      "texto": "Possível restrição de largura, confira."
+    },
+    "4eab23d6": {
+      "arquivo": "4eab23d6.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 86 toneladas",
+      "tts": "Limite de peso 86 toneladas,"
+    },
+    "4eab5c58": {
+      "arquivo": "4eab5c58.mp3",
+      "bytes": 14671,
+      "texto": "Limite de peso 1 tonelada",
+      "tts": "Limite de peso 1 tonelada,"
+    },
+    "4efec6e5": {
+      "arquivo": "4efec6e5.mp3",
+      "bytes": 25120,
+      "texto": "Rota alterada para desviar da ponte de 4 metros."
+    },
+    "4f3ca94b": {
+      "arquivo": "4f3ca94b.mp3",
+      "bytes": 21358,
+      "texto": "Rota ajustada para evitar um limite de peso."
+    },
+    "4f49fd12": {
+      "arquivo": "4f49fd12.mp3",
+      "bytes": 19060,
+      "texto": "Limite de peso 37 toneladas",
+      "tts": "Limite de peso 37 toneladas,"
+    },
+    "4f5c9bab": {
+      "arquivo": "4f5c9bab.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 19 toneladas."
+    },
+    "4f7e28ac": {
+      "arquivo": "4f7e28ac.mp3",
+      "bytes": 16552,
+      "texto": "Limite de peso 22 toneladas",
+      "tts": "Limite de peso 22 toneladas,"
+    },
+    "4f8e2fb7": {
+      "arquivo": "4f8e2fb7.mp3",
+      "bytes": 13208,
+      "texto": "Em 550 metros,"
+    },
+    "503d55f2": {
+      "arquivo": "503d55f2.mp3",
+      "bytes": 14671,
+      "texto": "Acima de 50, limite estimado."
+    },
+    "51798c10": {
+      "arquivo": "51798c10.mp3",
+      "bytes": 12163,
+      "texto": "Pegue a rampa à direita."
+    },
+    "51b9b985": {
+      "arquivo": "51b9b985.mp3",
+      "bytes": 17179,
+      "texto": "Altura máxima 2,5 metros",
+      "tts": "Altura máxima 2,5 metros,"
+    },
+    "51d70e3a": {
+      "arquivo": "51d70e3a.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: altura máxima 3,8 metros."
+    },
+    "5242fb7c": {
+      "arquivo": "5242fb7c.mp3",
+      "bytes": 70051,
+      "texto": "Você completou 4 horas e 30 minutos de direção. Faça uma pausa de 15 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "52c4c675": {
+      "arquivo": "52c4c675.mp3",
+      "bytes": 18015,
+      "texto": "Altura máxima 3,4 metros",
+      "tts": "Altura máxima 3,4 metros,"
+    },
+    "5316a9aa": {
+      "arquivo": "5316a9aa.mp3",
+      "bytes": 16134,
+      "texto": "Atenção: buraco na pista",
+      "tts": "Atenção: buraco na pista,"
+    },
+    "53181d10": {
+      "arquivo": "53181d10.mp3",
+      "bytes": 11327,
+      "texto": "a 350 metros."
+    },
+    "533b09a9": {
+      "arquivo": "533b09a9.mp3",
+      "bytes": 19478,
+      "texto": "Trecho crítico, próximos 27 quilômetros."
+    },
+    "53444a98": {
+      "arquivo": "53444a98.mp3",
+      "bytes": 74021,
+      "texto": "Você completou 5 horas e 30 minutos de direção. Faça uma pausa de 45 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "534e187c": {
+      "arquivo": "534e187c.mp3",
+      "bytes": 19060,
+      "texto": "Limite de peso 57 toneladas",
+      "tts": "Limite de peso 57 toneladas,"
+    },
+    "53afcce8": {
+      "arquivo": "53afcce8.mp3",
+      "bytes": 12790,
+      "texto": "Em 2,5 quilômetros,"
+    },
+    "54296d60": {
+      "arquivo": "54296d60.mp3",
+      "bytes": 11745,
+      "texto": "Você chegará ao destino."
+    },
+    "544f1485": {
+      "arquivo": "544f1485.mp3",
+      "bytes": 22821,
+      "texto": "Atenção: altura máxima 2,8 metros."
+    },
+    "545ed668": {
+      "arquivo": "545ed668.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: altura máxima 2,7 metros."
+    },
+    "5468a837": {
+      "arquivo": "5468a837.mp3",
+      "bytes": 22194,
+      "texto": "Atenção: limite de peso 73 toneladas."
+    },
+    "55bbf1f6": {
+      "arquivo": "55bbf1f6.mp3",
+      "bytes": 16970,
+      "texto": "Altura máxima 5,9 metros",
+      "tts": "Altura máxima 5,9 metros,"
+    },
+    "56c2f630": {
+      "arquivo": "56c2f630.mp3",
+      "bytes": 21776,
+      "texto": "Atenção: limite de peso 1 toneladas."
+    },
+    "56cd824d": {
+      "arquivo": "56cd824d.mp3",
+      "bytes": 10283,
+      "texto": "a 300 metros."
+    },
+    "5783929e": {
+      "arquivo": "5783929e.mp3",
+      "bytes": 34733,
+      "texto": "Rota offline, o servidor de rotas não respondeu. Volte para a linha destacada."
+    },
+    "578f8e02": {
+      "arquivo": "578f8e02.mp3",
+      "bytes": 10909,
+      "texto": "Área de escape à frente."
+    },
+    "5791b890": {
+      "arquivo": "5791b890.mp3",
+      "bytes": 22403,
+      "texto": "Atenção: limite de peso 30 toneladas."
+    },
+    "57fba104": {
+      "arquivo": "57fba104.mp3",
+      "bytes": 19060,
+      "texto": "Entre na rotatória e pegue a 5ª saída.",
+      "tts": "Entre na rotatória e pegue a quinta saída."
+    },
+    "583eb585": {
+      "arquivo": "583eb585.mp3",
+      "bytes": 23866,
+      "texto": "Atenção: limite de peso 17 toneladas."
+    },
+    "58f449bd": {
+      "arquivo": "58f449bd.mp3",
+      "bytes": 18851,
+      "texto": "Sem internet. A rota continua a mesma."
+    },
+    "590deacb": {
+      "arquivo": "590deacb.mp3",
+      "bytes": 25120,
+      "texto": "Atenção: limite de peso 33 toneladas."
+    },
+    "59108fee": {
+      "arquivo": "59108fee.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: limite de peso 36 toneladas."
+    },
+    "599a9e60": {
+      "arquivo": "599a9e60.mp3",
+      "bytes": 24284,
+      "texto": "Rota alterada para desviar da ponte de 3 metros."
+    },
+    "5abc9428": {
+      "arquivo": "5abc9428.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: limite de peso 38 toneladas."
+    },
+    "5b60ebf6": {
+      "arquivo": "5b60ebf6.mp3",
+      "bytes": 27628,
+      "texto": "Rota alterada para desviar do túnel de 4,5 metros."
+    },
+    "5bc6bc6a": {
+      "arquivo": "5bc6bc6a.mp3",
+      "bytes": 8402,
+      "texto": "Entre na via."
+    },
+    "5c0c6439": {
+      "arquivo": "5c0c6439.mp3",
+      "bytes": 11327,
+      "texto": "Ainda não disponível."
+    },
+    "5c6e91e8": {
+      "arquivo": "5c6e91e8.mp3",
+      "bytes": 13208,
+      "texto": "Já tem alagamento aqui perto."
+    },
+    "5d2f99b4": {
+      "arquivo": "5d2f99b4.mp3",
+      "bytes": 22821,
+      "texto": "Atenção: limite de peso 5 toneladas."
+    },
+    "5dbbb6a1": {
+      "arquivo": "5dbbb6a1.mp3",
+      "bytes": 12163,
+      "texto": "Obra recorrente à frente."
+    },
+    "5e288d6f": {
+      "arquivo": "5e288d6f.mp3",
+      "bytes": 19896,
+      "texto": "A rota tem 3 restrições para o seu caminhão."
+    },
+    "5e9c0e4c": {
+      "arquivo": "5e9c0e4c.mp3",
+      "bytes": 12372,
+      "texto": "Seu veículo tem 35."
+    },
+    "5f558eea": {
+      "arquivo": "5f558eea.mp3",
+      "bytes": 10492,
+      "texto": "a 200 metros."
+    },
+    "5f870bc9": {
+      "arquivo": "5f870bc9.mp3",
+      "bytes": 13626,
+      "texto": "Acima de 20, limite estimado."
+    },
+    "6036b2f5": {
+      "arquivo": "6036b2f5.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 94 toneladas",
+      "tts": "Limite de peso 94 toneladas,"
+    },
+    "6047e559": {
+      "arquivo": "6047e559.mp3",
+      "bytes": 15716,
+      "texto": "Altura máxima 2,1 metros",
+      "tts": "Altura máxima 2,1 metros,"
+    },
+    "608834e1": {
+      "arquivo": "608834e1.mp3",
+      "bytes": 24284,
+      "texto": "Rota alterada para evitar uma restrição do caminhão."
+    },
+    "60af2837": {
+      "arquivo": "60af2837.mp3",
+      "bytes": 11327,
+      "texto": "a 250 metros."
+    },
+    "60e8887f": {
+      "arquivo": "60e8887f.mp3",
+      "bytes": 25538,
+      "texto": "Atenção: limite de peso 42 toneladas."
+    },
+    "613acbb0": {
+      "arquivo": "613acbb0.mp3",
+      "bytes": 21358,
+      "texto": "Atenção: limite de peso 63 toneladas."
+    },
+    "6150c531": {
+      "arquivo": "6150c531.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: limite de peso 39 toneladas."
+    },
+    "617b2ccf": {
+      "arquivo": "617b2ccf.mp3",
+      "bytes": 27628,
+      "texto": "Rota alterada para desviar da ponte de 4,6 metros."
+    },
+    "61ef399d": {
+      "arquivo": "61ef399d.mp3",
+      "bytes": 24702,
+      "texto": "Não entendi. Diga, por exemplo: tem animal na pista."
+    },
+    "621d0e78": {
+      "arquivo": "621d0e78.mp3",
+      "bytes": 59602,
+      "texto": "Atenção: faltam 1 hora para o limite de direção contínua. Procure um lugar seguro para uma pausa de 15 minutos."
+    },
+    "62a81a21": {
+      "arquivo": "62a81a21.mp3",
+      "bytes": 11327,
+      "texto": "Em 60 metros,"
+    },
+    "631dc472": {
+      "arquivo": "631dc472.mp3",
+      "bytes": 15507,
+      "texto": "Limite de peso 11 toneladas",
+      "tts": "Limite de peso 11 toneladas,"
+    },
+    "6358e5f6": {
+      "arquivo": "6358e5f6.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar da ponte de 3,6 metros."
+    },
+    "63c96862": {
+      "arquivo": "63c96862.mp3",
+      "bytes": 11327,
+      "texto": "destino à esquerda."
+    },
+    "644c696f": {
+      "arquivo": "644c696f.mp3",
+      "bytes": 12790,
+      "texto": "Passagem de nível à frente."
+    },
+    "646c691f": {
+      "arquivo": "646c691f.mp3",
+      "bytes": 22821,
+      "texto": "Atenção: limite de peso 6 toneladas."
+    },
+    "64b3c096": {
+      "arquivo": "64b3c096.mp3",
+      "bytes": 24702,
+      "texto": "Atenção: limite de peso 58 toneladas."
+    },
+    "655f4fcd": {
+      "arquivo": "655f4fcd.mp3",
+      "bytes": 17179,
+      "texto": "Limite de peso 32 toneladas",
+      "tts": "Limite de peso 32 toneladas,"
+    },
+    "65c90545": {
+      "arquivo": "65c90545.mp3",
+      "bytes": 19060,
+      "texto": "Limite de peso 87 toneladas",
+      "tts": "Limite de peso 87 toneladas,"
+    },
+    "6645d72b": {
+      "arquivo": "6645d72b.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 34 toneladas",
+      "tts": "Limite de peso 34 toneladas,"
+    },
+    "66561bd5": {
+      "arquivo": "66561bd5.mp3",
+      "bytes": 28464,
+      "texto": "Rota alterada para desviar da ponte de 45 toneladas."
+    },
+    "667d0c8e": {
+      "arquivo": "667d0c8e.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 7 toneladas."
+    },
+    "66be459f": {
+      "arquivo": "66be459f.mp3",
+      "bytes": 8820,
+      "texto": "Registrado."
+    },
+    "66d5f711": {
+      "arquivo": "66d5f711.mp3",
+      "bytes": 17597,
+      "texto": "Altura máxima 3,8 metros",
+      "tts": "Altura máxima 3,8 metros,"
+    },
+    "671de8cf": {
+      "arquivo": "671de8cf.mp3",
+      "bytes": 70469,
+      "texto": "Você completou 5 horas e 30 minutos de direção. Faça uma pausa de 15 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "6733b464": {
+      "arquivo": "6733b464.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 71 toneladas",
+      "tts": "Limite de peso 71 toneladas,"
+    },
+    "67a488aa": {
+      "arquivo": "67a488aa.mp3",
+      "bytes": 14671,
+      "texto": "Altura máxima 4 metros",
+      "tts": "Altura máxima 4 metros,"
+    },
+    "67a76f34": {
+      "arquivo": "67a76f34.mp3",
+      "bytes": 24702,
+      "texto": "Atenção: limite de peso 67 toneladas."
+    },
+    "67ba9767": {
+      "arquivo": "67ba9767.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 49 toneladas",
+      "tts": "Limite de peso 49 toneladas,"
+    },
+    "67bc4226": {
+      "arquivo": "67bc4226.mp3",
+      "bytes": 13626,
+      "texto": "Você ainda não salvou a base."
+    },
+    "6823c894": {
+      "arquivo": "6823c894.mp3",
+      "bytes": 10909,
+      "texto": "Em 300 metros,"
+    },
+    "6830c8c3": {
+      "arquivo": "6830c8c3.mp3",
+      "bytes": 63781,
+      "texto": "Atenção: faltam 1 hora para o limite de direção contínua. Procure um lugar seguro para uma pausa de 45 minutos."
+    },
+    "6842f3fc": {
+      "arquivo": "6842f3fc.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: altura máxima 2,3 metros."
+    },
+    "6883e8e6": {
+      "arquivo": "6883e8e6.mp3",
+      "bytes": 14671,
+      "texto": "Acima de 90, limite estimado."
+    },
+    "6987b64c": {
+      "arquivo": "6987b64c.mp3",
+      "bytes": 27628,
+      "texto": "Rota alterada para desviar da ponte de 3,8 metros."
+    },
+    "69c82e03": {
+      "arquivo": "69c82e03.mp3",
+      "bytes": 12790,
+      "texto": "Acima do limite de 50."
+    },
+    "69eeb333": {
+      "arquivo": "69eeb333.mp3",
+      "bytes": 11745,
+      "texto": "Em 600 metros,"
+    },
+    "6aacbe25": {
+      "arquivo": "6aacbe25.mp3",
+      "bytes": 18433,
+      "texto": "Trecho crítico, próximos 30 quilômetros."
+    },
+    "6bbfe487": {
+      "arquivo": "6bbfe487.mp3",
+      "bytes": 16970,
+      "texto": "Altura máxima 4,1 metros",
+      "tts": "Altura máxima 4,1 metros,"
+    },
+    "6c1ae110": {
+      "arquivo": "6c1ae110.mp3",
+      "bytes": 11745,
+      "texto": "Em 700 metros,"
+    },
+    "6cd54602": {
+      "arquivo": "6cd54602.mp3",
+      "bytes": 24284,
+      "texto": "Rota ajustada para evitar 2 restrições do caminhão."
+    },
+    "6cf46336": {
+      "arquivo": "6cf46336.mp3",
+      "bytes": 64408,
+      "texto": "Atenção: faltam 45 minutos para o limite de direção contínua. Procure um lugar seguro para uma pausa de 30 minutos."
+    },
+    "6d0834c8": {
+      "arquivo": "6d0834c8.mp3",
+      "bytes": 25120,
+      "texto": "Rota alterada para desviar de 9 restrições do caminhão."
+    },
+    "6d08900a": {
+      "arquivo": "6d08900a.mp3",
+      "bytes": 16970,
+      "texto": "Limite de peso 19 toneladas",
+      "tts": "Limite de peso 19 toneladas,"
+    },
+    "6d901d1b": {
+      "arquivo": "6d901d1b.mp3",
+      "bytes": 36196,
+      "texto": "Rota offline, sem internet para recalcular. Volte para a linha destacada."
+    },
+    "6dbfd8b3": {
+      "arquivo": "6dbfd8b3.mp3",
+      "bytes": 12372,
+      "texto": "Seu veículo tem 2,9."
+    },
+    "6dcee33d": {
+      "arquivo": "6dcee33d.mp3",
+      "bytes": 12790,
+      "texto": "Seu veículo tem 2,7."
+    },
+    "6de40e6c": {
+      "arquivo": "6de40e6c.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: limite de peso 49 toneladas."
+    },
+    "6e4c914b": {
+      "arquivo": "6e4c914b.mp3",
+      "bytes": 12163,
+      "texto": "Seu veículo tem 50."
+    },
+    "6e84a20b": {
+      "arquivo": "6e84a20b.mp3",
+      "bytes": 10909,
+      "texto": "a 500 metros."
+    },
+    "6ee43e9f": {
+      "arquivo": "6ee43e9f.mp3",
+      "bytes": 25538,
+      "texto": "Atenção: limite de peso 64 toneladas."
+    },
+    "6f245444": {
+      "arquivo": "6f245444.mp3",
+      "bytes": 12372,
+      "texto": "Pegue a rampa à esquerda."
+    },
+    "6f764249": {
+      "arquivo": "6f764249.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: altura máxima 4,2 metros."
+    },
+    "6fabe559": {
+      "arquivo": "6fabe559.mp3",
+      "bytes": 12790,
+      "texto": "Acima do limite de 70."
+    },
+    "70837311": {
+      "arquivo": "70837311.mp3",
+      "bytes": 13208,
+      "texto": "Siga pela rota destacada."
+    },
+    "70f4e20e": {
+      "arquivo": "70f4e20e.mp3",
+      "bytes": 21776,
+      "texto": "Atenção: limite de peso 65 toneladas."
+    },
+    "713d5158": {
+      "arquivo": "713d5158.mp3",
+      "bytes": 19060,
+      "texto": "Limite de peso 97 toneladas",
+      "tts": "Limite de peso 97 toneladas,"
+    },
+    "71f1254b": {
+      "arquivo": "71f1254b.mp3",
+      "bytes": 11745,
+      "texto": "Entre na via à esquerda."
+    },
+    "71fd3f32": {
+      "arquivo": "71fd3f32.mp3",
+      "bytes": 10492,
+      "texto": "Seu veículo tem 20."
+    },
+    "7208ad3f": {
+      "arquivo": "7208ad3f.mp3",
+      "bytes": 30554,
+      "texto": "Esse assunto ainda não é um tipo de relato. Escolha o tipo na tela."
+    },
+    "7357b218": {
+      "arquivo": "7357b218.mp3",
+      "bytes": 9029,
+      "texto": "Recalculando."
+    },
+    "740a0e4b": {
+      "arquivo": "740a0e4b.mp3",
+      "bytes": 12372,
+      "texto": "Seu veículo tem 25."
+    },
+    "74a210ca": {
+      "arquivo": "74a210ca.mp3",
+      "bytes": 15716,
+      "texto": "Limite de peso 20 toneladas",
+      "tts": "Limite de peso 20 toneladas,"
+    },
+    "74f38169": {
+      "arquivo": "74f38169.mp3",
+      "bytes": 63990,
+      "texto": "Atenção: faltam 45 minutos para o limite de direção contínua. Procure um lugar seguro para uma pausa de 15 minutos."
+    },
+    "7556acaf": {
+      "arquivo": "7556acaf.mp3",
+      "bytes": 12372,
+      "texto": "Você chegou ao destino."
+    },
+    "7573b42d": {
+      "arquivo": "7573b42d.mp3",
+      "bytes": 17179,
+      "texto": "Limite de peso 61 toneladas",
+      "tts": "Limite de peso 61 toneladas,"
+    },
+    "759b0ffd": {
+      "arquivo": "759b0ffd.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 58 toneladas",
+      "tts": "Limite de peso 58 toneladas,"
+    },
+    "75aaafde": {
+      "arquivo": "75aaafde.mp3",
+      "bytes": 15716,
+      "texto": "Limite de peso 15 toneladas",
+      "tts": "Limite de peso 15 toneladas,"
+    },
+    "75b77bcd": {
+      "arquivo": "75b77bcd.mp3",
+      "bytes": 15716,
+      "texto": "Limite de peso 5 toneladas",
+      "tts": "Limite de peso 5 toneladas,"
+    },
+    "75d1b8f3": {
+      "arquivo": "75d1b8f3.mp3",
+      "bytes": 60647,
+      "texto": "Você completou 5 horas de direção. Faça uma pausa de 30 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "762e6dcf": {
+      "arquivo": "762e6dcf.mp3",
+      "bytes": 14253,
+      "texto": "Acima de 80, limite estimado."
+    },
+    "769e032b": {
+      "arquivo": "769e032b.mp3",
+      "bytes": 15507,
+      "texto": "Limite de peso 3 toneladas",
+      "tts": "Limite de peso 3 toneladas,"
+    },
+    "770ba7d8": {
+      "arquivo": "770ba7d8.mp3",
+      "bytes": 19478,
+      "texto": "Trecho com muitos acidentes, 200 metros."
+    },
+    "77db8f98": {
+      "arquivo": "77db8f98.mp3",
+      "bytes": 70469,
+      "texto": "Você completou 5 horas e 30 minutos de direção. Faça uma pausa de 30 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "7807c9eb": {
+      "arquivo": "7807c9eb.mp3",
+      "bytes": 22403,
+      "texto": "Atenção: limite de peso 2 toneladas."
+    },
+    "7825e63f": {
+      "arquivo": "7825e63f.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 27 toneladas",
+      "tts": "Limite de peso 27 toneladas,"
+    },
+    "7831158b": {
+      "arquivo": "7831158b.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 89 toneladas",
+      "tts": "Limite de peso 89 toneladas,"
+    },
+    "78730e93": {
+      "arquivo": "78730e93.mp3",
+      "bytes": 26165,
+      "texto": "Rota alterada para desviar da ponte de 10 toneladas."
+    },
+    "78a9b012": {
+      "arquivo": "78a9b012.mp3",
+      "bytes": 13208,
+      "texto": "Acima do limite de 110."
+    },
+    "78dca128": {
+      "arquivo": "78dca128.mp3",
+      "bytes": 60647,
+      "texto": "Atenção: faltam 15 minutos para o limite de direção contínua. Procure um lugar seguro para uma pausa de 15 minutos."
+    },
+    "79355d87": {
+      "arquivo": "79355d87.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 63 toneladas",
+      "tts": "Limite de peso 63 toneladas,"
+    },
+    "795179aa": {
+      "arquivo": "795179aa.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: altura máxima 2,9 metros."
+    },
+    "797b8311": {
+      "arquivo": "797b8311.mp3",
+      "bytes": 18851,
+      "texto": "Faltam 100 quilômetros pela rota destacada."
+    },
+    "7a469e9d": {
+      "arquivo": "7a469e9d.mp3",
+      "bytes": 28882,
+      "texto": "Rota alterada para desviar da ponte de 4,4 metros."
+    },
+    "7bde9eea": {
+      "arquivo": "7bde9eea.mp3",
+      "bytes": 25747,
+      "texto": "Atenção: limite de peso 54 toneladas."
+    },
+    "7c06b375": {
+      "arquivo": "7c06b375.mp3",
+      "bytes": 16552,
+      "texto": "Altura máxima 5,2 metros",
+      "tts": "Altura máxima 5,2 metros,"
+    },
+    "7c6bd5f2": {
+      "arquivo": "7c6bd5f2.mp3",
+      "bytes": 29509,
+      "texto": "Rota alterada para desviar da ponte de 55 toneladas."
+    },
+    "7cae2b49": {
+      "arquivo": "7cae2b49.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: altura máxima 2,4 metros."
+    },
+    "7e003ebe": {
+      "arquivo": "7e003ebe.mp3",
+      "bytes": 18015,
+      "texto": "Trecho crítico, próximos 8 quilômetros."
+    },
+    "7e4cd65b": {
+      "arquivo": "7e4cd65b.mp3",
+      "bytes": 25120,
+      "texto": "Rota ajustada para evitar 3 restrições do caminhão."
+    },
+    "7e63be98": {
+      "arquivo": "7e63be98.mp3",
+      "bytes": 12372,
+      "texto": "Seu veículo tem 48."
+    },
+    "7ead15fd": {
+      "arquivo": "7ead15fd.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 22 toneladas."
+    },
+    "7f69cb51": {
+      "arquivo": "7f69cb51.mp3",
+      "bytes": 22194,
+      "texto": "Atenção: limite de peso 8 toneladas."
+    },
+    "7fb76ee1": {
+      "arquivo": "7fb76ee1.mp3",
+      "bytes": 18015,
+      "texto": "Altura máxima 4,7 metros",
+      "tts": "Altura máxima 4,7 metros,"
+    },
+    "80113177": {
+      "arquivo": "80113177.mp3",
+      "bytes": 23239,
+      "texto": "Trecho com muitos acidentes, 2,5 quilômetros."
+    },
+    "806c00f5": {
+      "arquivo": "806c00f5.mp3",
+      "bytes": 12372,
+      "texto": "Em 1,1 quilômetros,"
+    },
+    "807485df": {
+      "arquivo": "807485df.mp3",
+      "bytes": 17179,
+      "texto": "Limite de peso 41 toneladas",
+      "tts": "Limite de peso 41 toneladas,"
+    },
+    "80858b4c": {
+      "arquivo": "80858b4c.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 16 toneladas."
+    },
+    "80a31a46": {
+      "arquivo": "80a31a46.mp3",
+      "bytes": 10909,
+      "texto": "Em 500 metros,"
+    },
+    "810ed0c1": {
+      "arquivo": "810ed0c1.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 98 toneladas",
+      "tts": "Limite de peso 98 toneladas,"
+    },
+    "812626bb": {
+      "arquivo": "812626bb.mp3",
+      "bytes": 17597,
+      "texto": "Rota alterada para desviar da balsa."
+    },
+    "812fa0e5": {
+      "arquivo": "812fa0e5.mp3",
+      "bytes": 26165,
+      "texto": "Rota alterada para desviar de 4 restrições do caminhão."
+    },
+    "8137a048": {
+      "arquivo": "8137a048.mp3",
+      "bytes": 10492,
+      "texto": "Mantenha-se em frente."
+    },
+    "81d17b4e": {
+      "arquivo": "81d17b4e.mp3",
+      "bytes": 16970,
+      "texto": "Altura máxima 1,5 metros",
+      "tts": "Altura máxima 1,5 metros,"
+    },
+    "81f68d87": {
+      "arquivo": "81f68d87.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 28 toneladas."
+    },
+    "8225db24": {
+      "arquivo": "8225db24.mp3",
+      "bytes": 19478,
+      "texto": "entre na rotatória e pegue a 5ª saída.",
+      "tts": "entre na rotatória e pegue a quinta saída."
+    },
+    "822a101a": {
+      "arquivo": "822a101a.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: limite de peso 18 toneladas."
+    },
+    "826cf542": {
+      "arquivo": "826cf542.mp3",
+      "bytes": 10909,
+      "texto": "Destino à esquerda."
+    },
+    "826ea096": {
+      "arquivo": "826ea096.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 24 toneladas",
+      "tts": "Limite de peso 24 toneladas,"
+    },
+    "827f9f6b": {
+      "arquivo": "827f9f6b.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: limite de peso 60 toneladas."
+    },
+    "828575b3": {
+      "arquivo": "828575b3.mp3",
+      "bytes": 64408,
+      "texto": "Atenção: faltam 15 minutos para o limite de direção contínua. Procure um lugar seguro para uma pausa de 45 minutos."
+    },
+    "8301e77b": {
+      "arquivo": "8301e77b.mp3",
+      "bytes": 18015,
+      "texto": "Trecho crítico, próximos 3 quilômetros."
+    },
+    "8356fe2c": {
+      "arquivo": "8356fe2c.mp3",
+      "bytes": 13626,
+      "texto": "Já tem risco à segurança",
+      "tts": "Já tem risco à segurança,"
+    },
+    "8364cdaf": {
+      "arquivo": "8364cdaf.mp3",
+      "bytes": 19478,
+      "texto": "Trecho crítico, próximos 14 quilômetros."
+    },
+    "83ae132a": {
+      "arquivo": "83ae132a.mp3",
+      "bytes": 18433,
+      "texto": "Altura máxima 4,4 metros",
+      "tts": "Altura máxima 4,4 metros,"
+    },
+    "83d3ead4": {
+      "arquivo": "83d3ead4.mp3",
+      "bytes": 10909,
+      "texto": "Em 70 metros,"
+    },
+    "83fafe3b": {
+      "arquivo": "83fafe3b.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar do túnel de 3,1 metros."
+    },
+    "842d8a45": {
+      "arquivo": "842d8a45.mp3",
+      "bytes": 9865,
+      "texto": "Pegue a saída."
+    },
+    "84855692": {
+      "arquivo": "84855692.mp3",
+      "bytes": 27628,
+      "texto": "Rota alterada para desviar do túnel de 3,6 metros."
+    },
+    "84b1ec4b": {
+      "arquivo": "84b1ec4b.mp3",
+      "bytes": 19060,
+      "texto": "Trecho crítico, próximos 29 quilômetros."
+    },
+    "84fb7b54": {
+      "arquivo": "84fb7b54.mp3",
+      "bytes": 7984,
+      "texto": "Anotado!"
+    },
+    "8548e09e": {
+      "arquivo": "8548e09e.mp3",
+      "bytes": 18851,
+      "texto": "Rota ajustada para evitar um túnel baixo."
+    },
+    "859b3470": {
+      "arquivo": "859b3470.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 17 toneladas",
+      "tts": "Limite de peso 17 toneladas,"
+    },
+    "86253053": {
+      "arquivo": "86253053.mp3",
+      "bytes": 18851,
+      "texto": "Trecho crítico, próximos 21 quilômetros."
+    },
+    "8656bb14": {
+      "arquivo": "8656bb14.mp3",
+      "bytes": 25747,
+      "texto": "Rota ajustada para evitar 4 restrições do caminhão."
+    },
+    "8683600c": {
+      "arquivo": "8683600c.mp3",
+      "bytes": 14671,
+      "texto": "Já tem altura máxima aqui perto."
+    },
+    "872eadc7": {
+      "arquivo": "872eadc7.mp3",
+      "bytes": 26165,
+      "texto": "Valeu! Informação boa é igual café: ajuda a viagem."
+    },
+    "874e4458": {
+      "arquivo": "874e4458.mp3",
+      "bytes": 28882,
+      "texto": "Rota alterada para desviar da ponte de 35 toneladas."
+    },
+    "8844e494": {
+      "arquivo": "8844e494.mp3",
+      "bytes": 16134,
+      "texto": "Já tem veículo parado aqui perto."
+    },
+    "889079a7": {
+      "arquivo": "889079a7.mp3",
+      "bytes": 16134,
+      "texto": "Limite de peso 30 toneladas",
+      "tts": "Limite de peso 30 toneladas,"
+    },
+    "88e6f0e0": {
+      "arquivo": "88e6f0e0.mp3",
+      "bytes": 23866,
+      "texto": "Atenção: limite de peso 27 toneladas."
+    },
+    "8936775b": {
+      "arquivo": "8936775b.mp3",
+      "bytes": 13626,
+      "texto": "Em 2,8 quilômetros,"
+    },
+    "89527578": {
+      "arquivo": "89527578.mp3",
+      "bytes": 23866,
+      "texto": "Atenção: altura máxima 3,6 metros."
+    },
+    "8a56ec8a": {
+      "arquivo": "8a56ec8a.mp3",
+      "bytes": 18015,
+      "texto": "Encerrar a navegação? Confirme na tela."
+    },
+    "8aca4088": {
+      "arquivo": "8aca4088.mp3",
+      "bytes": 16552,
+      "texto": "Não sei em que quilômetro você está."
+    },
+    "8ad648a0": {
+      "arquivo": "8ad648a0.mp3",
+      "bytes": 24284,
+      "texto": "Rota ajustada para evitar 8 restrições do caminhão."
+    },
+    "8b16c1bb": {
+      "arquivo": "8b16c1bb.mp3",
+      "bytes": 73812,
+      "texto": "Você completou 4 horas e 30 minutos de direção. Faça uma pausa de 45 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "8b99723c": {
+      "arquivo": "8b99723c.mp3",
+      "bytes": 12372,
+      "texto": "Já tem acidente aqui perto."
+    },
+    "8ba707b8": {
+      "arquivo": "8ba707b8.mp3",
+      "bytes": 28464,
+      "texto": "Rota alterada para desviar da ponte de 4,3 metros."
+    },
+    "8be940be": {
+      "arquivo": "8be940be.mp3",
+      "bytes": 13835,
+      "texto": "Ative o GPS para reportar."
+    },
+    "8beead53": {
+      "arquivo": "8beead53.mp3",
+      "bytes": 19060,
+      "texto": "Limite de peso 78 toneladas",
+      "tts": "Limite de peso 78 toneladas,"
+    },
+    "8caa494e": {
+      "arquivo": "8caa494e.mp3",
+      "bytes": 18015,
+      "texto": "Altura máxima 3,7 metros",
+      "tts": "Altura máxima 3,7 metros,"
+    },
+    "8cfcc006": {
+      "arquivo": "8cfcc006.mp3",
+      "bytes": 12790,
+      "texto": "Em 2,3 quilômetros,"
+    },
+    "8d538980": {
+      "arquivo": "8d538980.mp3",
+      "bytes": 9447,
+      "texto": "Voz ativada."
+    },
+    "8daf8822": {
+      "arquivo": "8daf8822.mp3",
+      "bytes": 28464,
+      "texto": "Rota alterada para desviar da ponte de 4,5 metros."
+    },
+    "8e77de42": {
+      "arquivo": "8e77de42.mp3",
+      "bytes": 19896,
+      "texto": "Trecho crítico, próximos 26 quilômetros."
+    },
+    "8e98868b": {
+      "arquivo": "8e98868b.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: altura máxima 3,7 metros."
+    },
+    "8ebdd3ab": {
+      "arquivo": "8ebdd3ab.mp3",
+      "bytes": 13626,
+      "texto": "Atenção: acidente",
+      "tts": "Atenção: acidente,"
+    },
+    "8edaeb48": {
+      "arquivo": "8edaeb48.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 39 toneladas",
+      "tts": "Limite de peso 39 toneladas,"
+    },
+    "8f4f3fea": {
+      "arquivo": "8f4f3fea.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 46 toneladas",
+      "tts": "Limite de peso 46 toneladas,"
+    },
+    "8fe4c9b6": {
+      "arquivo": "8fe4c9b6.mp3",
+      "bytes": 16134,
+      "texto": "Limite de peso 42 toneladas",
+      "tts": "Limite de peso 42 toneladas,"
+    },
+    "900a98e7": {
+      "arquivo": "900a98e7.mp3",
+      "bytes": 12163,
+      "texto": "Em 1,7 quilômetros,"
+    },
+    "90bfb0f4": {
+      "arquivo": "90bfb0f4.mp3",
+      "bytes": 10492,
+      "texto": "Já tem neblina",
+      "tts": "Já tem neblina,"
+    },
+    "912b8497": {
+      "arquivo": "912b8497.mp3",
+      "bytes": 12790,
+      "texto": "Seu veículo tem 4,3."
+    },
+    "913001c5": {
+      "arquivo": "913001c5.mp3",
+      "bytes": 12372,
+      "texto": "Seu veículo tem 4,1."
+    },
+    "913ab427": {
+      "arquivo": "913ab427.mp3",
+      "bytes": 25747,
+      "texto": "Atenção: limite de peso 59 toneladas."
+    },
+    "924fa562": {
+      "arquivo": "924fa562.mp3",
+      "bytes": 19896,
+      "texto": "Entre na rotatória e pegue a 3ª saída.",
+      "tts": "Entre na rotatória e pegue a terceira saída."
+    },
+    "92baa628": {
+      "arquivo": "92baa628.mp3",
+      "bytes": 18851,
+      "texto": "Limite de peso 84 toneladas",
+      "tts": "Limite de peso 84 toneladas,"
+    },
+    "92dfc37a": {
+      "arquivo": "92dfc37a.mp3",
+      "bytes": 19060,
+      "texto": "Trecho crítico, próximos 17 quilômetros."
+    },
+    "93121533": {
+      "arquivo": "93121533.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 56 toneladas",
+      "tts": "Limite de peso 56 toneladas,"
+    },
+    "936831ac": {
+      "arquivo": "936831ac.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 70 toneladas."
+    },
+    "9379806f": {
+      "arquivo": "9379806f.mp3",
+      "bytes": 17179,
+      "texto": "Limite de peso 96 toneladas",
+      "tts": "Limite de peso 96 toneladas,"
+    },
+    "93af0f6f": {
+      "arquivo": "93af0f6f.mp3",
+      "bytes": 15716,
+      "texto": "Atenção: objeto na pista",
+      "tts": "Atenção: objeto na pista,"
+    },
+    "93c59662": {
+      "arquivo": "93c59662.mp3",
+      "bytes": 14671,
+      "texto": "Acima de 100, limite estimado."
+    },
+    "93d63bc5": {
+      "arquivo": "93d63bc5.mp3",
+      "bytes": 13208,
+      "texto": "Seu veículo tem 74."
+    },
+    "9516eb32": {
+      "arquivo": "9516eb32.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 28 toneladas",
+      "tts": "Limite de peso 28 toneladas,"
+    },
+    "9523598e": {
+      "arquivo": "9523598e.mp3",
+      "bytes": 25538,
+      "texto": "Rota ajustada para evitar 6 restrições do caminhão."
+    },
+    "954c9928": {
+      "arquivo": "954c9928.mp3",
+      "bytes": 10283,
+      "texto": "vire à direita."
+    },
+    "958b7fcc": {
+      "arquivo": "958b7fcc.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: altura máxima 3,2 metros."
+    },
+    "96524a13": {
+      "arquivo": "96524a13.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: altura máxima 1,5 metros."
+    },
+    "9668475b": {
+      "arquivo": "9668475b.mp3",
+      "bytes": 10909,
+      "texto": "Em 1 quilômetro,"
+    },
+    "9746e0e3": {
+      "arquivo": "9746e0e3.mp3",
+      "bytes": 27628,
+      "texto": "Rota alterada para desviar do túnel de 4,6 metros."
+    },
+    "9774802a": {
+      "arquivo": "9774802a.mp3",
+      "bytes": 16552,
+      "texto": "Limite de peso 8 toneladas",
+      "tts": "Limite de peso 8 toneladas,"
+    },
+    "97bb6a6d": {
+      "arquivo": "97bb6a6d.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 40 toneladas."
+    },
+    "98a335bb": {
+      "arquivo": "98a335bb.mp3",
+      "bytes": 14253,
+      "texto": "Altura máxima 5 metros",
+      "tts": "Altura máxima 5 metros,"
+    },
+    "98def9c0": {
+      "arquivo": "98def9c0.mp3",
+      "bytes": 12163,
+      "texto": "você chegará ao destino."
+    },
+    "98e8a5a7": {
+      "arquivo": "98e8a5a7.mp3",
+      "bytes": 16970,
+      "texto": "Limite de peso 7 toneladas",
+      "tts": "Limite de peso 7 toneladas,"
+    },
+    "9909f790": {
+      "arquivo": "9909f790.mp3",
+      "bytes": 28464,
+      "texto": "Rota alterada para desviar do túnel de 4,7 metros."
+    },
+    "99aab505": {
+      "arquivo": "99aab505.mp3",
+      "bytes": 17179,
+      "texto": "Limite de peso 25 toneladas",
+      "tts": "Limite de peso 25 toneladas,"
+    },
+    "9a0ebdcc": {
+      "arquivo": "9a0ebdcc.mp3",
+      "bytes": 15089,
+      "texto": "Acima de 70, limite estimado."
+    },
+    "9a49d851": {
+      "arquivo": "9a49d851.mp3",
+      "bytes": 13626,
+      "texto": "Em 1,5 quilômetros,"
+    },
+    "9a5777a6": {
+      "arquivo": "9a5777a6.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: altura máxima 1,6 metros."
+    },
+    "9a9620eb": {
+      "arquivo": "9a9620eb.mp3",
+      "bytes": 12163,
+      "texto": "entre na via à esquerda."
+    },
+    "9ad74fdd": {
+      "arquivo": "9ad74fdd.mp3",
+      "bytes": 27001,
+      "texto": "Não ouvi nada. Toque em Falar e fale depois do bipe."
+    },
+    "9ad8affb": {
+      "arquivo": "9ad8affb.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 70 toneladas",
+      "tts": "Limite de peso 70 toneladas,"
+    },
+    "9b188746": {
+      "arquivo": "9b188746.mp3",
+      "bytes": 15507,
+      "texto": "Rota atualizada com a internet."
+    },
+    "9b2b60bf": {
+      "arquivo": "9b2b60bf.mp3",
+      "bytes": 11745,
+      "texto": "Trecho crítico à frente."
+    },
+    "9b72280f": {
+      "arquivo": "9b72280f.mp3",
+      "bytes": 27628,
+      "texto": "Rota alterada para desviar da ponte de 3,9 metros."
+    },
+    "9b7c0ffa": {
+      "arquivo": "9b7c0ffa.mp3",
+      "bytes": 25538,
+      "texto": "Rota alterada para desviar de 3 restrições do caminhão."
+    },
+    "9b7fd238": {
+      "arquivo": "9b7fd238.mp3",
+      "bytes": 17179,
+      "texto": "Altura máxima 2,8 metros",
+      "tts": "Altura máxima 2,8 metros,"
+    },
+    "9c3f94ec": {
+      "arquivo": "9c3f94ec.mp3",
+      "bytes": 12790,
+      "texto": "Já tem trânsito parado",
+      "tts": "Já tem trânsito parado,"
+    },
+    "9d1715a1": {
+      "arquivo": "9d1715a1.mp3",
+      "bytes": 15716,
+      "texto": "Atenção: veículo parado",
+      "tts": "Atenção: veículo parado,"
+    },
+    "9d58b8ec": {
+      "arquivo": "9d58b8ec.mp3",
+      "bytes": 12372,
+      "texto": "Pegue a saída à esquerda."
+    },
+    "9d69bd71": {
+      "arquivo": "9d69bd71.mp3",
+      "bytes": 18433,
+      "texto": "Trecho crítico, próximos 5 quilômetros."
+    },
+    "9d6aa230": {
+      "arquivo": "9d6aa230.mp3",
+      "bytes": 12163,
+      "texto": "Radar reportado à frente."
+    },
+    "9da5cf31": {
+      "arquivo": "9da5cf31.mp3",
+      "bytes": 9447,
+      "texto": "a 50 metros."
+    },
+    "9dac1641": {
+      "arquivo": "9dac1641.mp3",
+      "bytes": 9447,
+      "texto": "Mapa completo."
+    },
+    "9e7778b0": {
+      "arquivo": "9e7778b0.mp3",
+      "bytes": 11327,
+      "texto": "Seu veículo tem 40."
+    },
+    "9f3edae3": {
+      "arquivo": "9f3edae3.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar da ponte de 3,5 metros."
+    },
+    "9f8aece0": {
+      "arquivo": "9f8aece0.mp3",
+      "bytes": 18851,
+      "texto": "Trecho com muitos acidentes, 2 quilômetros."
+    },
+    "9f96145d": {
+      "arquivo": "9f96145d.mp3",
+      "bytes": 20523,
+      "texto": "A rota tem 5 restrições para o seu caminhão."
+    },
+    "9fdd63bf": {
+      "arquivo": "9fdd63bf.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar do túnel de 3,5 metros."
+    },
+    "a0250f4c": {
+      "arquivo": "a0250f4c.mp3",
+      "bytes": 18851,
+      "texto": "Limite de peso 44 toneladas",
+      "tts": "Limite de peso 44 toneladas,"
+    },
+    "a0710e14": {
+      "arquivo": "a0710e14.mp3",
+      "bytes": 12372,
+      "texto": "Em 2,9 quilômetros,"
+    },
+    "a08447c9": {
+      "arquivo": "a08447c9.mp3",
+      "bytes": 12790,
+      "texto": "Seu veículo tem 45."
+    },
+    "a0fc239e": {
+      "arquivo": "a0fc239e.mp3",
+      "bytes": 11327,
+      "texto": "saia da rotatória."
+    },
+    "a101f190": {
+      "arquivo": "a101f190.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar da ponte de 3,4 metros."
+    },
+    "a166137e": {
+      "arquivo": "a166137e.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar da ponte de 4,1 metros."
+    },
+    "a1c07846": {
+      "arquivo": "a1c07846.mp3",
+      "bytes": 18851,
+      "texto": "Não há rota nem navegação em andamento."
+    },
+    "a37f7b9d": {
+      "arquivo": "a37f7b9d.mp3",
+      "bytes": 17179,
+      "texto": "Já tem pista escorregadia aqui perto."
+    },
+    "a3c4a049": {
+      "arquivo": "a3c4a049.mp3",
+      "bytes": 20314,
+      "texto": "Trecho com muitos acidentes, 900 metros."
+    },
+    "a441beb7": {
+      "arquivo": "a441beb7.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar da ponte de 50 toneladas."
+    },
+    "a465fcf4": {
+      "arquivo": "a465fcf4.mp3",
+      "bytes": 12372,
+      "texto": "Em 1,2 quilômetros,"
+    },
+    "a4a86cda": {
+      "arquivo": "a4a86cda.mp3",
+      "bytes": 11327,
+      "texto": "Navegação iniciada."
+    },
+    "a548b2a6": {
+      "arquivo": "a548b2a6.mp3",
+      "bytes": 12163,
+      "texto": "Seu veículo tem 60."
+    },
+    "a56ac4e2": {
+      "arquivo": "a56ac4e2.mp3",
+      "bytes": 11745,
+      "texto": "Em 900 metros,"
+    },
+    "a57a0c99": {
+      "arquivo": "a57a0c99.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: altura máxima 3,5 metros."
+    },
+    "a600337f": {
+      "arquivo": "a600337f.mp3",
+      "bytes": 18851,
+      "texto": "Limite de peso 85 toneladas",
+      "tts": "Limite de peso 85 toneladas,"
+    },
+    "a640210a": {
+      "arquivo": "a640210a.mp3",
+      "bytes": 12790,
+      "texto": "Seu veículo tem 3,5."
+    },
+    "a65e361e": {
+      "arquivo": "a65e361e.mp3",
+      "bytes": 12790,
+      "texto": "Seu veículo tem 3,9."
+    },
+    "a6c372f4": {
+      "arquivo": "a6c372f4.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 88 toneladas",
+      "tts": "Limite de peso 88 toneladas,"
+    },
+    "a8314832": {
+      "arquivo": "a8314832.mp3",
+      "bytes": 18015,
+      "texto": "Atenção: pista escorregadia",
+      "tts": "Atenção: pista escorregadia,"
+    },
+    "a8516d51": {
+      "arquivo": "a8516d51.mp3",
+      "bytes": 12372,
+      "texto": "Seu veículo tem 3,2."
+    },
+    "a85d86c6": {
+      "arquivo": "a85d86c6.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 95 toneladas",
+      "tts": "Limite de peso 95 toneladas,"
+    },
+    "a8663c8d": {
+      "arquivo": "a8663c8d.mp3",
+      "bytes": 13835,
+      "texto": "Altura máxima 3 metros",
+      "tts": "Altura máxima 3 metros,"
+    },
+    "a9986add": {
+      "arquivo": "a9986add.mp3",
+      "bytes": 12372,
+      "texto": "Em 2,2 quilômetros,"
+    },
+    "a9c3ca13": {
+      "arquivo": "a9c3ca13.mp3",
+      "bytes": 23239,
+      "texto": "O alerta aberto é de outro tipo. Responda na tela."
+    },
+    "aa801d72": {
+      "arquivo": "aa801d72.mp3",
+      "bytes": 18851,
+      "texto": "Limite de peso 64 toneladas",
+      "tts": "Limite de peso 64 toneladas,"
+    },
+    "aacc51fc": {
+      "arquivo": "aacc51fc.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: altura máxima 1,8 metros."
+    },
+    "ab76a9ce": {
+      "arquivo": "ab76a9ce.mp3",
+      "bytes": 23657,
+      "texto": "Rota alterada para desviar do túnel de 5 metros."
+    },
+    "abdeb7e1": {
+      "arquivo": "abdeb7e1.mp3",
+      "bytes": 13208,
+      "texto": "Atenção: neblina",
+      "tts": "Atenção: neblina,"
+    },
+    "abf0068d": {
+      "arquivo": "abf0068d.mp3",
+      "bytes": 28882,
+      "texto": "Rota alterada para desviar do túnel de 3,7 metros."
+    },
+    "ac6662ba": {
+      "arquivo": "ac6662ba.mp3",
+      "bytes": 25538,
+      "texto": "Atenção: limite de peso 47 toneladas."
+    },
+    "ad14ecfa": {
+      "arquivo": "ad14ecfa.mp3",
+      "bytes": 9865,
+      "texto": "Valeu, anotado."
+    },
+    "ad413071": {
+      "arquivo": "ad413071.mp3",
+      "bytes": 12790,
+      "texto": "siga pela rota destacada."
+    },
+    "ad8e13bc": {
+      "arquivo": "ad8e13bc.mp3",
+      "bytes": 11745,
+      "texto": "você chegará à parada."
+    },
+    "adad8f5a": {
+      "arquivo": "adad8f5a.mp3",
+      "bytes": 22194,
+      "texto": "Atenção: limite de peso 3 toneladas."
+    },
+    "adfd5e20": {
+      "arquivo": "adfd5e20.mp3",
+      "bytes": 19060,
+      "texto": "Limite de peso 75 toneladas",
+      "tts": "Limite de peso 75 toneladas,"
+    },
+    "aed3327f": {
+      "arquivo": "aed3327f.mp3",
+      "bytes": 13208,
+      "texto": "Já tem buraco na pista",
+      "tts": "Já tem buraco na pista,"
+    },
+    "af557a80": {
+      "arquivo": "af557a80.mp3",
+      "bytes": 19896,
+      "texto": "Faltam 200 quilômetros pela rota destacada."
+    },
+    "b0cf26cb": {
+      "arquivo": "b0cf26cb.mp3",
+      "bytes": 15507,
+      "texto": "Acima de 110, limite estimado."
+    },
+    "b169a2cc": {
+      "arquivo": "b169a2cc.mp3",
+      "bytes": 12372,
+      "texto": "pegue a saída à esquerda."
+    },
+    "b1a7d331": {
+      "arquivo": "b1a7d331.mp3",
+      "bytes": 12372,
+      "texto": "Em 750 metros,"
+    },
+    "b22041b9": {
+      "arquivo": "b22041b9.mp3",
+      "bytes": 16970,
+      "texto": "Limite de peso 90 toneladas",
+      "tts": "Limite de peso 90 toneladas,"
+    },
+    "b2633fb7": {
+      "arquivo": "b2633fb7.mp3",
+      "bytes": 19896,
+      "texto": "Trecho com muitos acidentes, 700 metros."
+    },
+    "b2b1f490": {
+      "arquivo": "b2b1f490.mp3",
+      "bytes": 19478,
+      "texto": "Entre na rotatória e pegue a 1ª saída.",
+      "tts": "Entre na rotatória e pegue a primeira saída."
+    },
+    "b2be05d8": {
+      "arquivo": "b2be05d8.mp3",
+      "bytes": 18433,
+      "texto": "Trecho crítico, próximos 15 quilômetros."
+    },
+    "b3a4e27c": {
+      "arquivo": "b3a4e27c.mp3",
+      "bytes": 11327,
+      "texto": "Seu veículo tem 4."
+    },
+    "b3c3ed1c": {
+      "arquivo": "b3c3ed1c.mp3",
+      "bytes": 12163,
+      "texto": "Você chegará à parada."
+    },
+    "b3caa131": {
+      "arquivo": "b3caa131.mp3",
+      "bytes": 19060,
+      "texto": "Possível restrição de peso por eixo, confira."
+    },
+    "b4a0d885": {
+      "arquivo": "b4a0d885.mp3",
+      "bytes": 11745,
+      "texto": "Já tem radar móvel",
+      "tts": "Já tem radar móvel,"
+    },
+    "b4acc03b": {
+      "arquivo": "b4acc03b.mp3",
+      "bytes": 18015,
+      "texto": "Altura máxima 4,5 metros",
+      "tts": "Altura máxima 4,5 metros,"
+    },
+    "b4f18f00": {
+      "arquivo": "b4f18f00.mp3",
+      "bytes": 25747,
+      "texto": "Atenção: limite de peso 56 toneladas."
+    },
+    "b56ee57b": {
+      "arquivo": "b56ee57b.mp3",
+      "bytes": 25747,
+      "texto": "Atenção: limite de peso 55 toneladas."
+    },
+    "b5bd76cc": {
+      "arquivo": "b5bd76cc.mp3",
+      "bytes": 62527,
+      "texto": "Você completou 6 horas de direção. Faça uma pausa de 45 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "b5c93643": {
+      "arquivo": "b5c93643.mp3",
+      "bytes": 27001,
+      "texto": "Rota alterada para desviar da ponte de 5 toneladas."
+    },
+    "b5ec364e": {
+      "arquivo": "b5ec364e.mp3",
+      "bytes": 16134,
+      "texto": "Altura máxima 5,1 metros",
+      "tts": "Altura máxima 5,1 metros,"
+    },
+    "b6c1a6f1": {
+      "arquivo": "b6c1a6f1.mp3",
+      "bytes": 28464,
+      "texto": "Rota alterada para desviar do túnel de 4,4 metros."
+    },
+    "b73ea97e": {
+      "arquivo": "b73ea97e.mp3",
+      "bytes": 12790,
+      "texto": "Você chegou ao seu destino."
+    },
+    "b7f6c1bb": {
+      "arquivo": "b7f6c1bb.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: altura máxima 2,6 metros."
+    },
+    "b82564da": {
+      "arquivo": "b82564da.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: limite de peso 61 toneladas."
+    },
+    "b8811a12": {
+      "arquivo": "b8811a12.mp3",
+      "bytes": 22821,
+      "texto": "Atenção: altura máxima 2,1 metros."
+    },
+    "b944c6ca": {
+      "arquivo": "b944c6ca.mp3",
+      "bytes": 10283,
+      "texto": "Em 90 metros,"
+    },
+    "b9494311": {
+      "arquivo": "b9494311.mp3",
+      "bytes": 19896,
+      "texto": "Atenção: altura máxima 2 metros."
+    },
+    "b9557822": {
+      "arquivo": "b9557822.mp3",
+      "bytes": 18851,
+      "texto": "Limite de peso 99 toneladas",
+      "tts": "Limite de peso 99 toneladas,"
+    },
+    "bc2697b7": {
+      "arquivo": "bc2697b7.mp3",
+      "bytes": 18433,
+      "texto": "Trecho com muitos acidentes, 3 quilômetros."
+    },
+    "bc518236": {
+      "arquivo": "bc518236.mp3",
+      "bytes": 62318,
+      "texto": "Atenção: faltam 30 minutos para o limite de direção contínua. Procure um lugar seguro para uma pausa de 30 minutos."
+    },
+    "bcc79a08": {
+      "arquivo": "bcc79a08.mp3",
+      "bytes": 10283,
+      "texto": "Vire à direita."
+    },
+    "bd0d08de": {
+      "arquivo": "bd0d08de.mp3",
+      "bytes": 16970,
+      "texto": "Limite de peso 60 toneladas",
+      "tts": "Limite de peso 60 toneladas,"
+    },
+    "bd69ad77": {
+      "arquivo": "bd69ad77.mp3",
+      "bytes": 18851,
+      "texto": "Limite de peso 74 toneladas",
+      "tts": "Limite de peso 74 toneladas,"
+    },
+    "bda87bbb": {
+      "arquivo": "bda87bbb.mp3",
+      "bytes": 12163,
+      "texto": "Em 1,3 quilômetros,"
+    },
+    "bdbd7bd5": {
+      "arquivo": "bdbd7bd5.mp3",
+      "bytes": 19060,
+      "texto": "Trecho com muitos acidentes, 500 metros."
+    },
+    "bdd79494": {
+      "arquivo": "bdd79494.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: limite de peso 41 toneladas."
+    },
+    "be08cb79": {
+      "arquivo": "be08cb79.mp3",
+      "bytes": 26583,
+      "texto": "Atenção: limite de peso 44 toneladas."
+    },
+    "be390c90": {
+      "arquivo": "be390c90.mp3",
+      "bytes": 13208,
+      "texto": "Nenhum alerta aberto agora."
+    },
+    "be658c1c": {
+      "arquivo": "be658c1c.mp3",
+      "bytes": 17179,
+      "texto": "Limite de peso 93 toneladas",
+      "tts": "Limite de peso 93 toneladas,"
+    },
+    "beb9a0f1": {
+      "arquivo": "beb9a0f1.mp3",
+      "bytes": 28882,
+      "texto": "Rota alterada para desviar da ponte de 3,7 metros."
+    },
+    "bee83a10": {
+      "arquivo": "bee83a10.mp3",
+      "bytes": 11745,
+      "texto": "a 400 metros."
+    },
+    "bef4ed6a": {
+      "arquivo": "bef4ed6a.mp3",
+      "bytes": 12372,
+      "texto": "Em 1,4 quilômetros,"
+    },
+    "bf63d421": {
+      "arquivo": "bf63d421.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: altura máxima 1,7 metros."
+    },
+    "bf936e8b": {
+      "arquivo": "bf936e8b.mp3",
+      "bytes": 16552,
+      "texto": "Limite de peso 12 toneladas",
+      "tts": "Limite de peso 12 toneladas,"
+    },
+    "c0012aab": {
+      "arquivo": "c0012aab.mp3",
+      "bytes": 20523,
+      "texto": "A rota tem 7 restrições para o seu caminhão."
+    },
+    "c0aabc63": {
+      "arquivo": "c0aabc63.mp3",
+      "bytes": 16552,
+      "texto": "Altura máxima 3,2 metros",
+      "tts": "Altura máxima 3,2 metros,"
+    },
+    "c0baa37f": {
+      "arquivo": "c0baa37f.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: limite de peso 37 toneladas."
+    },
+    "c1a14a56": {
+      "arquivo": "c1a14a56.mp3",
+      "bytes": 13208,
+      "texto": "Atenção: radar móvel",
+      "tts": "Atenção: radar móvel,"
+    },
+    "c1c27624": {
+      "arquivo": "c1c27624.mp3",
+      "bytes": 18015,
+      "texto": "Trecho crítico, próximos 11 quilômetros."
+    },
+    "c1e051ec": {
+      "arquivo": "c1e051ec.mp3",
+      "bytes": 18433,
+      "texto": "Trecho crítico, próximos 19 quilômetros."
+    },
+    "c2270f84": {
+      "arquivo": "c2270f84.mp3",
+      "bytes": 12790,
+      "texto": "Faça o retorno à esquerda."
+    },
+    "c22fae63": {
+      "arquivo": "c22fae63.mp3",
+      "bytes": 13626,
+      "texto": "Vire levemente à esquerda."
+    },
+    "c2818952": {
+      "arquivo": "c2818952.mp3",
+      "bytes": 9865,
+      "texto": "Em 10 metros,"
+    },
+    "c29d9f4d": {
+      "arquivo": "c29d9f4d.mp3",
+      "bytes": 12790,
+      "texto": "a 450 metros."
+    },
+    "c3945608": {
+      "arquivo": "c3945608.mp3",
+      "bytes": 15716,
+      "texto": "Limite de peso 40 toneladas",
+      "tts": "Limite de peso 40 toneladas,"
+    },
+    "c3de051e": {
+      "arquivo": "c3de051e.mp3",
+      "bytes": 18015,
+      "texto": "Altura máxima 4,8 metros",
+      "tts": "Altura máxima 4,8 metros,"
+    },
+    "c41de4ea": {
+      "arquivo": "c41de4ea.mp3",
+      "bytes": 10283,
+      "texto": "a 60 metros."
+    },
+    "c450a069": {
+      "arquivo": "c450a069.mp3",
+      "bytes": 61483,
+      "texto": "Atenção: faltam 30 minutos para o limite de direção contínua. Procure um lugar seguro para uma pausa de 15 minutos."
+    },
+    "c46fc70d": {
+      "arquivo": "c46fc70d.mp3",
+      "bytes": 17597,
+      "texto": "Altura máxima 4,3 metros",
+      "tts": "Altura máxima 4,3 metros,"
+    },
+    "c4abada0": {
+      "arquivo": "c4abada0.mp3",
+      "bytes": 12163,
+      "texto": "Em 1,6 quilômetros,"
+    },
+    "c50b26d6": {
+      "arquivo": "c50b26d6.mp3",
+      "bytes": 10492,
+      "texto": "Em 50 metros,"
+    },
+    "c5777e37": {
+      "arquivo": "c5777e37.mp3",
+      "bytes": 9865,
+      "texto": "a 30 metros."
+    },
+    "c60cbb13": {
+      "arquivo": "c60cbb13.mp3",
+      "bytes": 18851,
+      "texto": "Trecho crítico, próximos 18 quilômetros."
+    },
+    "c6118197": {
+      "arquivo": "c6118197.mp3",
+      "bytes": 16134,
+      "texto": "Atenção: trânsito parado",
+      "tts": "Atenção: trânsito parado,"
+    },
+    "c64f5df4": {
+      "arquivo": "c64f5df4.mp3",
+      "bytes": 12372,
+      "texto": "Seu veículo tem 3,3."
+    },
+    "c6a13e3f": {
+      "arquivo": "c6a13e3f.mp3",
+      "bytes": 24702,
+      "texto": "Atenção: altura máxima 4,4 metros."
+    },
+    "c6a48cde": {
+      "arquivo": "c6a48cde.mp3",
+      "bytes": 10909,
+      "texto": "destino à direita."
+    },
+    "c71c59a3": {
+      "arquivo": "c71c59a3.mp3",
+      "bytes": 27628,
+      "texto": "Rota alterada para desviar da ponte de 25 toneladas."
+    },
+    "c775f18f": {
+      "arquivo": "c775f18f.mp3",
+      "bytes": 23866,
+      "texto": "Atenção: altura máxima 3,3 metros."
+    },
+    "c783cfc9": {
+      "arquivo": "c783cfc9.mp3",
+      "bytes": 14671,
+      "texto": "Já tem pista escorregadia",
+      "tts": "Já tem pista escorregadia,"
+    },
+    "c8429527": {
+      "arquivo": "c8429527.mp3",
+      "bytes": 12790,
+      "texto": "Seu veículo tem 3,4."
+    },
+    "c860aa3b": {
+      "arquivo": "c860aa3b.mp3",
+      "bytes": 12163,
+      "texto": "Seu veículo tem 3,8."
+    },
+    "c94ef8ee": {
+      "arquivo": "c94ef8ee.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar do túnel de 3,2 metros."
+    },
+    "c97815e9": {
+      "arquivo": "c97815e9.mp3",
+      "bytes": 9865,
+      "texto": "Escolha na tela."
+    },
+    "cb19c7cb": {
+      "arquivo": "cb19c7cb.mp3",
+      "bytes": 9029,
+      "texto": "Siga em frente."
+    },
+    "cb216189": {
+      "arquivo": "cb216189.mp3",
+      "bytes": 20314,
+      "texto": "A rota tem 9 restrições para o seu caminhão."
+    },
+    "cb60b08b": {
+      "arquivo": "cb60b08b.mp3",
+      "bytes": 13208,
+      "texto": "Você já votou neste relato."
+    },
+    "cbeef84d": {
+      "arquivo": "cbeef84d.mp3",
+      "bytes": 15507,
+      "texto": "Acima de 60, limite estimado."
+    },
+    "cc877490": {
+      "arquivo": "cc877490.mp3",
+      "bytes": 16970,
+      "texto": "Limite de peso 31 toneladas",
+      "tts": "Limite de peso 31 toneladas,"
+    },
+    "ccf6b508": {
+      "arquivo": "ccf6b508.mp3",
+      "bytes": 12372,
+      "texto": "Pegue a saída à direita."
+    },
+    "ccfd8d70": {
+      "arquivo": "ccfd8d70.mp3",
+      "bytes": 17179,
+      "texto": "Limite de peso 62 toneladas",
+      "tts": "Limite de peso 62 toneladas,"
+    },
+    "cd79730a": {
+      "arquivo": "cd79730a.mp3",
+      "bytes": 11745,
+      "texto": "Acima do limite de 20."
+    },
+    "cd9e51a4": {
+      "arquivo": "cd9e51a4.mp3",
+      "bytes": 13626,
+      "texto": "Altura máxima 2 metros",
+      "tts": "Altura máxima 2 metros,"
+    },
+    "cdd841c7": {
+      "arquivo": "cdd841c7.mp3",
+      "bytes": 20523,
+      "texto": "Atenção: altura máxima 4 metros."
+    },
+    "cddd50ca": {
+      "arquivo": "cddd50ca.mp3",
+      "bytes": 12372,
+      "texto": "Em 650 metros,"
+    },
+    "cfd9c68b": {
+      "arquivo": "cfd9c68b.mp3",
+      "bytes": 19478,
+      "texto": "Faltam 50 quilômetros pela rota destacada."
+    },
+    "d00eafb6": {
+      "arquivo": "d00eafb6.mp3",
+      "bytes": 28464,
+      "texto": "Rota alterada para desviar da ponte de 4,9 metros."
+    },
+    "d058e78d": {
+      "arquivo": "d058e78d.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 4 toneladas."
+    },
+    "d07d1d2d": {
+      "arquivo": "d07d1d2d.mp3",
+      "bytes": 12790,
+      "texto": "vire levemente à direita."
+    },
+    "d086fd5a": {
+      "arquivo": "d086fd5a.mp3",
+      "bytes": 18433,
+      "texto": "A rota tem 1 restrição para o seu caminhão."
+    },
+    "d154ac61": {
+      "arquivo": "d154ac61.mp3",
+      "bytes": 14253,
+      "texto": "Já tem radar móvel aqui perto."
+    },
+    "d159429c": {
+      "arquivo": "d159429c.mp3",
+      "bytes": 10909,
+      "texto": "Já tem alagamento",
+      "tts": "Já tem alagamento,"
+    },
+    "d1b34a64": {
+      "arquivo": "d1b34a64.mp3",
+      "bytes": 9865,
+      "texto": "continue em frente."
+    },
+    "d2389de8": {
+      "arquivo": "d2389de8.mp3",
+      "bytes": 13208,
+      "texto": "Trecho com muitos acidentes."
+    },
+    "d26c20ca": {
+      "arquivo": "d26c20ca.mp3",
+      "bytes": 23866,
+      "texto": "Atenção: limite de peso 25 toneladas."
+    },
+    "d36009ad": {
+      "arquivo": "d36009ad.mp3",
+      "bytes": 11745,
+      "texto": "Em 800 metros,"
+    },
+    "d3a342f9": {
+      "arquivo": "d3a342f9.mp3",
+      "bytes": 12790,
+      "texto": "Em 2,6 quilômetros,"
+    },
+    "d3d0189c": {
+      "arquivo": "d3d0189c.mp3",
+      "bytes": 17597,
+      "texto": "Altura máxima 2,4 metros",
+      "tts": "Altura máxima 2,4 metros,"
+    },
+    "d3d9273f": {
+      "arquivo": "d3d9273f.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: altura máxima 2,2 metros."
+    },
+    "d400e5c3": {
+      "arquivo": "d400e5c3.mp3",
+      "bytes": 60020,
+      "texto": "Atenção: faltam 1 hora para o limite de direção contínua. Procure um lugar seguro para uma pausa de 30 minutos."
+    },
+    "d4188f6f": {
+      "arquivo": "d4188f6f.mp3",
+      "bytes": 11745,
+      "texto": "Atenção: balança",
+      "tts": "Atenção: balança,"
+    },
+    "d44b914c": {
+      "arquivo": "d44b914c.mp3",
+      "bytes": 41838,
+      "texto": "Voz ativada. Se não ouviu, aumente o volume e desligue o modo silencioso."
+    },
+    "d4ba36a6": {
+      "arquivo": "d4ba36a6.mp3",
+      "bytes": 19896,
+      "texto": "Trecho com muitos acidentes, 800 metros."
+    },
+    "d5848006": {
+      "arquivo": "d5848006.mp3",
+      "bytes": 68170,
+      "texto": "Atenção: faltam 45 minutos para o limite de direção contínua. Procure um lugar seguro para uma pausa de 45 minutos."
+    },
+    "d5d7fdc8": {
+      "arquivo": "d5d7fdc8.mp3",
+      "bytes": 14671,
+      "texto": "Acima de 30, limite estimado."
+    },
+    "d62bcd0b": {
+      "arquivo": "d62bcd0b.mp3",
+      "bytes": 18015,
+      "texto": "Trecho crítico, próximos 10 quilômetros."
+    },
+    "d7155e23": {
+      "arquivo": "d7155e23.mp3",
+      "bytes": 22194,
+      "texto": "Atenção: limite de peso 11 toneladas."
+    },
+    "d75440cf": {
+      "arquivo": "d75440cf.mp3",
+      "bytes": 18015,
+      "texto": "Altura máxima 3,6 metros",
+      "tts": "Altura máxima 3,6 metros,"
+    },
+    "d7bab669": {
+      "arquivo": "d7bab669.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 47 toneladas",
+      "tts": "Limite de peso 47 toneladas,"
+    },
+    "d7d1598e": {
+      "arquivo": "d7d1598e.mp3",
+      "bytes": 38913,
+      "texto": "Teste de voz do Copiloto. Se você está ouvindo isto, os alertas vão funcionar."
+    },
+    "d803d519": {
+      "arquivo": "d803d519.mp3",
+      "bytes": 19060,
+      "texto": "Limite de peso 54 toneladas",
+      "tts": "Limite de peso 54 toneladas,"
+    },
+    "d8b92076": {
+      "arquivo": "d8b92076.mp3",
+      "bytes": 10909,
+      "texto": "Seu veículo tem 15."
+    },
+    "d8e36047": {
+      "arquivo": "d8e36047.mp3",
+      "bytes": 19896,
+      "texto": "entre na rotatória e pegue a 4ª saída.",
+      "tts": "entre na rotatória e pegue a quarta saída."
+    },
+    "dad0bd0d": {
+      "arquivo": "dad0bd0d.mp3",
+      "bytes": 25120,
+      "texto": "Atenção: limite de peso 66 toneladas."
+    },
+    "daf6f7f0": {
+      "arquivo": "daf6f7f0.mp3",
+      "bytes": 11745,
+      "texto": "Em 3 quilômetros,"
+    },
+    "dbafb81b": {
+      "arquivo": "dbafb81b.mp3",
+      "bytes": 10492,
+      "texto": "Em 40 metros,"
+    },
+    "dca79439": {
+      "arquivo": "dca79439.mp3",
+      "bytes": 13208,
+      "texto": "Já tem animal na pista",
+      "tts": "Já tem animal na pista,"
+    },
+    "dcdfa090": {
+      "arquivo": "dcdfa090.mp3",
+      "bytes": 15089,
+      "texto": "Limite de peso 6 toneladas",
+      "tts": "Limite de peso 6 toneladas,"
+    },
+    "dcf0b3a2": {
+      "arquivo": "dcf0b3a2.mp3",
+      "bytes": 16970,
+      "texto": "Altura máxima 2,2 metros",
+      "tts": "Altura máxima 2,2 metros,"
+    },
+    "dd6fd5d6": {
+      "arquivo": "dd6fd5d6.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 68 toneladas",
+      "tts": "Limite de peso 68 toneladas,"
+    },
+    "dd70f954": {
+      "arquivo": "dd70f954.mp3",
+      "bytes": 17597,
+      "texto": "Trecho crítico, próximos 2 quilômetros."
+    },
+    "ddf93908": {
+      "arquivo": "ddf93908.mp3",
+      "bytes": 17597,
+      "texto": "Trecho crítico, próximos 6 quilômetros."
+    },
+    "de0ef9c9": {
+      "arquivo": "de0ef9c9.mp3",
+      "bytes": 17597,
+      "texto": "Altura máxima 5,6 metros",
+      "tts": "Altura máxima 5,6 metros,"
+    },
+    "defdc596": {
+      "arquivo": "defdc596.mp3",
+      "bytes": 19896,
+      "texto": "Atenção: altura máxima 3 metros."
+    },
+    "df87313d": {
+      "arquivo": "df87313d.mp3",
+      "bytes": 12163,
+      "texto": "Em 1,9 quilômetros,"
+    },
+    "dfb5e652": {
+      "arquivo": "dfb5e652.mp3",
+      "bytes": 17179,
+      "texto": "Altura máxima 3,3 metros",
+      "tts": "Altura máxima 3,3 metros,"
+    },
+    "e0988825": {
+      "arquivo": "e0988825.mp3",
+      "bytes": 18015,
+      "texto": "Limite de peso 43 toneladas",
+      "tts": "Limite de peso 43 toneladas,"
+    },
+    "e09d78a4": {
+      "arquivo": "e09d78a4.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: limite de peso 23 toneladas."
+    },
+    "e0e6355c": {
+      "arquivo": "e0e6355c.mp3",
+      "bytes": 23866,
+      "texto": "Rota alterada para desviar do túnel de 3 metros."
+    },
+    "e16fac18": {
+      "arquivo": "e16fac18.mp3",
+      "bytes": 16134,
+      "texto": "Já tem risco à segurança aqui perto."
+    },
+    "e2534c0f": {
+      "arquivo": "e2534c0f.mp3",
+      "bytes": 22194,
+      "texto": "Atenção: limite de peso 20 toneladas."
+    },
+    "e2ee2c6d": {
+      "arquivo": "e2ee2c6d.mp3",
+      "bytes": 12163,
+      "texto": "Já tem obra aqui perto."
+    },
+    "e349e11b": {
+      "arquivo": "e349e11b.mp3",
+      "bytes": 15716,
+      "texto": "Atenção: altura máxima",
+      "tts": "Atenção: altura máxima,"
+    },
+    "e37b2745": {
+      "arquivo": "e37b2745.mp3",
+      "bytes": 19478,
+      "texto": "Entre na rotatória e pegue a 2ª saída.",
+      "tts": "Entre na rotatória e pegue a segunda saída."
+    },
+    "e3be12b7": {
+      "arquivo": "e3be12b7.mp3",
+      "bytes": 11745,
+      "texto": "Em 200 metros,"
+    },
+    "e3e44001": {
+      "arquivo": "e3e44001.mp3",
+      "bytes": 11745,
+      "texto": "Em 400 metros,"
+    },
+    "e43e9faf": {
+      "arquivo": "e43e9faf.mp3",
+      "bytes": 25120,
+      "texto": "Atenção: limite de peso 51 toneladas."
+    },
+    "e4dd60a9": {
+      "arquivo": "e4dd60a9.mp3",
+      "bytes": 25538,
+      "texto": "Atenção: limite de peso 57 toneladas."
+    },
+    "e4f3c291": {
+      "arquivo": "e4f3c291.mp3",
+      "bytes": 16134,
+      "texto": "Limite de peso 10 toneladas",
+      "tts": "Limite de peso 10 toneladas,"
+    },
+    "e5c880cc": {
+      "arquivo": "e5c880cc.mp3",
+      "bytes": 25747,
+      "texto": "Rota alterada para desviar de 5 restrições do caminhão."
+    },
+    "e6378471": {
+      "arquivo": "e6378471.mp3",
+      "bytes": 15089,
+      "texto": "Limite de peso 100 toneladas",
+      "tts": "Limite de peso 100 toneladas,"
+    },
+    "e65097e3": {
+      "arquivo": "e65097e3.mp3",
+      "bytes": 16552,
+      "texto": "Já tem limite de peso aqui perto."
+    },
+    "e7205f58": {
+      "arquivo": "e7205f58.mp3",
+      "bytes": 27210,
+      "texto": "Rota alterada para desviar da ponte de 40 toneladas."
+    },
+    "e7719534": {
+      "arquivo": "e7719534.mp3",
+      "bytes": 12790,
+      "texto": "Já tem balança aqui perto."
+    },
+    "e77ee424": {
+      "arquivo": "e77ee424.mp3",
+      "bytes": 28046,
+      "texto": "Rota alterada para desviar do túnel de 4,3 metros."
+    },
+    "e814ed11": {
+      "arquivo": "e814ed11.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: limite de peso 13 toneladas."
+    },
+    "e8db56ed": {
+      "arquivo": "e8db56ed.mp3",
+      "bytes": 9865,
+      "texto": "Em 20 metros,"
+    },
+    "e8dbe01d": {
+      "arquivo": "e8dbe01d.mp3",
+      "bytes": 9447,
+      "texto": "pegue a rampa."
+    },
+    "e8f89d29": {
+      "arquivo": "e8f89d29.mp3",
+      "bytes": 16970,
+      "texto": "Possível restrição de altura, confira."
+    },
+    "e9993f7c": {
+      "arquivo": "e9993f7c.mp3",
+      "bytes": 11327,
+      "texto": "Trecho com lombadas."
+    },
+    "e9a7dc24": {
+      "arquivo": "e9a7dc24.mp3",
+      "bytes": 17597,
+      "texto": "Altura máxima 4,2 metros",
+      "tts": "Altura máxima 4,2 metros,"
+    },
+    "e9eca963": {
+      "arquivo": "e9eca963.mp3",
+      "bytes": 18015,
+      "texto": "Altura máxima 5,4 metros",
+      "tts": "Altura máxima 5,4 metros,"
+    },
+    "ea5472b7": {
+      "arquivo": "ea5472b7.mp3",
+      "bytes": 17179,
+      "texto": "Altura máxima 5,8 metros",
+      "tts": "Altura máxima 5,8 metros,"
+    },
+    "ea6ae62c": {
+      "arquivo": "ea6ae62c.mp3",
+      "bytes": 18433,
+      "texto": "Trecho crítico, próximos 20 quilômetros."
+    },
+    "eaa25215": {
+      "arquivo": "eaa25215.mp3",
+      "bytes": 19060,
+      "texto": "Trecho crítico, próximos 23 quilômetros."
+    },
+    "eb07dee5": {
+      "arquivo": "eb07dee5.mp3",
+      "bytes": 24702,
+      "texto": "Atenção: limite de peso 71 toneladas."
+    },
+    "eb6f17c4": {
+      "arquivo": "eb6f17c4.mp3",
+      "bytes": 25538,
+      "texto": "Atenção: limite de peso 52 toneladas."
+    },
+    "eb7312f8": {
+      "arquivo": "eb7312f8.mp3",
+      "bytes": 13835,
+      "texto": "Altura máxima 6 metros",
+      "tts": "Altura máxima 6 metros,"
+    },
+    "eb8434a9": {
+      "arquivo": "eb8434a9.mp3",
+      "bytes": 16134,
+      "texto": "Limite de peso 9 toneladas",
+      "tts": "Limite de peso 9 toneladas,"
+    },
+    "ebcbd800": {
+      "arquivo": "ebcbd800.mp3",
+      "bytes": 11745,
+      "texto": "Seu veículo tem 2,6."
+    },
+    "ebecc3e8": {
+      "arquivo": "ebecc3e8.mp3",
+      "bytes": 16970,
+      "texto": "Limite de peso 26 toneladas",
+      "tts": "Limite de peso 26 toneladas,"
+    },
+    "ec4508e0": {
+      "arquivo": "ec4508e0.mp3",
+      "bytes": 13208,
+      "texto": "Seu veículo tem 57."
+    },
+    "edf2d6ca": {
+      "arquivo": "edf2d6ca.mp3",
+      "bytes": 23657,
+      "texto": "Rota ajustada para evitar uma restrição do caminhão."
+    },
+    "ee25cbf4": {
+      "arquivo": "ee25cbf4.mp3",
+      "bytes": 16970,
+      "texto": "Limite de peso 13 toneladas",
+      "tts": "Limite de peso 13 toneladas,"
+    },
+    "ee5592b3": {
+      "arquivo": "ee5592b3.mp3",
+      "bytes": 61483,
+      "texto": "Atenção: faltam 15 minutos para o limite de direção contínua. Procure um lugar seguro para uma pausa de 30 minutos."
+    },
+    "ef3083d0": {
+      "arquivo": "ef3083d0.mp3",
+      "bytes": 7566,
+      "texto": "É o mesmo?"
+    },
+    "ef4b3cdd": {
+      "arquivo": "ef4b3cdd.mp3",
+      "bytes": 28046,
+      "texto": "Rota alterada para desviar do túnel de 4,8 metros."
+    },
+    "ef90d180": {
+      "arquivo": "ef90d180.mp3",
+      "bytes": 28882,
+      "texto": "Rota alterada para desviar do túnel de 3,8 metros."
+    },
+    "ef9d0515": {
+      "arquivo": "ef9d0515.mp3",
+      "bytes": 28464,
+      "texto": "Rota alterada para desviar da ponte de 3,3 metros."
+    },
+    "f012d36e": {
+      "arquivo": "f012d36e.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: altura máxima 4,3 metros."
+    },
+    "f05580e1": {
+      "arquivo": "f05580e1.mp3",
+      "bytes": 25120,
+      "texto": "Rota alterada para desviar de 8 restrições do caminhão."
+    },
+    "f0aeb21d": {
+      "arquivo": "f0aeb21d.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 76 toneladas",
+      "tts": "Limite de peso 76 toneladas,"
+    },
+    "f13ab4f9": {
+      "arquivo": "f13ab4f9.mp3",
+      "bytes": 9865,
+      "texto": "Já tem obra",
+      "tts": "Já tem obra,"
+    },
+    "f18f8eb0": {
+      "arquivo": "f18f8eb0.mp3",
+      "bytes": 19896,
+      "texto": "entre na rotatória e pegue a 1ª saída.",
+      "tts": "entre na rotatória e pegue a primeira saída."
+    },
+    "f19ee635": {
+      "arquivo": "f19ee635.mp3",
+      "bytes": 10492,
+      "texto": "Curva forte à frente."
+    },
+    "f1a17e2b": {
+      "arquivo": "f1a17e2b.mp3",
+      "bytes": 10283,
+      "texto": "siga em frente."
+    },
+    "f1ad3be5": {
+      "arquivo": "f1ad3be5.mp3",
+      "bytes": 9865,
+      "texto": "pegue a saída."
+    },
+    "f203cc64": {
+      "arquivo": "f203cc64.mp3",
+      "bytes": 18851,
+      "texto": "Trecho crítico, próximos 28 quilômetros."
+    },
+    "f269ebb1": {
+      "arquivo": "f269ebb1.mp3",
+      "bytes": 18851,
+      "texto": "Limite de peso 36 toneladas",
+      "tts": "Limite de peso 36 toneladas,"
+    },
+    "f404c79d": {
+      "arquivo": "f404c79d.mp3",
+      "bytes": 12372,
+      "texto": "Seu veículo tem 23."
+    },
+    "f47ac47f": {
+      "arquivo": "f47ac47f.mp3",
+      "bytes": 62945,
+      "texto": "Você completou 5 horas de direção. Faça uma pausa de 45 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "f48db745": {
+      "arquivo": "f48db745.mp3",
+      "bytes": 18433,
+      "texto": "Limite de peso 69 toneladas",
+      "tts": "Limite de peso 69 toneladas,"
+    },
+    "f519aff6": {
+      "arquivo": "f519aff6.mp3",
+      "bytes": 26583,
+      "texto": "Rota alterada para desviar da ponte de 15 toneladas."
+    },
+    "f5387df3": {
+      "arquivo": "f5387df3.mp3",
+      "bytes": 16970,
+      "texto": "Altura máxima 2,3 metros",
+      "tts": "Altura máxima 2,3 metros,"
+    },
+    "f56b44bb": {
+      "arquivo": "f56b44bb.mp3",
+      "bytes": 10492,
+      "texto": "Rota cancelada."
+    },
+    "f612d8fa": {
+      "arquivo": "f612d8fa.mp3",
+      "bytes": 17179,
+      "texto": "Limite de peso 91 toneladas",
+      "tts": "Limite de peso 91 toneladas,"
+    },
+    "f64d2b33": {
+      "arquivo": "f64d2b33.mp3",
+      "bytes": 25747,
+      "texto": "Rota alterada para desviar de 2 restrições do caminhão."
+    },
+    "f6e84354": {
+      "arquivo": "f6e84354.mp3",
+      "bytes": 21358,
+      "texto": "Registrado. Mais um ponto pro time da estrada."
+    },
+    "f73c88f3": {
+      "arquivo": "f73c88f3.mp3",
+      "bytes": 19896,
+      "texto": "Trecho com muitos acidentes, 300 metros."
+    },
+    "f7471552": {
+      "arquivo": "f7471552.mp3",
+      "bytes": 25120,
+      "texto": "Atenção: limite de peso 69 toneladas."
+    },
+    "f763b701": {
+      "arquivo": "f763b701.mp3",
+      "bytes": 8820,
+      "texto": "Você chegou."
+    },
+    "f78d856d": {
+      "arquivo": "f78d856d.mp3",
+      "bytes": 24702,
+      "texto": "Atenção: limite de peso 35 toneladas."
+    },
+    "f7bf9d90": {
+      "arquivo": "f7bf9d90.mp3",
+      "bytes": 25538,
+      "texto": "Atenção: limite de peso 45 toneladas."
+    },
+    "f8508e1c": {
+      "arquivo": "f8508e1c.mp3",
+      "bytes": 60438,
+      "texto": "Você completou 6 horas de direção. Faça uma pausa de 30 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "f9133c89": {
+      "arquivo": "f9133c89.mp3",
+      "bytes": 17597,
+      "texto": "Limite de peso 83 toneladas",
+      "tts": "Limite de peso 83 toneladas,"
+    },
+    "f93bcfcb": {
+      "arquivo": "f93bcfcb.mp3",
+      "bytes": 24702,
+      "texto": "Atenção: limite de peso 46 toneladas."
+    },
+    "f93e74ee": {
+      "arquivo": "f93e74ee.mp3",
+      "bytes": 24284,
+      "texto": "Atenção: limite de peso 43 toneladas."
+    },
+    "fa0edc8f": {
+      "arquivo": "fa0edc8f.mp3",
+      "bytes": 20523,
+      "texto": "Sem internet. O destino continua o mesmo."
+    },
+    "fa485560": {
+      "arquivo": "fa485560.mp3",
+      "bytes": 16134,
+      "texto": "Altura máxima 3,1 metros",
+      "tts": "Altura máxima 3,1 metros,"
+    },
+    "fb17cef0": {
+      "arquivo": "fb17cef0.mp3",
+      "bytes": 12163,
+      "texto": "Já tem neblina aqui perto."
+    },
+    "fb30e108": {
+      "arquivo": "fb30e108.mp3",
+      "bytes": 12372,
+      "texto": "Acima do limite de 40."
+    },
+    "fc1eef6b": {
+      "arquivo": "fc1eef6b.mp3",
+      "bytes": 12163,
+      "texto": "Em 950 metros,"
+    },
+    "fc50cadb": {
+      "arquivo": "fc50cadb.mp3",
+      "bytes": 23657,
+      "texto": "Atenção: limite de peso 24 toneladas."
+    },
+    "fc53ab94": {
+      "arquivo": "fc53ab94.mp3",
+      "bytes": 12372,
+      "texto": "Em 850 metros,"
+    },
+    "fca3a8a7": {
+      "arquivo": "fca3a8a7.mp3",
+      "bytes": 19478,
+      "texto": "Entre na rotatória e pegue a 4ª saída.",
+      "tts": "Entre na rotatória e pegue a quarta saída."
+    },
+    "fd143897": {
+      "arquivo": "fd143897.mp3",
+      "bytes": 12372,
+      "texto": "Acima do limite de 90."
+    },
+    "fd29fb53": {
+      "arquivo": "fd29fb53.mp3",
+      "bytes": 16970,
+      "texto": "Limite de peso 92 toneladas",
+      "tts": "Limite de peso 92 toneladas,"
+    },
+    "fd4994d8": {
+      "arquivo": "fd4994d8.mp3",
+      "bytes": 10909,
+      "texto": "Obrigado, registrado."
+    },
+    "fd4abc6e": {
+      "arquivo": "fd4abc6e.mp3",
+      "bytes": 23239,
+      "texto": "Atenção: altura máxima 2,5 metros."
+    },
+    "fd6d130c": {
+      "arquivo": "fd6d130c.mp3",
+      "bytes": 22194,
+      "texto": "Sem internet, não sei em que quilômetro você está."
+    },
+    "fe3063e4": {
+      "arquivo": "fe3063e4.mp3",
+      "bytes": 12372,
+      "texto": "pegue a rampa à esquerda."
+    },
+    "fecafa48": {
+      "arquivo": "fecafa48.mp3",
+      "bytes": 60020,
+      "texto": "Você completou 5 horas de direção. Faça uma pausa de 15 minutos assim que for seguro. Toque em Postos para ver onde parar."
+    },
+    "fecc842c": {
+      "arquivo": "fecc842c.mp3",
+      "bytes": 17179,
+      "texto": "Possível restrição para caminhão, confira."
+    },
+    "ff101299": {
+      "arquivo": "ff101299.mp3",
+      "bytes": 9865,
+      "texto": "Balança à frente."
+    },
+    "ff1d138b": {
+      "arquivo": "ff1d138b.mp3",
+      "bytes": 11745,
+      "texto": "mantenha-se à esquerda."
+    },
+    "ffd717b1": {
+      "arquivo": "ffd717b1.mp3",
+      "bytes": 28046,
+      "texto": "Rota alterada para desviar da ponte de 4,8 metros."
+    },
+    "fff62e9d": {
+      "arquivo": "fff62e9d.mp3",
+      "bytes": 25120,
+      "texto": "Atenção: limite de peso 53 toneladas."
+    }
+  }
+}

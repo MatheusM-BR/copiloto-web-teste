@@ -55,6 +55,7 @@
     const onde = NuvemLib.textoRodovia(r);
     if (onde) { const o = el("small", "relato-rodovia", onde); pop.append(o); }
     if (isFinite(exp)) pop.append(el("small", null, Relatos.validade(exp, Date.now()).replace(/^v/, "V")));
+    if (C.lista) pop.append(C.lista.botaoPopup(r.lat, r.lon));
     if (r.mine) {
       // copiloto_report_delete RETIRA o relato do mapa (o histórico fica no servidor): pede confirmação antes
       const area = el("div", "confirmar-retirar");
@@ -88,6 +89,7 @@
       if (antes) antes.m.remove();
       const prefixo = r.level === "disputed" ? "? " : r.level === "confirmed" && !ehNeutro(r) ? "✓ " : "";
       const marca = el("div", "relato-marca nuvem nivel-" + r.level + (r.mine ? " meu" : ""), prefixo + siglaServidor(r));
+      if (C.lista && window.CopilotoPlacas) { const tp = NuvemLib.tipoParaApp(r.report_type); C.lista.preencherMarca(marca, window.CopilotoPlacas.idDoTipo(tp), { valor: r.value_numeric == null ? null : Number(r.value_numeric), leitor: prefixo + siglaServidor(r) }); }
       marca.dataset.id = r.id;
       marca.title = tituloServidor(r) + (r.level === "disputed" ? " · Contestado" : "");
       // COM-05: o nível "reported" é discreto pela opacidade. O MapLibre grava style.opacity no marcador a cada movimento
@@ -188,6 +190,7 @@
       if (marcasPendentes.has(x.id) || !Relatos.TIPOS[x.tipo]) continue;
       const cfg = Relatos.TIPOS[x.tipo];
       const marca = el("div", "relato-marca pendente", cfg.sigla + (x.valor == null ? "" : " " + String(x.valor).replace(".", ",")) + " · pendente");
+      if (C.lista && window.CopilotoPlacas) C.lista.preencherMarca(marca, window.CopilotoPlacas.idDoTipo(x.tipo), { valor: x.valor, leitor: cfg.sigla + (x.valor == null ? "" : " " + String(x.valor).replace(".", ",")) + " · pendente" });
       const pop = el("div", "popup-relato");
       pop.append(el("b", null, Relatos.titulo(x)), el("small", null, "Pendente: vai ser enviado quando a internet voltar."));
       const m = new maplibregl.Marker({ element: marca }).setLngLat([x.lon, x.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(pop)).addTo(C.mapa);

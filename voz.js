@@ -155,6 +155,8 @@
   //  - o Chrome para sozinho depois de ~15 s: pause()/resume() periódico enquanto fala. NÃO no iOS: lá o pause() mata a fala;
   //  - iPhone no modo silencioso cala a síntese: navigator.audioSession.type = "playback" (iOS 16.4+) e um <audio> em laço
   //    com 1 s de silêncio (data: URI) mantêm a sessão em playback; o app o pausa com o microfone aberto;
+  //  - vozes gravadas (opcoes.clipes = tocador de vozclipes.js): frase com clipe toca o mp3 no lugar da síntese, na mesma fila e com o
+  //    mesmo corte (cancelar(), prioridade, microfone aberto); sem clipe ou com qualquer falha, a voz do aparelho fala (falarSistema);
   //  - destravar() (dentro de um toque) fala um enunciado mudo; só conta como destravado quando o onstart/onend de uma fala
   //    de verdade chega (destravado()). Sem onstart em semOnstartMs a fala é dada como perdida: aoFalhar.
   function criarFalador(opcoes) {
@@ -169,7 +171,12 @@
     const ios = o.ios !== undefined ? !!o.ios : ehIOS(o.userAgent);
     const segurando = new Map();       // enunciado → { t, len, fim }: referências fortes aos enunciados em andamento
     const agendados = new Map();       // timer → { fim }: falas esperando o respiro depois de um cancel
-    const estado = { falas: 0, iniciadas: 0, perdidas: 0, ultimoErro: null, vozNome: null, destravado: false, destravares: 0, silencio: false, ios };
+    const estado = { falas: 0, iniciadas: 0, perdidas: 0, ultimoErro: null, vozNome: null, destravado: false, destravares: 0, silencio: false, ios, clipes: 0, clipesFallback: 0 };
+    // Vozes gravadas (vozclipes.js): opcoes.clipes = tocador. Frase com clipe toca o arquivo; sem clipe (ou se falhar) fala com a voz do aparelho.
+    const clipes = o.clipes && typeof o.clipes.planejar === "function" ? o.clipes : null;
+    const valorOpc = (v, p) => { try { return typeof v === "function" ? v() : v != null ? v : p; } catch (e) { return p; } };
+    const esperaClipeMs = o.esperaClipeMs != null ? o.esperaClipeMs : 1200;
+    let clipeAtual = null;             // fala em clipe em curso (para o microfone abrir calando-a)
     let vozCache = null, aoFalhar = typeof o.aoFalhar === "function" ? o.aoFalhar : null, pulso = null;
     let muda = null;                   // enunciado mudo do destravar em andamento: { u, t }
     let audio = null;
@@ -206,7 +213,59 @@
       estado.perdidas++; estado.ultimoErro = motivo;
       try { if (aoFalhar) aoFalhar({ motivo, texto }); } catch (e) { /* ignora */ }
     }
+    // Escolhe o jeito de falar: clipe gravado (se a voz escolhida tem a frase) ou a voz do aparelho.
     function criarEFalar(texto, opc) {
+      let plano = null;
+      if (clipes) { try { plano = clipes.planejar(String(texto)); } catch (e) { plano = null; } }
+      if (plano && falarClipe(plano, texto, opc)) return;
+      falarSistema(texto, opc);
+    }
+    // Fala em clipe: ocupa a fila como qualquer fala nossa (relógio próprio), carrega os mp3 (cache/rede, até esperaClipeMs) e toca;
+    // qualquer falha cai na voz do aparelho com a frase inteira. calar()/corte por prioridade chamam fim(): para o áudio.
+    function falarClipe(plano, texto, opc) {
+      const chave = {};
+      let feito = false, cancelado = false, tocando = null;
+      const handle = { parar: () => fim() };
+      const fim = () => {
+        if (feito) return;
+        feito = true; cancelado = true;
+        if (tocando) { try { tocando.parar(); } catch (e) { /* ignora */ } tocando = null; }
+        if (clipeAtual === handle) clipeAtual = null;
+        segurando.delete(chave);
+        if (opc && typeof opc.aoTerminar === "function") opc.aoTerminar();
+      };
+      const cair = (motivo) => {
+        if (feito || cancelado) return;
+        feito = true; cancelado = true;
+        if (tocando) { try { tocando.parar(); } catch (e) { /* ignora */ } tocando = null; }
+        if (clipeAtual === handle) clipeAtual = null;
+        segurando.delete(chave);
+        estado.clipesFallback++; estado.ultimoClipe = motivo;
+        try { falarSistema(texto, opc); } catch (e) { emitirFalha("excecao", texto); }
+      };
+      const tocar = () => {
+        if (cancelado) return;
+        tocando = clipes.tocar(plano, {
+          volume: () => valorOpc(o.volume, 1), taxa: () => valorOpc(o.taxa, 1),
+          aoIniciar: () => { estado.iniciadas++; estado.clipes++; },
+          aoFim: fim,
+          aoErro: (motivo) => cair(motivo || "erro"),
+        });
+      };
+      segurando.set(chave, { t: agora(), len: String(texto).length, fim });
+      clipeAtual = handle;
+      let prontos = false;
+      try { prontos = !!clipes.prontos(plano); } catch (e) { prontos = false; }
+      if (prontos) tocar();
+      else {
+        let p = null;
+        try { p = clipes.carregar(plano, esperaClipeMs); } catch (e) { p = null; }
+        if (!p || typeof p.then !== "function") { cair("carregamento"); return true; }
+        p.then((ok) => { if (cancelado) return; if (ok) tocar(); else cair("carregamento"); }, () => cair("carregamento"));
+      }
+      return true;
+    }
+    function falarSistema(texto, opc) {
       const u = new Enunciado(String(texto));
       u.lang = "pt-BR";
       const v = vozPtBr(); if (v) u.voice = v;
@@ -284,7 +343,8 @@
     }
     function pararSilencio() { try { if (audio) audio.pause(); } catch (e) { /* ignora */ } estado.silencio = false; }
     // Microfone abrindo: o áudio em laço sai (o iOS não grava e toca ao mesmo tempo); ao fechar, volta.
-    function pausarSilencio() { if (audio) pararSilencio(); }
+    // (com um clipe tocando, o microfone aberto também o corta: o iOS não grava e toca ao mesmo tempo)
+    function pausarSilencio() { if (audio) pararSilencio(); if (clipeAtual) { try { clipeAtual.parar(); } catch (e) { /* ignora */ } } }
     function retomarSilencio() { if (audio && estado.destravado) iniciarSilencio(); }
 
     // iPhone/Safari só libera a fala depois de um toque: dentro do toque põe a sessão em playback, liga o áudio mudo em laço
@@ -295,6 +355,7 @@
       estado.destravares++;
       try { if (typeof navigator !== "undefined" && navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) { /* ignora */ }
       iniciarSilencio();
+      if (clipes) { try { clipes.destravar(); } catch (e) { /* ignora */ } } // libera também o <audio> dos clipes (dentro do toque)
       try {
         if (estado.destravado) return true;
         if (muda && agora() - muda.t < 2500) return true; // o do toque anterior ainda está na fila
@@ -320,7 +381,7 @@
     function falando() { try { return emCurso() || agendados.size > 0; } catch (e) { return false; } }
     function defineAoFalhar(fn) { aoFalhar = typeof fn === "function" ? fn : null; }
     return { disponivel, falar, destravar, cancelar, falando, estado, aoFalhar: defineAoFalhar, destravado: () => estado.destravado,
-      pausarSilencio, retomarSilencio, pararSilencio, iniciarSilencio, ios };
+      pausarSilencio, retomarSilencio, pararSilencio, iniciarSilencio, ios, clipes };
   }
 
   // ------------------------------------------------------------ bipe de rádio (VOZ-02)

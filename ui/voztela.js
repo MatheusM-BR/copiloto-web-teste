@@ -45,6 +45,68 @@
     if (a.hidden === mudo) a.hidden = !mudo;
   }
 
+  // ---- "Voz do Copiloto" (vozes gravadas, vozclipes.js): seletor, teste e download para usar sem internet.
+  // Sem nenhuma voz gerada em voz/vozes.json, mostra só "Voz do aparelho" (e esconde teste e download).
+  function criarCartaoClipes() {
+    const tc = C.voz && C.voz.clipes;
+    if (!tc || $("voz-card-clipes")) return null;
+    const VC = window.CopilotoVozClipes;
+    const sel = el("select"); sel.id = "voz-clipes-voz";
+    const rot = el("label", null, "Voz do Copiloto"); rot.htmlFor = "voz-clipes-voz"; rot.append(sel);
+    const dica = el("p", "dica", "Voz do aparelho é a de sempre. Uma voz gravada fala as frases fixas (alertas, avisos, navegação) com mais clareza; o resto continua na voz do aparelho.");
+    const info = el("p", "dica"); info.id = "voz-clipes-info"; info.setAttribute("role", "status");
+    const testar = botao("Ouvir a voz escolhida", "btn voz-sem-voz", () => {
+      try {
+        C.voz.falador.destravar();
+        const t = tc.amostra();
+        const ok = t ? C.voz.falador.falar(t) : false;
+        info.textContent = ok ? "Falando… se não ouvir nada, aumente o volume e desligue o modo silencioso do iPhone." : "Não consegui falar agora.";
+      } catch (e) { info.textContent = "Não consegui falar agora."; }
+    });
+    testar.id = "voz-clipes-testar"; testar.dataset.semDestravar = "";
+    const baixar = botao("Baixar vozes para usar sem internet", "btn voz-sem-voz", async () => {
+      baixar.disabled = true;
+      info.textContent = "Baixando…";
+      const r = await tc.baixarTudo((p) => { info.textContent = "Baixando… " + p.feitos + " de " + p.total + " (" + VC.formatarBytes(p.bytes) + ")"; });
+      baixar.disabled = false;
+      if (r.ok) info.textContent = "Pronto: " + r.feitos + " frases guardadas (" + VC.formatarBytes(r.bytes) + "). A voz funciona sem internet.";
+      else info.textContent = "Baixou " + r.feitos + " de " + (r.total || "?") + ". Confira a internet e toque de novo para continuar.";
+      desenharClipes();
+    });
+    baixar.id = "voz-clipes-baixar";
+    sel.addEventListener("change", () => {
+      tc.escolher(sel.value);
+      try { C.voz.falador.destravar(); } catch (e) { /* ignora */ }
+      desenharClipes();
+    });
+    const c = cartao("voz-card-clipes", "Voz gravada", [rot, dica, testar, baixar, info]);
+    let gen = 0;
+    function desenharClipes() {
+      const vozes = tc.vozes(), ativa = tc.ativa();
+      const quero = ["aparelho"].concat(vozes.map((v) => v.id)).join("|");
+      if (sel.dataset.opcoes !== quero) {
+        sel.textContent = "";
+        sel.add(new Option("Voz do aparelho", "aparelho"));
+        for (const v of vozes) sel.add(new Option(v.nome, v.id));
+        sel.dataset.opcoes = quero;
+      }
+      sel.value = ativa || "aparelho";
+      sel.disabled = !vozes.length;
+      testar.hidden = baixar.hidden = !ativa;
+      dica.hidden = !vozes.length;
+      if (!ativa) { if (!/^Baixando/.test(info.textContent)) info.textContent = ""; return; }
+      const meu = ++gen;
+      tc.tamanhoBaixado().then((t) => {
+        if (meu !== gen || /^Baixando/.test(info.textContent)) return;
+        info.textContent = t.clipes >= t.total && t.total > 0 ? "Guardada no aparelho: " + t.clipes + " frases (" + VC.formatarBytes(t.bytes) + "). Funciona sem internet."
+          : "Guardado no aparelho: " + VC.formatarBytes(t.bytes) + " de " + VC.formatarBytes(t.totalBytes) + " (" + t.clipes + " de " + t.total + " frases). As outras baixam ao usar; para ter tudo sem internet, baixe agora.";
+      }, () => {});
+    }
+    tc.aoMudar(desenharClipes);
+    desenharClipes();
+    return c;
+  }
+
   function montar() {
     const tela = $("tela-voz"); if (!tela || $("voz-falar")) return;
     const voz = $("cartao-voz"), ml = $("cartao-maos-livres"), lim = $("limite-cartao"), diag = $("cmd-diag");
@@ -91,6 +153,8 @@
     if (ml) tela.append(ml);
     tela.append(cChips);
     if (voz) tela.append(voz);
+    const clipes = criarCartaoClipes();
+    if (clipes) tela.append(clipes);
     if (lim) tela.append(lim);
     tela.append(cDiag);
 

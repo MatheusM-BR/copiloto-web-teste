@@ -1,0 +1,34 @@
+/* Placas e sinais (placas.js): desenho, marcadores do mapa, faixa de aviso da navegação. As cores da placa são as da placa de
+   verdade e não mudam com o tema; no escuro o contorno branco do próprio desenho separa do mapa, no claro entra uma sombra. */
+.placa { display: block; flex: none; max-width: none; overflow: visible; }
+:root[data-tema="claro"] .placa { filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .35)); }
+@media (prefers-color-scheme: light) { :root:not([data-tema="escuro"]):not([data-tema="claro"]) .placa { filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .35)); } }
+
+/* marcadores do mapa: a placa no lugar da sigla (a sigla fica só para o leitor de tela) */
+.dados-marca.com-placa, .relato-marca.com-placa {
+  position: relative; display: block; width: auto; height: auto; padding: 0; margin: 0; line-height: 0; font-size: 0; border: 0; border-radius: 12px;
+  background: none; box-shadow: none; cursor: pointer; white-space: normal;
+}
+.dados-marca.com-placa .placa, .relato-marca.com-placa .placa { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55)); }
+.relato-marca.com-placa.nuvem.meu { box-shadow: 0 0 0 3px #3b82f6; }
+.relato-marca.com-placa.nuvem.nivel-confirmed::after, .relato-marca.com-placa.nuvem.nivel-disputed::after, .relato-marca.com-placa.pendente::after {
+  position: absolute; right: -4px; top: -4px; min-width: 18px; height: 18px; padding: 0 3px; border-radius: 9px; border: 2px solid #fff;
+  display: grid; place-items: center; font: 800 12px/1 system-ui, sans-serif; box-sizing: border-box;
+}
+.relato-marca.com-placa.nuvem.nivel-confirmed::after { content: "✓"; background: #0b6b3a; color: #fff; }
+.relato-marca.com-placa.nuvem.nivel-disputed::after { content: "?"; background: #7a4b00; color: #fff; }
+.relato-marca.com-placa.pendente::after { content: "…"; background: #3a4558; color: #fff; }
+.relato-marca.com-placa.pendente .placa { opacity: .7; }
+.dados-marca.com-placa.viola::after { content: ""; position: absolute; inset: -3px; border: 3px solid var(--perigo-forte); border-radius: 12px; pointer-events: none; }
+.la-foco { line-height: 0; pointer-events: none; }
+.la-foco .placa { filter: drop-shadow(0 0 0 #fff) drop-shadow(0 2px 4px rgba(0, 0, 0, .6)); }
+.la-foco::before { content: ""; position: absolute; inset: -6px; border: 3px solid var(--primaria); border-radius: 50%; background: rgba(255, 255, 255, .25); }
+
+/* faixa de aviso na navegação: placa grande ao lado do texto */
+.nav-painel .aviso-dado.com-placa { min-height: 64px; }
+.aviso-dado-placa { flex: none; }
+.nav-painel .aviso-dado.critico .critico-cab .placa { background: none; }
+.dados-restr-item.com-placa { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 10px; }
+.dados-restr-item.com-placa > .placa { grid-row: 1; }
+@media (prefers-reduced-motion: no-preference) { .la-foco::before { animation: la-pulso 1.4s ease-out 2; } }
+@keyframes la-pulso { from { transform: scale(.85); opacity: 1; } to { transform: scale(1.15); opacity: .6; } }

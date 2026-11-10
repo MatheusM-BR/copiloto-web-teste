@@ -7,18 +7,21 @@
 //
 // Caches:
 //  copiloto-app-<VERSAO>  esqueleto (index.html e tudo que ele referencia + estilos carregados depois). Cache primeiro.
+//  copiloto-vozes         vozes gravadas (voz/<voz>/*.mp3 e os json de voz/). SEM versão: não se rebaixa a cada publicação. mp3: cache primeiro,
+//                         carregado de forma preguiçosa (ao usar) ou pelo botão "Baixar vozes para usar sem internet"; json: rede primeiro.
 //  copiloto-mapa-estilo   estilo, TileJSON, fontes e sprites da OpenFreeMap. Usa o guardado e atualiza por trás.
 //  copiloto-mapa-blocos   blocos vistos no mapa. Usa o guardado; atualiza por trás se tiver mais de 7 dias. Com limite.
 //  copiloto-mapa-rota-<id> blocos do corredor de cada rota, baixados sozinhos ao traçar (gravados pela página, ui/offline.js;
 //                         valem 30 dias; o antigo "copiloto-mapa-rota", de um corredor só, também é lido).
-const VERSAO = "2026-11-09.2";
+const VERSAO = "2026-11-10.1";
 const CACHE_APP = "copiloto-app-" + VERSAO;
+const CACHE_VOZES = "copiloto-vozes"; // o mesmo nome de vozclipes.js (CACHE_VOZES); activate só apaga "copiloto-app-*"
 const CACHE_ESTILO = "copiloto-mapa-estilo";
 const CACHE_BLOCOS = "copiloto-mapa-blocos";
 const LIMITE_BLOCOS = { maxItens: 2500, maxBytes: 80e6 };
 const REVALIDAR_RECURSO_MS = 7 * 24 * 3600e3;
 // Fora do index.html: páginas abertas por link (privacidade.html, E5) também precisam abrir sem internet.
-const EXTRAS = ["./", "index.html", "manifest.webmanifest", "icon-180.png", "icon-512.png", "offline.js", "estilos/offline.css", "privacidade.html", "alternativas.js", "tracecache.js", "limite.js", "ui/limite.js", "estilos/limite.css", "custos.js", "ui/custos.js", "estilos/custos.css", "dados.js", "desvio.js", "ruido.js", "kmcache.js", "traducao.js", "ui/km.js", "ui/avisos.js", "ui/desvio.js", "estilos/km.css", "estilos/avisos.css", "estilos/postos.css", "descanso.js", "ui/descanso.js", "estilos/descanso.css"];
+const EXTRAS = ["./", "index.html", "manifest.webmanifest", "icon-180.png", "icon-512.png", "offline.js", "estilos/offline.css", "privacidade.html", "alternativas.js", "tracecache.js", "limite.js", "ui/limite.js", "estilos/limite.css", "custos.js", "ui/custos.js", "estilos/custos.css", "dados.js", "desvio.js", "ruido.js", "kmcache.js", "traducao.js", "ui/km.js", "ui/avisos.js", "ui/desvio.js", "estilos/km.css", "estilos/avisos.css", "estilos/postos.css", "descanso.js", "ui/descanso.js", "estilos/descanso.css", "placas.js", "ui/lista.js", "estilos/placas.css", "estilos/lista.css", "vozclipes.js"];
 
 importScripts("offline.js");
 const O = self.CopilotoOffline;
@@ -43,6 +46,9 @@ self.addEventListener("install", (e) => {
         try { const r = await fetch(css, { cache: "reload" }); if (r.ok) await cache.put(css, r); } catch (err) { /* segue */ }
       }
     }
+    // vozes gravadas: só o índice e os manifests entram na instalação (pequenos); os mp3 vêm ao usar (preguiçoso) ou pelo botão da aba Voz.
+    // Nada disto pode travar a instalação: sem voz gerada, o índice é só uma lista vazia.
+    try { await guardarManifestsDeVoz(); } catch (err) { /* segue */ }
     // não chama skipWaiting: a versão nova espera o motorista tocar em "atualizar"
   })());
 });
@@ -70,6 +76,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin === self.location.origin) {
     if (!url.pathname.startsWith(new URL(self.registration.scope).pathname)) return;
+    if (ehVoz(url)) { e.respondWith(voz(req, url)); return; }
     e.respondWith(app(req));
     return;
   }
@@ -78,6 +85,45 @@ self.addEventListener("fetch", (e) => {
   else if (tipo === "estilo") e.respondWith(guardadoEAtualiza(req, e, CACHE_ESTILO, 0));
   else if (tipo === "recurso") e.respondWith(guardadoEAtualiza(req, e, CACHE_ESTILO, REVALIDAR_RECURSO_MS));
 });
+
+// ------------------------------------------------------------ vozes gravadas (voz/)
+function ehVoz(url) {
+  const base = new URL(self.registration.scope).pathname;
+  return url.pathname.startsWith(base + "voz/") && /\.(mp3|json)$/.test(url.pathname);
+}
+async function guardarManifestsDeVoz() {
+  const cache = await caches.open(CACHE_VOZES);
+  const r = await fetch("voz/vozes.json", { cache: "reload" });
+  if (!r.ok) return;
+  const corpo = await r.clone().json().catch(() => null);
+  await cache.put("voz/vozes.json", r);
+  for (const v of corpo && Array.isArray(corpo.vozes) ? corpo.vozes : []) {
+    if (!v || typeof v.id !== "string" || !/^[A-Za-z0-9_-]{1,40}$/.test(v.id)) continue;
+    try { const m = await fetch("voz/" + v.id + "/manifest.json", { cache: "reload" }); if (m.ok) await cache.put("voz/" + v.id + "/manifest.json", m); } catch (err) { /* segue */ }
+  }
+}
+// mp3: cache primeiro (e guarda ao baixar). json: rede primeiro (voz nova vale já), cache se estiver sem internet.
+// Pedido com Range (o <audio> do Safari) passa direto: o app toca os clipes por blob, sem Range.
+async function voz(req, url) {
+  if (req.headers.has("range")) return fetch(req);
+  const cache = await caches.open(CACHE_VOZES);
+  if (/\.mp3$/.test(url.pathname)) {
+    const guardado = await cache.match(req);
+    if (guardado) return guardado;
+    const resp = await fetch(req);
+    if (resp.ok && resp.status === 200) cache.put(req, resp.clone()).catch(() => {});
+    return resp;
+  }
+  try {
+    const resp = await fetch(req);
+    if (resp.ok) cache.put(req, resp.clone()).catch(() => {});
+    return resp;
+  } catch (err) {
+    const guardado = await cache.match(req);
+    if (guardado) return guardado;
+    throw err;
+  }
+}
 
 async function app(req) {
   const cache = await caches.open(CACHE_APP);

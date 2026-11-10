@@ -147,6 +147,14 @@
     });
   }
   function destacar(e, t, tipo) {
+    if (marcaTrecho) { marcaTrecho.remove(); marcaTrecho = null; }
+    if (window.CopilotoPlacas && C.lista) { // placa no começo do trecho (rampa com o percentual); um toque abre a lista de avisos
+      const d = el("div", "dados-marca via-marca"), p = e.coords[t.i0];
+      const pct = tipo === "subida" || tipo === "descida" ? pctDaRampa(e, t) : null;
+      C.lista.preencherMarca(d, window.CopilotoPlacas.idDoTipo(tipo), { valor: pct, leitor: (tipo === "subida" ? "Subida forte" : tipo === "descida" ? "Descida forte" : tipo === "terra" ? "Estrada de terra" : "Piso ruim") + (pct != null ? " " + pct + "%" : ""), tamanho: 40 });
+      d.addEventListener("click", (ev) => { ev.stopPropagation(); C.lista.abrir({ centro: { lat: p[1], lon: p[0] } }); });
+      C.mapaPronto(() => { marcaTrecho = new maplibregl.Marker({ element: d }).setLngLat(p).addTo(C.mapa); });
+    }
     const f = { type: "FeatureCollection", features: [trechoComoFeature(e, t, tipo)] };
     C.mapaPronto(() => {
       const mapa = C.mapa;
@@ -160,7 +168,9 @@
       }
     });
   }
+  let marcaTrecho = null;
   function apagarDestaque() {
+    if (marcaTrecho) { marcaTrecho.remove(); marcaTrecho = null; }
     const mapa = C.mapa; if (!mapa) return;
     C.mapaPronto(() => {
       for (const id of ["via-destaque", "via-destaque-borda"]) if (mapa.getLayer(id)) mapa.removeLayer(id);
@@ -294,12 +304,27 @@
   function kmTxt(km) { return V.fmtKm(km); }
   function itemTrecho(e, r, t, tipo, titulo) {
     const it = el("div", "via-item");
+    const PL = window.CopilotoPlacas;
+    if (PL) { // placa do trecho: rampa com o percentual como número; terra e piso ruim com a placa de pista irregular
+      const pct = tipo === "subida" || tipo === "descida" ? pctDaRampa(e, t) : null;
+      it.classList.add("com-placa"); it.append(PL.placa(PL.idDoTipo(tipo), { valor: pct, tamanho: 48, decorativa: true }));
+    }
     const info = el("div", "via-item-info");
     info.append(el("b", null, titulo), el("span", null, "a " + kmTxt(t.kmIni) + " da origem · " + kmTxt(t.km)));
     const ver = botao("Ver no mapa", "btn via-ver-mapa", () => verNoMapa(e, r, t, tipo, titulo));
     ver.setAttribute("aria-label", "Ver no mapa: " + titulo + ", a " + kmTxt(t.kmIni) + " da origem");
     it.append(info, ver);
     return it;
+  }
+  // inclinação máxima (%) dentro do trecho de rampa, dos dados do trace; null se o servidor não deu
+  function pctDaRampa(e, t) {
+    let m = null;
+    for (const run of e.runs || []) {
+      if (run.i0 < t.i0 - 1 || run.i1 > t.i1 + 1 || run.rampa === 0) continue;
+      const x = t.sentido === "subida" ? run.sobe : (run.desce == null ? null : -run.desce);
+      if (typeof x === "number" && isFinite(x) && (m == null || x > m)) m = x;
+    }
+    return m == null ? null : Math.round(m);
   }
   function secao(titulo, itens, mais) {
     const s = el("div", "via-secao");

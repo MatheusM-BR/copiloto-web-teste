@@ -32,9 +32,11 @@
       if (marcas.has(r.id)) continue;
       const cfg = Relatos.TIPOS[r.tipo];
       const marca = el("div", "relato-marca" + (cfg.valor ? "" : " transitorio"), cfg.sigla + (r.valor == null ? "" : " " + String(r.valor).replace(".", ",")));
+      if (C.lista && window.CopilotoPlacas) C.lista.preencherMarca(marca, window.CopilotoPlacas.idDoTipo(r.tipo), { valor: r.valor, leitor: cfg.sigla + (r.valor == null ? "" : " " + String(r.valor).replace(".", ",")) });
       const pop = el("div", "popup-relato");
       pop.append(el("b", null, Relatos.titulo(r)), el("small", null, Relatos.descricao(r, agora)),
         botao("Excluir relato", "", () => { relatos = relatos.filter((x) => x.id !== r.id); gravar(); desenhar(); }));
+      if (C.lista) pop.append(C.lista.botaoPopup(r.lat, r.lon));
       const m = new maplibregl.Marker({ element: marca }).setLngLat([r.lon, r.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(pop)).addTo(C.mapa);
       marcas.set(r.id, m);
     }
