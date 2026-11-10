@@ -41,6 +41,8 @@
 /* tela Placas e sinais */
 .tela-placas { overflow-y: auto; }
 .tela-placas h1 { margin: 0 0 6px; }
+.pl-busca { width: 100%; box-sizing: border-box; min-height: 48px; margin: 4px 0 8px; padding: 0 14px; font-size: 16px; color: var(--texto); background: var(--painel); border: 1px solid var(--linha); border-radius: 12px; }
+.pl-grupo[hidden], .pl-card[hidden], .pl-vazio[hidden] { display: none; }
 .pl-grupo { margin: 14px 0; }
 .pl-grupo-titulo { font-size: 17px; margin: 0 0 8px; }
 .pl-grade { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }

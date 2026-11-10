@@ -220,6 +220,10 @@
     tela.append(el("h1", null, "Placas e sinais"));
     tela.append(el("p", "dica", "Os desenhos que o app usa nos avisos do mapa e da navegação. Toque na placa que você vê na tela para saber o que ela quer dizer."));
     const todas = PL.catalogo();
+    const busca = el("input", "pl-busca"); busca.type = "search"; busca.id = "pl-busca"; busca.placeholder = "Buscar placa (ex.: curva, neblina, peso)";
+    busca.autocomplete = "off"; busca.setAttribute("aria-label", "Buscar placa pelo nome ou significado"); busca.enterKeyHint = "search";
+    const vazio = el("p", "dica pl-vazio", "Nenhuma placa com esse nome. Tente outra palavra."); vazio.hidden = true; vazio.setAttribute("role", "status");
+    tela.append(busca, vazio);
     for (const cat of ["advertencia", "regulamentacao", "indicacao"]) {
       const g = todas.filter((p) => p.categoria === cat); if (!g.length) continue;
       const sec = el("section", "pl-grupo"); sec.dataset.categoria = cat;
@@ -236,6 +240,14 @@
       }
       sec.append(grade); tela.append(sec);
     }
+    const sa = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const textos = new Map(todas.map((p) => [p.id, sa(p.nome + " " + p.significado)]));
+    busca.addEventListener("input", () => {
+      const termos = sa(busca.value).split(/\s+/).filter(Boolean); let total = 0;
+      tela.querySelectorAll(".pl-card").forEach((li) => { const t = textos.get(li.dataset.placa) || ""; const ok = termos.every((x) => t.includes(x)); li.hidden = !ok; if (ok) total++; });
+      tela.querySelectorAll(".pl-grupo").forEach((g) => { g.hidden = !g.querySelector(".pl-card:not([hidden])"); });
+      vazio.hidden = total > 0;
+    });
     tela.append(el("p", "dica", "Cores e formas seguem o padrão das placas brasileiras (amarelo: perigo; círculo vermelho: regra; azul e verde: informação). Desenhos próprios do app; vale sempre a placa da estrada."));
   }
   function criarMenu() {
