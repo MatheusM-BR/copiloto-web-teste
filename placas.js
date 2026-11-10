@@ -107,7 +107,7 @@
   def("curva_s", "Curva em S", "advertencia", "Duas curvas seguidas, uma para cada lado.", () => losango(tr("M26 47C26 38 38 40 38 31V21") + tr("M33 26.5 38 20.5 43 26.5")));
   def("sequencia_curvas", "Sequência de curvas", "advertencia", "Várias curvas seguidas: mantenha a velocidade baixa.", () => losango(tr("M25 46 38 39 26 32 38 25V21") + tr("M33 26.5 38 20.5 43 26.5")));
   def("pista_sinuosa", "Pista sinuosa", "advertencia", "Pista cheia de curvas, sem reta longa.", () => losango(tr("M23 18C31 22 20 28 27 33S30 42 27 47", 3.4) + tr("M37 18C45 22 34 28 41 33S44 42 41 47", 3.4)));
-  def("pista_escorregadia", "Pista escorregadia", "advertencia", "Pista lisa por chuva, óleo ou barro: sem freada brusca.", () => losango(carroLado(21, 25, 1) + tr("M21 43q3-3.4 6 0t6 0 6 0 6 0", 3) + tr("M24 48q2.6-3 5.2 0t5.2 0", 3)));
+  def("pista_escorregadia", "Pista escorregadia", "advertencia", "Pista lisa por chuva, óleo ou barro: sem freada brusca.", () => losango(carroLado(21, 20, 1) + tr("M25 36C30 38.5 20 41 25 44S29 47.5 27 48.5", 2.8) + tr("M38 36C43 38.5 33 41 38 44S42 47.5 40 48.5", 2.8)));
   def("queda_pedras", "Queda de pedras", "advertencia", "Barranco com risco de pedras na pista.", () => losango(pr("M16 42V25L34 42Z") + circ(39, 26, 3.8, PRETO) + circ(46, 33, 3.3, PRETO) + circ(40, 39, 2.9, PRETO)));
   def("animais_pista", "Animais na pista", "advertencia", "Pode haver animal atravessando: atenção, principalmente à noite.", () => losango(
     pr("M23 30H41Q44 30 44 33V36Q44 38 41 38H25Q22 38 22 36Z") + pr("M22 31 19.5 25 25 25 27 30Z") + pr("M16 22H25V27H18Z") +
@@ -126,13 +126,14 @@
     pr("M20 24H25V42H20Z") + pr("M25 27.5H47V32.5H25Z") + tr("M30 27V33M36 27V33M42 27V33", 2.4, AMARELO, "reto") + tr("M19 43.5H44", 3)));
   def("neblina", "Neblina", "advertencia", "Pouca visibilidade: farol baixo, distância maior.", () => losango(tr("M18 25H40M24 31H46M18 37H40M24 43H44", 3.4)));
   def("alagamento", "Alagamento", "advertencia", "Água na pista: não entre se não souber a profundidade.", () => losango(
-    pr("M21 31H43V35H21Z") + pr("M26 31 28.5 26H35.5L38 31Z") + tr("M19 39q3.3-3.6 6.6 0t6.6 0 6.6 0 6.6 0", 3) + tr("M23 45q3-3.2 6 0t6 0 6 0", 3)));
+    pr("M23 25H41Q44 25 44 28V35H20V28Q20 25 23 25Z") + pr("M17 36H47V47H17Z") + tr("M19.5 41q3-3 6 0t6 0 6 0 6 0 6 0", 2.2, BRANCO)));
   def("trafego_pesado", "Tráfego pesado", "advertencia", "Fila ou muito caminhão na pista: velocidade baixa.", () => losango(caminhaoLado(14, 24, PRETO, AMARELO)));
   def("acidente", "Acidente", "advertencia", "Acidente na pista: reduza, pode haver gente na via.", () => losango('<polygon points="' + estrela(32, 32, 16, 7.6, 8) + '" fill="' + PRETO + '" stroke="' + PRETO + '" stroke-width="1.6" stroke-linejoin="round"/>' + circ(32, 32, 3, AMARELO)));
   def("objeto_pista", "Objeto na pista", "advertencia", "Algo caído na pista: desvie com cuidado.", () => losango(tr("M32 18 45 25V39L32 46 19 39V25Z", 3.2) + tr("M19 25 32 32 45 25M32 32V46", 3.2)));
   def("veiculo_parado", "Veículo parado", "advertencia", "Veículo parado na pista ou no acostamento.", () => losango(carroLado(16, 28, 1) + tr("M41 41 44.8 33 48.6 41Z", 2.6)));
-  def("pista_irregular", "Pista irregular", "advertencia", "Buraco ou piso danificado: reduza.", () => losango(carroLado(21, 24, 1) + tr("M21 42l3.5-3 3.5 3 4-4 4 4 3.5-3 3.5 3", 3.2)));
+  def("pista_irregular", "Pista irregular", "advertencia", "Buraco ou piso danificado: reduza.", () => losango(carroLado(21, 22, 1) + tr("M17 41H26L28.5 47H35.5L38 41H47", 3.2, PRETO, "reto")));
   def("atencao", "Atenção", "advertencia", "Ponto de atenção: fique atento à pista.", () => losango(tr("M32 17V35", 5.4) + circ(32, 43.4, 3.3, PRETO)));
+  def("restricao_possivel", "Possível restrição", "advertencia", "Pode haver limite de altura ou peso aqui, mas o dado não é seguro: confira na pista.", () => losango(tr("M25.5 25Q25.5 18.5 32 18.5T38.5 25Q38.5 29.5 32 33V36", 3.6) + circ(32, 43.6, 3.2, PRETO)));
   def("risco_seguranca", "Risco à segurança", "advertencia", "Relatos de risco neste trecho: evite parar. Em perigo agora, ligue 190.", () => losango(
     '<g transform="translate(32 32) scale(.8) translate(-32 -31.5)">' + tr("M32 14 46 19.5V31C46 40 39.5 45.5 32 48.5 24.5 45.5 18 40 18 31V19.5Z", 3.6) + tr("M32 24V33", 4) + circ(32, 39, 2.5, PRETO) + "</g>"));
 
@@ -183,7 +184,7 @@
   // ------------------------------------------------------------ mapa tipo → placa (vocabulário do app)
   const tipoParaPlaca = {
     // avisos da rota (dados.js)
-    restricao: "restricao_caminhao", restricao_possivel: "atencao", perigoso: "acidente", balanca: "balanca", balsa: "balsa", curva: "curva_forte",
+    restricao: "restricao_caminhao", restricao_possivel: "restricao_possivel", perigoso: "acidente", balanca: "balanca", balsa: "balsa", curva: "curva_forte",
     passagem_nivel: "passagem_nivel", lombada: "lombada", lombadas: "redutor_velocidade", radar: "radar", area_escape: "area_escape", perigo: "atencao",
     obra: "obras", praca_pedagio: "pedagio",
     // relatos de motoristas (relatos.js TIPOS)
