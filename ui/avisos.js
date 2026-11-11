@@ -88,6 +88,10 @@
     if (p.artesp.dados) listas.push(D.avisosDeArtesp(p.artesp.dados));
     if (e.restricoes.dados) listas.push(D.avisosDeRestricoes(e.restricoes.dados));
     if (!listas.length) return;
+    // Projeto de dados confiáveis, nível D: sem data, atrasado ou heurístico, então não aparece nem fala (o dado fica no banco).
+    // Curva "forte" é calculada pela geometria; obra de painel ARTESP chega com ~2 meses de atraso.
+    const ocultos = window.COPILOTO_MOSTRAR_OCULTOS === true ? [] : ["curva", "obra"];
+    for (let i = 0; i < listas.length; i++) listas[i] = listas[i].filter((a) => !ocultos.includes(a.tipo));
     e.avisos = R.finalizar(D.juntarAvisos(listas));
     e.guardado = false;
     if (p.feicoes.estado === "ok" && p.trechos.estado === "ok" && p.artesp.estado === "ok") D.guardar(storage(), { chave: e.chave, salvoEm: Date.now(), avisos: e.avisos });
