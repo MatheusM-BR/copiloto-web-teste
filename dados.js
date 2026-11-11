@@ -203,6 +203,12 @@
   };
   // r6: no modo de voz "Só alertas" estes avisos ficam só na faixa da tela (a fala é de perigo)
   const AVISOS_SO_TELA_NO_MODO_ALERTAS = ["lombada", "lombadas", "praca_pedagio", "obra", "area_escape"];
+  // "2025-03-14T10:00:00Z" → "03/2025"; sem data válida, null.
+  function mesAno(iso) {
+    const m = /^(\d{4})-(\d{2})-\d{2}/.exec(String(iso || ""));
+    return m && Number(m[2]) >= 1 && Number(m[2]) <= 12 ? m[2] + "/" + m[1] : null;
+  }
+  const CURVA_FECHADA_RAIO_M = 60, CURVA_FECHADA_ANGULO_MIN = 45;
   const KINDS_FEICOES = ["curva", "lombada", "balanca", "passagem_nivel", "balsa", "area_escape", "radar", "perigo"];
   function aviso(o) {
     return { id: o.id, tipo: o.tipo, prioridade: PRIORIDADE[o.chave || o.tipo] || 1, ao_longo_m: Math.round(o.ao_longo_m), lat: o.lat, lon: o.lon,
@@ -214,9 +220,13 @@
     for (const f of Array.isArray(linhas) ? linhas : []) {
       if (!f || !KINDS_FEICOES.includes(f.kind) || typeof f.along_route_m !== "number") continue;
       const attrs = f.attrs || {};
-      if (f.kind === "curva" && attrs.classe !== "forte") continue;
+      // Curva: só a FECHADA (raio estimado ≤ 60 m, desvio ≥ 45°). O raio vem da geometria do mapa, não é dado medido, e a
+      // maioria das "fortes" (raio até 120 m) é curva comum de rodovia: avisar de todas gasta a confiança do motorista.
+      if (f.kind === "curva" && !(attrs.classe === "forte" && Number(attrs.raio_m) > 0 && Number(attrs.raio_m) <= CURVA_FECHADA_RAIO_M
+        && (attrs.angulo_graus == null || Number(attrs.angulo_graus) >= CURVA_FECHADA_ANGULO_MIN))) continue;
       const t = TEXTO[f.kind];
-      const det = [f.name, f.road_ref, f.kind === "curva" && attrs.raio_m ? "raio ~" + Math.round(attrs.raio_m) + " m" : null].filter(Boolean).join(" · ");
+      const data = mesAno(f.osm_timestamp);   // última edição do elemento no mapa: mostra a idade do dado, nunca a esconde
+      const det = [f.name, f.road_ref, f.kind === "curva" && attrs.raio_m ? "raio ~" + Math.round(attrs.raio_m) + " m" : null, data ? "mapa de " + data : null].filter(Boolean).join(" · ");
       out.push(aviso({ id: "osm:" + f.id, tipo: f.kind, ao_longo_m: f.along_route_m, lat: f.lat, lon: f.lon, texto: t[0], fala: t[1], detalhe: det || null, fonte: f.attribution || "© OpenStreetMap contributors (ODbL)" }));
     }
     return out;
@@ -574,7 +584,7 @@
     return false;
   }
 
-  const api = { CHAVE_DADOS, lerGuardados, buscarGuardado, guardar, UFS, nomeUF, ufDoTexto, ufsFaladas, ordenarUfs, interpretarDestinoKm, prefixoRodovia, rotuloKm, textoKmTela, falaKm, falaSemKm, avisoPrecisao, fmtKm,
+  const api = { mesAno, CHAVE_DADOS, lerGuardados, buscarGuardado, guardar, UFS, nomeUF, ufDoTexto, ufsFaladas, ordenarUfs, interpretarDestinoKm, prefixoRodovia, rotuloKm, textoKmTela, falaKm, falaSemKm, avisoPrecisao, fmtKm,
     escolherKm, chavePosicao, devePedirKm, KM_INTERVALO_MS, KM_DESLOC_M, KM_DIST_MAX_M,
     distanciaM, acumuladoM, progressoM, rotaGeoJSON, simplificar, chaveRota,
     PRIORIDADE, KINDS_FEICOES, AVISOS_SO_TELA_NO_MODO_ALERTAS, avisosDeFeicoes, avisosDeTrechos, avisosDeArtesp, avisosDeRestricoes, textoRestricao, CONFIANCA_PADRAO, NIVEL_ROTULO, avaliarConfianca, paramsConfianca, textoIdade, dimensaoDe, tituloPossiveis, juntarAvisos, contagens, textoContagens,

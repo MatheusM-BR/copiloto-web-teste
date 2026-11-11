@@ -242,6 +242,39 @@
     return { ok: true, uf: u.uf, preco: Number(u.preco), semana,
       texto: nomeProduto + " " + formatarReais(u.preco) + "/L · preço médio da região (" + u.uf + ")" + (semana ? ", semana de " + semana : "") };
   }
+  // ---- Preço POR POSTO (ANP, coleta em campo): resposta de copiloto_station_prices → índice station_key → produto → preço.
+  // Só vale o que a fonte coletou nos últimos 30 dias; sem coleta, sem preço (nunca estimado).
+  function indexarPrecos(resp) {
+    const idx = {};
+    for (const x of Array.isArray(resp) ? resp : []) {
+      if (!x || typeof x.station_key !== "string" || typeof x.produto !== "string") continue;
+      const preco = Number(x.preco);
+      if (!(preco >= 0.5 && preco <= 50)) continue;
+      const dia = formatarDiaMes(x.coletado_em);
+      (idx[x.station_key] = idx[x.station_key] || {})[x.produto] = {
+        preco, dia, idade: x.idade_dias == null ? null : Number(x.idade_dias), fonte: x.fonte || "ANP",
+      };
+    }
+    return idx;
+  }
+  // "há 8 dias" / "hoje" / "ontem" (idade nula = sem texto).
+  function textoIdade(d) {
+    if (d == null || !isFinite(d) || d < 0) return "";
+    if (d === 0) return "hoje";
+    if (d === 1) return "ontem";
+    return "há " + d + " dias";
+  }
+  // Texto curto da lista: "S10 R$ 6,49 · 03/11". null se o posto não tem S10 (ou S500 como segunda opção, rotulado).
+  function textoPrecoLista(porProduto) {
+    const a = porProduto && (porProduto.diesel_s10 || null), b = porProduto && (porProduto.diesel_s500 || null);
+    const u = a || b; if (!u) return null;
+    return (a ? "S10 " : "S500 ") + formatarReais(u.preco) + (u.dia ? " · " + u.dia : "");
+  }
+  // Menor preço primeiro (S10; sem S10, S500). Posto sem preço depois, na ordem original (sort estável).
+  function ordenarPorPreco(postos, idx) {
+    const v = (p) => { const x = idx && idx[p.station_key]; const u = x && (x.diesel_s10 || x.diesel_s500); return u ? u.preco : Infinity; };
+    return (postos || []).map((p, i) => [p, i]).sort((a, b) => (v(a[0]) - v(b[0])) || (a[1] - b[1])).map((x) => x[0]);
+  }
   // Idade do preço em dias (para avisar quando está velho). null se a semana não veio.
   function diasDesde(iso, agora) {
     const t = Date.parse(String(iso || "").slice(0, 10) + "T12:00:00");
@@ -385,7 +418,7 @@
   const api = {
     CONE_GRAUS, ZOOM_MINIMO, RAIO_MAX_M, MAX_PONTOS_ROTA, ATRIBUTOS, ROTULO,
     distanciaM, rumoGraus, difAngulo, aFrentePorRumo, naRota, filtrar, formatarDistancia, nomeBandeira, nomePosto,
-    descreverAtributos, resumoAtributos, AMENIDADES, descreverAmenidades, amenidadesSim, marcaBandeira, proximoComDiesel, linhaDoPosto, precoDaRegiao, formatarDiaMes, formatarReais, diasDesde, telefoneLimpo, rotuloConfianca, rotaGeoJSON, dadosDoPosto, formatarData, lerHorario, abertoAgora, abertoAgoraDoPosto, situacaoAbertura, GRUPOS_BANDEIRA, grupoBandeira, estrelasConfianca, desvioMin, buscaDaVista, precisaBuscar, paraGeoJSON,
+    descreverAtributos, resumoAtributos, AMENIDADES, descreverAmenidades, amenidadesSim, marcaBandeira, proximoComDiesel, linhaDoPosto, precoDaRegiao, indexarPrecos, textoIdade, textoPrecoLista, ordenarPorPreco, formatarDiaMes, formatarReais, diasDesde, telefoneLimpo, rotuloConfianca, rotaGeoJSON, dadosDoPosto, formatarData, lerHorario, abertoAgora, abertoAgoraDoPosto, situacaoAbertura, GRUPOS_BANDEIRA, grupoBandeira, estrelasConfianca, desvioMin, buscaDaVista, precisaBuscar, paraGeoJSON,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoPostos = api;

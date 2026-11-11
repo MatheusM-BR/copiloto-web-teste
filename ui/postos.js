@@ -22,7 +22,7 @@
   let litrosTexto = "";           // o que o motorista digitou nesta abertura (não fica guardado)
   // último filtro lembrado (R5): só chaves conhecidas e booleanas
   let filtros = (function () {
-    const b = { diesel: false, caminhao: false, h24: false, banho: false, aberto: false }, g = lerJSON(CHAVE_FILTROS, null);
+    const b = { diesel: false, caminhao: false, h24: false, banho: false, aberto: false, barato: false }, g = lerJSON(CHAVE_FILTROS, null);
     if (g && typeof g === "object") for (const k of Object.keys(b)) b[k] = g[k] === true;
     return b;
   })();
@@ -49,6 +49,31 @@
       if (e.name === "AbortError" || e instanceof TypeError) { const x = new Error("Sem conexão para buscar postos."); x.rede = true; throw x; }
       throw e;
     } finally { clearTimeout(t); }
+  }
+
+  // ------------------------------------------------------------ preço POR POSTO (ANP)
+  // station_key → { diesel_s10: {preco, dia, idade, fonte}, … } ({} = consultado, sem coleta recente). Vale 30 min na sessão.
+  const precosPosto = new Map(), precosQuando = new Map();
+  async function carregarPrecos(postos) {
+    const chaves = [...new Set((postos || []).map((p) => p && p.station_key).filter((k) => typeof k === "string" && /^anp:\d+$/.test(k)))]
+      .filter((k) => !(precosQuando.has(k) && Date.now() - precosQuando.get(k) < 30 * 60 * 1000));
+    for (let i = 0; i < chaves.length; i += 60) {
+      const lote = chaves.slice(i, i + 60);
+      try {
+        const resp = await rpc("copiloto_station_prices", { p_station_keys: lote }, true);
+        const idx = P.indexarPrecos(resp);
+        for (const k of lote) { precosPosto.set(k, idx[k] || {}); precosQuando.set(k, Date.now()); }
+      } catch (e) { /* sem rede ou função indisponível: a lista segue sem preço por posto */ }
+    }
+  }
+  function precoDe(p) { return precosPosto.get(p.station_key) || null; }
+  function aplicarPrecos() {
+    document.querySelectorAll(".postos-preco[data-key]").forEach((el0) => {
+      const pr = precosPosto.get(el0.dataset.key);
+      const t = pr ? P.textoPrecoLista(pr) : null;
+      el0.textContent = t || ""; el0.hidden = !t;
+      if (t) { const u = pr.diesel_s10 || pr.diesel_s500; el0.title = "Preço coletado pela ANP neste posto em " + (u.dia || "data sem informação") + (u.idade != null ? " (" + P.textoIdade(u.idade) + ")" : ""); }
+    });
   }
 
   // ------------------------------------------------------------ camada do mapa
@@ -111,7 +136,13 @@
       const resp = await rpc("copiloto_stations_near", { p_lat: g.lat, p_lon: g.lon, p_heading_deg: g.rumo != null ? Math.round(g.rumo) % 360 : null, p_radius_m: 30000, p_limit: quer });
       r = P.aFrentePorRumo(resp, g, g.rumo);
     }
-    return P.filtrar(r, Object.assign({}, filtros, { bandeiras, agora: new Date() })).slice(0, 5);
+    let fil = P.filtrar(r, Object.assign({}, filtros, { bandeiras, agora: new Date() }));
+    if (filtros.barato) {
+      await carregarPrecos(fil);
+      const idx = {}; for (const p of fil) { const x = precoDe(p); if (x) idx[p.station_key] = x; }
+      fil = P.ordenarPorPreco(fil, idx);
+    }
+    return fil.slice(0, 5);
   }
 
   function estimativa() {
@@ -140,6 +171,7 @@
       lista = r;
       C.emit("postos:lista", { modo: modoLista, postos: lista });
       desenharFolha({});
+      carregarPrecos(lista).then(() => { if (n === seqBusca) aplicarPrecos(); });
     } catch (e) {
       if (n !== seqBusca) return;
       desenharFolha({ erro: e.message });
@@ -196,6 +228,11 @@
     ab.setAttribute("aria-label", "Só abertos agora (horário confirmado)"); ab.setAttribute("aria-pressed", String(filtros.aberto));
     ab.addEventListener("click", () => { filtros.aberto = !filtros.aberto; gravarFiltros(); refazer(); });
     f.appendChild(ab);
+    const ba = el("button", "btn btn-pequeno postos-chip postos-chip-barato"); ba.type = "button"; ba.id = "postos-chip-barato";
+    ba.append(ic("bomba"), el("span", null, "Menor preço"));
+    ba.setAttribute("aria-label", "Ordenar pelo menor preço do diesel (só postos com preço coletado pela ANP nas últimas semanas)"); ba.setAttribute("aria-pressed", String(filtros.barato));
+    ba.addEventListener("click", () => { filtros.barato = !filtros.barato; gravarFiltros(); refazer(); });
+    f.appendChild(ba);
     for (const [chave, rotulo] of P.GRUPOS_BANDEIRA) {
       const b = el("button", "btn btn-pequeno postos-chip postos-chip-bandeira"); b.type = "button"; b.id = "postos-bandeira-" + chave;
       const amostra = chave === "outras" ? null : P.marcaBandeira(chave === "petrobras" ? "PETROBRAS" : chave.toUpperCase());
@@ -365,7 +402,8 @@
     if (ab.estado !== "?") icones.appendChild(seloAbertura(p, false));
     const desv = modoLista === "rota" ? P.desvioMin(p) : null;
     if (desv) { const dv = el("span", "postos-desvio"); dv.append(ic("relogio"), document.createTextNode(desv + " min")); dv.title = "Desvio estimado de cerca de " + desv + " min"; icones.appendChild(dv); }
-    corpo.append(topo, marca, icones);
+    const preco = el("span", "postos-preco"); preco.dataset.key = p.station_key; preco.hidden = true;
+    corpo.append(topo, preco, marca, icones);
     b.append(logoBandeira(p), corpo);
     if (proximo) { const t = el("span", "postos-selo"); t.append(ic("ok"), document.createTextNode("Próximo com diesel")); b.appendChild(t); }
     // texto para o leitor de tela (e fonte do que o motorista vê em ícones): nada some, só deixa de ocupar a tela
@@ -415,7 +453,25 @@
     const valores = el("div", "pc-valores");
     valores.appendChild(el("p", "pc-linha", "Buscando o preço médio da região…"));
     const fonte = el("p", "dica pc-data"); fonte.id = "postos-datas";
-    caixa.append(cab, valores, fonte, el("p", "dica pc-sem", "Sem preço deste posto: a ANP só informa a média da região."));
+    const doPosto = el("div", "pc-posto"); doPosto.id = "postos-preco-posto"; doPosto.hidden = true;
+    const sem = el("p", "dica pc-sem", "Sem preço deste posto: a ANP só informa a média da região.");
+    caixa.append(cab, doPosto, valores, fonte, sem);
+    carregarPrecos([p]).then(() => {
+      if (!caixa.isConnected) return;
+      const pr = precoDe(p);
+      if (!pr || !(pr.diesel_s10 || pr.diesel_s500)) return;
+      doPosto.textContent = "";
+      doPosto.appendChild(el("p", "pc-linha pc-neste", "Neste posto"));
+      let ref = null;
+      for (const [k, nome] of [["diesel_s10", "Diesel S10"], ["diesel_s500", "Diesel S500"]]) {
+        if (!pr[k]) continue;
+        ref = ref || pr[k];
+        const c = el("p", "pc-valor"); c.append(el("span", "pc-prod", nome), el("strong", null, P.formatarReais(pr[k].preco) + "/L"));
+        doPosto.appendChild(c);
+      }
+      doPosto.appendChild(el("p", "dica pc-data-posto", "Preço coletado pela ANP neste posto em " + (ref.dia || "data sem informação") + (ref.idade != null ? " (" + P.textoIdade(ref.idade) + ")" : "") + ". Pode ter mudado desde então."));
+      doPosto.hidden = false; sem.hidden = true;
+    });
     const prod = [["diesel_s10", "Diesel S10"], ["diesel_s500", "Diesel S500"]];
     Promise.all(prod.map(([k, nome]) => precoDaRegiao(p, k).then((r) => P.precoDaRegiao(r, nome), () => null))).then((res) => {
       if (!caixa.isConnected) return;

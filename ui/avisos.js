@@ -89,8 +89,8 @@
     if (e.restricoes.dados) listas.push(D.avisosDeRestricoes(e.restricoes.dados));
     if (!listas.length) return;
     // Projeto de dados confiáveis, nível D: sem data, atrasado ou heurístico, então não aparece nem fala (o dado fica no banco).
-    // Curva "forte" é calculada pela geometria; obra de painel ARTESP chega com ~2 meses de atraso.
-    const ocultos = window.COPILOTO_MOSTRAR_OCULTOS === true ? [] : ["curva", "obra"];
+    // Obra de painel ARTESP chega com ~2 meses de atraso. Curva só entra se for fechada (raio ≤ 60 m): filtro em dados.js.
+    const ocultos = window.COPILOTO_MOSTRAR_OCULTOS === true ? [] : ["obra"];
     for (let i = 0; i < listas.length; i++) listas[i] = listas[i].filter((a) => !ocultos.includes(a.tipo));
     e.avisos = R.finalizar(D.juntarAvisos(listas));
     e.guardado = false;
@@ -450,7 +450,7 @@
         const ver = botao("Ver no mapa", "btn dados-ver-mapa", () => verNoMapa(r, null)); ver.id = "dados-ver-mapa";
         linha.append(ver);
       } else if (pend) linha.append(el("span", "dados-contagens", "Verificando curvas, balanças e trechos perigosos…"));
-      else if (["feicoes", "trechos", "artesp"].every((n) => p[n].estado === "ok")) linha.append(el("span", "dados-contagens", "Sem curva forte, balança nem trecho perigoso cadastrado na rota."));
+      else if (["feicoes", "trechos", "artesp"].every((n) => p[n].estado === "ok")) linha.append(el("span", "dados-contagens", "Nenhuma curva fechada, balança nem trecho perigoso conhecidos nesta rota. Isso não garante via livre."));
       else linha.append(el("span", "dados-contagens falha", "Não deu para verificar curvas e trechos perigosos" + (online() ? "." : " (sem internet).")));
       bloco.append(linha);
       const f = fontes(e);
