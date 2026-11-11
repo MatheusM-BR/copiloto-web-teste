@@ -85,7 +85,8 @@
   async function perto(pos) {
     const p = pos && { lat: Number(pos.lat), lon: Number(pos.lon != null ? pos.lon : pos.lng) };
     if (!p || !isFinite(p.lat) || !isFinite(p.lon) || Math.abs(p.lat) > 90 || Math.abs(p.lon) > 180) return null;
-    const opcoes = { rumo: pos.rumo, km: kmPara(p, pos.propria) };
+    const kmDado = pos.km && pos.km.rodovia && typeof pos.km.km === "number" && isFinite(pos.km.km) ? { rodovia: pos.km.rodovia, km: pos.km.km } : null; // km do PONTO (toque no mapa)
+    const opcoes = { rumo: pos.rumo, km: kmDado || kmPara(p, pos.propria) };
     const mapa = doMapa(p, opcoes);
     const agora = Date.now();
     // a posição DO MOTORISTA (SOS: pos.propria) só vai ao Nominatim com a localização permitida; o ponto que ele toca no mapa

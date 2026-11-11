@@ -161,7 +161,7 @@
     if (rua && rodovia && normalizarSigla(rua) === rodovia) rua = null;
     const iso = /^BR-([A-Z]{2})$/.exec(String(a["ISO3166-2-lvl4"] || ""));
     const e = {
-      rodovia: rodovia || null, km: null, rua,
+      rodovia: rodovia || null, km: null, rua, numero: a.house_number ? String(a.house_number) : null,
       bairro: a.suburb || a.neighbourhood || a.quarter || a.city_district || null,
       cidade: a.city || a.town || a.municipality || a.village || null,
       uf: iso && UFS[iso[1]] ? iso[1] : ufDeNome(a.state),
@@ -180,7 +180,7 @@
     const e = {
       rodovia: viaDaInternet ? internet.rodovia : mapa.rodovia,
       km: viaDaInternet ? internet.km : mapa.km,
-      rua: viaDaInternet ? internet.rua : mapa.rua,
+      rua: viaDaInternet ? internet.rua : mapa.rua, numero: viaDaInternet ? (internet.numero || null) : null,
       bairro: internet.bairro || mapa.bairro, cidade: internet.cidade || mapa.cidade, uf: internet.uf || mapa.uf,
       fonte: "internet",
       // a distância até a cidade só vale se a cidade é a mesma que o mapa achou
@@ -244,7 +244,7 @@
     e = comKm(e, o && o.km);
     const texto = montarTexto(e, o);
     if (!texto) return null;
-    const out = { rodovia: e.rodovia || null, km: e.km != null && isFinite(e.km) ? e.km : null, rua: e.rua || null, bairro: e.bairro || null,
+    const out = { rodovia: e.rodovia || null, km: e.km != null && isFinite(e.km) ? e.km : null, rua: e.rua || null, numero: e.numero || null, bairro: e.bairro || null,
       cidade: e.cidade || null, uf: e.uf || null, texto, fonte: e.fonte };
     // fica fora do formato público, só para combinar e montar o texto de novo
     Object.defineProperty(out, "distanciaCidadeM", { value: e.distanciaCidadeM == null ? null : e.distanciaCidadeM, enumerable: false });

@@ -52,13 +52,16 @@
   }
 
   // ------------------------------------------------------------ camada do mapa
+  // Uma cor só para todo posto (antes: verde = cadastro ANP, azul-acinzentado = só OpenStreetMap, sem legenda: ninguém sabia o que era).
+  // A fonte aparece no detalhe do posto. Posto é conveniência: cor própria, que não se confunde com a rota (azul) nem com os avisos (amarelo).
+  const COR_POSTO = "#14b8a6";
   function garantirCamada() {
     const mapa = C.mapa;
     if (mapa.getSource("postos-pontos")) return;
     mapa.addSource("postos-pontos", { type: "geojson", data: P.paraGeoJSON([]), attribution: "© OpenStreetMap contributors · Cadastro ANP" });
     mapa.addLayer({ id: "postos-pontos", type: "circle", source: "postos-pontos", minzoom: P.ZOOM_MINIMO,
       paint: { "circle-radius": 7, "circle-stroke-width": 2, "circle-stroke-color": "#14181f",
-        "circle-color": ["match", ["get", "fonte"], "osm", "#8fb3d9", "#3fb67a"] } });
+        "circle-color": COR_POSTO } });
     mapa.on("click", "postos-pontos", (e) => {
       const f = e.features && e.features[0]; if (!f) return;
       const p = naVista.find((x) => x.station_key === f.properties.key);
@@ -239,9 +242,63 @@
     }
     itens.push(...dicas, campoLitros());
     itens.push(el("p", "dica postos-credito", CREDITO));
-    const b = el("div", "linha-botoes"); b.appendChild(botao("Fechar", "btn", C.folha.fechar)); itens.push(b);
+    const b = el("div", "linha-botoes");
+    const ver = botao("Ver no mapa os postos (50 km)", "btn postos-ver-mapa", verPostosNoMapa); ver.id = "postos-ver-mapa";
+    b.append(ver, botao("Fechar", "btn", C.folha.fechar)); itens.push(b);
     C.folha.abrir(itens);
     $folha().scrollTop = 0;
+  }
+
+  // "Ver no mapa os postos (50 km)": com rota, os que estão na via (a até 1 km do traçado) nos próximos 50 km; sem rota, todos a até
+  // 50 km em volta. Aparecem no mapa de qualquer zoom (camada própria até o zoom 11, onde a camada normal assume), o mapa enquadra
+  // tudo e cada ponto abre o posto. Os pontos saem quando o motorista pede de novo ou limpa a rota.
+  const MAX_VER_M = 50000;
+  function garantirCamada50() {
+    const mapa = C.mapa;
+    if (mapa.getSource("postos-50km")) return;
+    mapa.addSource("postos-50km", { type: "geojson", data: P.paraGeoJSON([]), attribution: "© OpenStreetMap contributors · Cadastro ANP" });
+    mapa.addLayer({ id: "postos-50km", type: "circle", source: "postos-50km", maxzoom: P.ZOOM_MINIMO,
+      paint: { "circle-radius": 8, "circle-stroke-width": 2, "circle-stroke-color": "#14181f", "circle-color": COR_POSTO } });
+    mapa.on("click", "postos-50km", (e) => {
+      const f = e.features && e.features[0]; if (!f) return;
+      const p = ver50.find((x) => x.station_key === f.properties.key);
+      if (p) mostrarDetalhe(Object.assign({}, p, { distancia_m: distanciaDaqui(p) }), modoVer);
+    });
+  }
+  let ver50 = [], modoVer = "perto";
+  function tirarPostos50() {
+    ver50 = [];
+    try { const src = C.mapa && C.mapa.getSource("postos-50km"); if (src) src.setData(P.paraGeoJSON([])); } catch (e) { /* mapa trocando de estilo */ }
+  }
+  async function verPostosNoMapa() {
+    const g = C.estado.gps;
+    if (!g) { C.mensagem("Ative o GPS para ver os postos perto de você.", 5000); return; }
+    C.mensagem("Buscando postos em 50 km…", 4000);
+    try {
+      const rota = rotaAtiva();
+      let r;
+      if (rota) {
+        modoVer = "rota";
+        const resp = await rpc("copiloto_stations_along_route", { p_route: P.rotaGeoJSON(rota.coords), p_buffer_m: 1000, p_from_lat: g.lat, p_from_lon: g.lon, p_limit: 50 });
+        r = P.naRota(resp).filter((p) => p.along_route_m == null || p.along_route_m <= MAX_VER_M);
+      } else {
+        modoVer = "perto";
+        r = await rpc("copiloto_stations_near", { p_lat: g.lat, p_lon: g.lon, p_heading_deg: null, p_radius_m: MAX_VER_M, p_limit: 50 });
+      }
+      r = (Array.isArray(r) ? r : []).filter((p) => isFinite(p.lat) && isFinite(p.lon));
+      if (!r.length) { C.mensagem(rota ? "Nenhum posto na via nos próximos 50 km." : "Nenhum posto a até 50 km.", 6000); return; }
+      ver50 = r;
+      C.folha.fechar();
+      C.mapaPronto(() => {
+        garantirCamada50(); C.mapa.getSource("postos-50km").setData(P.paraGeoJSON(r));
+        const lons = r.map((p) => p.lon).concat(g.lon), lats = r.map((p) => p.lat).concat(g.lat);
+        const alto = Math.round((document.getElementById("barra-topo") || { offsetHeight: 90 }).offsetHeight + 40);
+        C.mapa.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding: { top: alto, bottom: 150, left: 40, right: 40 }, maxZoom: 12, duration: 600 });
+      });
+      C.mensagem(r.length + (r.length === 1 ? " posto" : " postos") + (rota ? " na via, nos próximos 50 km." : " em 50 km.") + " Toque num para ver.", 7000);
+    } catch (e) {
+      C.mensagem(e && e.rede ? "Sem conexão para buscar postos." : "Não deu para buscar os postos agora.", 6000);
+    }
   }
   const $folha = () => document.getElementById("folha");
 
@@ -505,6 +562,13 @@
     ir.append(ic("ir"), el("span", null, "Ir até lá"));
     ir.setAttribute("aria-label", "Ir até lá: " + P.nomePosto(p));
     acoes.appendChild(ir);
+    // parada no posto (ui/parada.js): perto do posto, o motorista marca a chegada e na saída conta o que tem aqui
+    const dAqui = distanciaDaqui(p);
+    if (C.parada && dAqui !== null && dAqui <= 400 && !(C.parada.visita() && C.parada.visita().key === p.station_key)) {
+      const est = botao("", "btn pc-estou", () => { if (C.parada.marcar(p)) C.folha.fechar(); }); est.id = "postos-estou";
+      est.append(ic("parada"), el("span", null, "Estou neste posto"));
+      acoes.appendChild(est);
+    }
     if (temRota() && !navegando()) acoes.appendChild(el("p", "dica pc-troca", "Entra como parada no caminho; o destino e a rota continuam."));
     else if (navegando()) acoes.appendChild(el("p", "dica pc-troca", "Navegando: você escolhe se é parada ou novo destino."));
     const linha = el("div", "pc-acoes2");
@@ -589,13 +653,13 @@
     C.folha.abrir([raiz]);
   }
 
-  C.postos = { abrirProximo, buscarProximos, naVista: () => naVista.slice(), lista: () => lista.slice() };
-
+  C.postos = { verNoMapa: verPostosNoMapa, tirarDoMapa: tirarPostos50, abrirProximo, buscarProximos, naVista: () => naVista.slice(), lista: () => lista.slice() };
   C.aoIniciar(() => {
     C.carregarEstilo("estilos/postos.css");
     // redesenho: sem botão de posto na tela inicial; "Postos à frente" fica na busca (ui/busca.js chama abrirProximo)
     // comando de voz (pacote de voz): { origem: "voz", atender } — confirmar em até 300 ms que tratamos o pedido
     C.on("comando:proximo-posto", (d) => { if (d && typeof d.atender === "function") d.atender(); abrirProximo(); });
+    C.on("rota-limpa", tirarPostos50);
     C.mapaPronto(garantirCamada);
     C.mapa.on("moveend", agendarVista);
     C.mapa.on("zoomend", agendarVista);

@@ -75,6 +75,8 @@
 #app.com-barra .folha { bottom: var(--teclado, 0px); }
 
 /* ------------------------------------------------------------ folha de planejamento da rota (P1.4, ui/rota.js) */
+.rota-cabecalho { display: block; }
+.rota-cabecalho.com-prefs { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
 .rota-resumo { display: grid; gap: 4px; padding: 10px 14px; border-radius: 16px; background: var(--campo); border: 1px solid var(--linha); }
 .rota-resumo-trecho { margin: 0; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; color: var(--suave); }
 .folha .rota-resumo-trecho { color: var(--suave); }
@@ -101,6 +103,16 @@
 /* ------------------------------------------------------------ painel da manobra: a via só aparece quando a instrução não a cita (lote 2) */
 .nav-rua.redundante { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; padding: 0; }
 #app.com-barra .folha { max-height: min(66%, calc(100% - 232px)); }
+/* folha da rota (decisão): cabeçalho, círculos, cartões e botões à vista sem rolar; deixa só o necessário do mapa acima */
+#app.com-barra .folha[data-decisao="1"] { max-height: min(72%, calc(100% - 190px)); }
+#app.com-barra .folha[data-decisao="1"].rl-longa { max-height: 52%; } /* viagem do tamanho do país: sobra mais mapa acima da folha */
+#app.com-barra .folha[data-decisao="1"] .rota-resumo { padding: 8px 12px; gap: 2px; }
+#app.com-barra .folha[data-decisao="1"] .rota-resumo-dados { font-size: 24px; }
+#app.com-barra .folha[data-decisao="1"] .rota-resumo-chegada { padding: 2px 10px; font-size: 14px; }
+#app.com-barra .folha[data-decisao="1"] .rota-opcao { padding: 6px 12px; min-height: 64px; }
+#app.com-barra .folha[data-decisao="1"] .rota-opcao-linha { gap: 2px 6px; }
+#app.com-barra .folha[data-decisao="1"] .rota-opcoes { gap: 6px; }
+#app.com-barra .folha[data-decisao="1"] .folha-rodape { padding-top: 6px; padding-bottom: 8px; }
 
 /* celular deitado (tela baixa): o app pede para girar e a barra sai para não comer a pouca altura que sobra */
 @media (orientation: landscape) and (max-height: 540px) { .barra-abas { display: none; } }
@@ -111,3 +123,9 @@
   #app.com-veiculo { --topo-extra: 0px; }
   #app.com-atalhos { --atalhos-h: 0px; }
 }
+#app.com-barra .folha[data-decisao="1"] .btn-iniciar-nav { min-height: 76px; }
+#app.com-barra .folha[data-decisao="1"] .rota-resumo-nums { gap: 2px 8px; }
+#app.com-barra .folha[data-decisao="1"] .rota-resumo-dados { font-size: 22px; }
+#app.com-barra .folha[data-decisao="1"] .rota-resumo-chegada { font-size: 13px; padding: 1px 8px; }
+#app.com-barra .folha[data-decisao="1"] .rota-opcao-linha { font-size: 12px; }
+#app.com-barra .folha[data-decisao="1"] .rota-selo { font-size: 11px; padding: 1px 6px; }

@@ -20,7 +20,7 @@
   const CHAVE_BASE = "copiloto.base.v1";
   // camadas dos pacotes que já tratam o próprio toque (o detalhe do posto abre por ui/postos.js; a linha cinza de uma
   // rota alternativa escolhe a rota, ui/rota.js — equipe F)
-  const CAMADAS_COM_TOQUE = ["postos-pontos", "rota-alt-toque", "rota-alt"];
+  const CAMADAS_COM_TOQUE = ["postos-pontos", "postos-50km", "rota-alt-toque", "rota-alt"];
   const ESPERA_TECLA_MS = 400, INTERVALO_MIN_MS = 1000, TEMPO_LIMITE_MS = 8000, MAX_RESULTADOS = 6;
   let pinoToque = null, folhaToque = null, folhaGuardada = null, seqEndereco = 0, seqBusca = 0, timerBusca = null, ultimoPedido = 0;
 
@@ -93,9 +93,23 @@
     const g = localizacaoPermitida() ? C.estado.gps : null;
     const ctl = new AbortController(), tl = setTimeout(() => ctl.abort(), TEMPO_LIMITE_MS);
     try {
-      const r = await fetch(I.urlBusca(t, g ? { lat: g.lat, lon: g.lon } : null, 10, window.COPILOTO_URL_BUSCA), { signal: ctl.signal });
-      if (!r.ok) { const e = new Error("A busca de endereços não respondeu (" + r.status + ")."); e.rede = r.status >= 500 || r.status === 429; throw e; }
-      return I.resultadosBusca(await r.json(), MAX_RESULTADOS);
+      // Duas consultas seguidas (a segunda sem a posição): (1) numa caixa de ~40 km ao redor do motorista, com viés — o que está
+      // perto vem mesmo com nome comum; (2) no Brasil inteiro — cidades e lugares grandes, que o viés empurra para fora dos 10
+      // primeiros ("São Paulo" virava só ruas de Londrina) e sem CEPs de Portugal. Com número ("260, aço"): só ruas, pelo nome.
+      const pedir = async (texto, pos, opc) => {
+        const r = await fetch(I.urlBusca(texto, pos, 10, window.COPILOTO_URL_BUSCA, opc), { signal: ctl.signal });
+        if (!r.ok) { const e = new Error("A busca de endereços não respondeu (" + r.status + ")."); e.rede = r.status >= 500 || r.status === 429; throw e; }
+        return r.json();
+      };
+      const pos = g ? { lat: g.lat, lon: g.lon } : null;
+      const num = I.lerEnderecoComNumero(t);
+      const q = num ? num.resto : t, tag = num ? "highway" : null;
+      // um pedido por vez, com o intervalo de 1 s entre eles (serviço público): primeiro o perto, depois o Brasil
+      const resp = [];
+      if (pos) resp.push(await pedir(q, pos, { bbox: I.bboxPerto(pos), osmTag: tag }));
+      if (pos) { const falta2 = INTERVALO_MIN_MS - (Date.now() - ultimoPedido); if (falta2 > 0) await esperar(falta2); ultimoPedido = Date.now(); }
+      resp.push(await pedir(q, null, { bbox: I.BBOX_BRASIL, osmTag: tag }).catch((e) => { if (!pos) throw e; return null; }));
+      return I.resultadosBusca(I.juntarBusca(resp), MAX_RESULTADOS, q, num ? num.numero : null);
     } catch (e) {
       if (e.name === "AbortError" || e instanceof TypeError) { const x = new Error("Sem conexão com a busca de endereços."); x.rede = true; throw x; }
       throw e;
@@ -264,7 +278,8 @@
     // endereço do ponto, se o pacote de endereço existir (do mapa guardado ou da internet); sem ele, fica a coordenada
     const seq = ++seqEndereco;
     if (!dado && C.endereco && typeof C.endereco.perto === "function") {
-      Promise.resolve().then(() => C.endereco.perto({ lat: p.lat, lon: p.lon })).then((r) => {
+      // km da rodovia do ponto (DNIT/PRF, aproximado) e número da casa (Nominatim) entram no título: "BR-116, km 230,4" · "Rua X, 463"
+      Promise.resolve().then(() => (C.km && C.km.em ? C.km.em(p).catch(() => null) : null)).then((k) => C.endereco.perto({ lat: p.lat, lon: p.lon, km: k ? { rodovia: k.rodovia, km: k.km } : null })).then((r) => {
         if (seq !== seqEndereco || !raiz.isConnected) return;
         const t = I.textoEndereco(r);
         if (!t) return;

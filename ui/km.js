@@ -239,6 +239,14 @@
     window.addEventListener("offline", () => { if (atual) { atual = null; desenhar(); } });
   });
 
-  C.km = { atual: () => atual, recente: (maxMs) => (atual && respondidoEm && Date.now() - respondidoEm <= (maxMs || 120000) ? atual : null), responderVoz, ehDestino, procurar, irParaKm, deVoz, prefixo, sugerirRodovias, avisoDestino, atualizar: () => atualizar(true),
+  // km de um PONTO qualquer (o que o motorista toca no mapa), a até 150 m de uma rodovia: { rodovia, uf, km, oficial, estimado } ou null.
+  // Mesmo cache e as mesmas fontes do "em que km estou" (DNIT oficial, depois PRF/ARTESP estimado); sem internet ou sem resposta em 4 s: null.
+  async function em(pos) {
+    if (!pos || !isFinite(pos.lat) || !isFinite(pos.lon) || !online()) return null;
+    const t = new Promise((ok) => setTimeout(() => ok(null), 4000));
+    const r = await Promise.race([pedir(pos).catch(() => null), t]);
+    return r && !r.falhou ? D.escolherKm(r.snv, r.kmAt, 150) : null;
+  }
+  C.km = { em, atual: () => atual, recente: (maxMs) => (atual && respondidoEm && Date.now() - respondidoEm <= (maxMs || 120000) ? atual : null), responderVoz, ehDestino, procurar, irParaKm, deVoz, prefixo, sugerirRodovias, avisoDestino, atualizar: () => atualizar(true),
     _cache: cache };
 })(window.Copiloto);

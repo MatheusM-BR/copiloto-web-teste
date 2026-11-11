@@ -29,7 +29,12 @@
   padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   border-top: 1px solid var(--linha);
 }
-.folha .rota-rodape .btn-iniciar-nav { width: 100%; }
+.folha .rota-rodape { grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 8px; }
+.folha .rota-rodape.so-limpar { grid-template-columns: 1fr; }
+.folha .rota-rodape .btn-iniciar-nav { width: 100%; min-width: 0; font-size: 20px; padding-left: 10px; padding-right: 10px; white-space: nowrap; }
+
+.folha .rota-topo.folha-topo { position: static; height: 0; margin: 0; padding: 0; border: 0; overflow: visible; }
+.folha .rota-rodape .rota-limpar { min-width: 84px; min-height: 64px; padding: 0 10px; font-size: 14px; line-height: 1.15; }
 /* relato: título + SOS na mesma linha, no topo; contagem do envio automático e botões grandes no rodapé */
 .r-topo { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .folha .r-topo h2 { min-width: 0; }

@@ -1,6 +1,6 @@
 // Placas no app: lista de avisos (folha), marcadores com placa e a tela "Placas e sinais". Lógica de desenho em placas.js
 // (window.CopilotoPlacas, também em Copiloto.placas). Expõe Copiloto.lista:
-//   abrir({ foco?, centro? })   abre a folha "Avisos no trajeto": avisos da rota, rampas (ui/via.js), relatos e postos, agrupados
+//   abrir({ foco?, centro? })   abre a folha "Avisos no trajeto": avisos da rota, rampas (ui/via.js) e relatos, agrupados (postos NÃO entram aqui: são conveniência, têm a lista própria "Postos à frente", ui/postos.js), agrupados
 //                               por severidade (restrição > atenção > informativo) e, em cada grupo, por distância (ao longo da
 //                               rota; sem rota, ao ponto tocado ou ao GPS). Toque no item: centraliza o mapa e mostra o detalhe.
 //   itens({ centro? })          os mesmos itens, sem desenhar (testes)
@@ -71,16 +71,6 @@
     }
     return out;
   }
-  function postos() {
-    const P = window.CopilotoPostos, out = [];
-    for (const p of (C.postos && C.postos.naVista ? C.postos.naVista() : [])) {
-      if (!isFinite(p.lat) || !isFinite(p.lon)) continue;
-      out.push({ id: "posto:" + p.station_key, origem: "posto", tipo: "posto", valor: null, titulo: P && P.nomePosto ? P.nomePosto(p) : "Posto", lat: p.lat, lon: p.lon, via: "",
-        fonte: p.source === "osm" ? "OpenStreetMap" : "Cadastro ANP / OpenStreetMap", idade: "", detalhe: "" });
-    }
-    return out;
-  }
-
   // centro: { lat, lon } (ponto tocado). Com rota: ordem ao longo dela (o que já passou some navegando). Sem rota: distância ao centro.
   function itens(o) {
     o = o || {};
@@ -107,7 +97,7 @@
         }
       }
       const acum = D.acumuladoM(r.coords);
-      for (const x of relatosNuvem().concat(postos())) {
+      for (const x of relatosNuvem()) {
         const loc = L.localizar(r.coords, pos(x), { maxM: BUFFER_ROTA_M }); if (!loc) continue;
         const ao = D.progressoM(r.coords, acum, loc.indice, pos(x)); if (ao == null) continue;
         const dist = ao - base; if (navAtiva && dist < -40) continue;
@@ -116,7 +106,7 @@
     } else {
       const g = C.estado && C.estado.gps;
       const c = o.centro || (g ? { lat: g.lat, lon: g.lon } : null);
-      if (c) for (const x of relatosNuvem().concat(postos())) { const d = distMetros(c, x); if (d <= RAIO_PONTO_M) lista.push(novo(Object.assign(x, { dist: d }))); }
+      if (c) for (const x of relatosNuvem()) { const d = distMetros(c, x); if (d <= RAIO_PONTO_M) lista.push(novo(Object.assign(x, { dist: d }))); }
     }
     const ordem = { restricao: 0, atencao: 1, informativo: 2 };
     lista.sort((a, b) => ordem[a.sev] - ordem[b.sev] || a.dist - b.dist);
@@ -198,7 +188,7 @@
     corpo.setAttribute("aria-labelledby", "la-titulo");
     if (!lista.length) {
       const v = el("p", "la-vazio", "Nenhum aviso neste trecho"); v.id = "la-vazio";
-      corpo.append(v, el("p", "la-vazio-dica", rotaAtual() ? "O app só mostra o que tem: avisos da rota, rampas, relatos de motoristas e postos." : "Nada perto deste ponto. Trace uma rota para ver os avisos do trajeto."));
+      corpo.append(v, el("p", "la-vazio-dica", rotaAtual() ? "O app só mostra o que tem: avisos da rota, rampas e relatos de motoristas. Postos ficam no botão do posto." : "Nada perto deste ponto. Trace uma rota para ver os avisos do trajeto."));
     } else {
       for (const sev of ["restricao", "atencao", "informativo"]) {
         const g = lista.filter((x) => x.sev === sev); if (!g.length) continue;

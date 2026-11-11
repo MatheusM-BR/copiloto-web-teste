@@ -570,7 +570,6 @@
     if (f && !f.hidden && f.dataset.decisao === "1") folhaRota(rotaAtual, rotaAtual.perfil);
     return true;
   }
-  function rotuloVeiculo(perfil) { return perfil && Rota.ehCaminhao(perfil) ? perfil.nome : "carro"; }
   function botaoIniciar() {
     // ao iniciar, as alternativas somem (a escolhida fica)
     const b = botao("Iniciar navegação", "btn btn-principal btn-iniciar-nav", () => { esconderAlternativas(); C.navegacao.iniciar(); });
@@ -591,8 +590,7 @@
     for (const d of RP.PREFS) {
       if (sup[d.id] !== true) continue;
       const b = el("button", "rota-pref" + (prefs[d.id] ? " ligada" : "")); b.type = "button"; b.id = "rota-pref-" + d.id;
-      if (window.CopilotoIcones) b.append(window.CopilotoIcones.no(d.icone));
-      b.append(el("span", null, CURTO[d.id]));
+      if (window.CopilotoIcones) b.append(window.CopilotoIcones.no(d.icone)); else b.append(el("span", null, CURTO[d.id]));
       b.setAttribute("aria-pressed", String(!!prefs[d.id])); b.setAttribute("aria-label", d.longo + (prefs[d.id] ? ": ligado" : ": desligado")); b.title = d.rotulo;
       b.addEventListener("click", () => { prefs[d.id] = !prefs[d.id]; gravarPrefs(); C.emit("rota:prefs", Object.assign({}, prefs)); tracarRota(); });
       caixa.appendChild(b);
@@ -680,13 +678,6 @@
     const nums = el("div", "rota-resumo-nums");
     nums.append(el("b", "rota-resumo-dados", ""), el("span", "rota-resumo-chegada", ""));
     caixa.append(trecho, nums);
-    if (perfil && Rota.ehCaminhao(perfil)) {
-      const partes = [];
-      partes.push("Carregado " + (typeof perfil.pbtc === "number" ? textoT(perfil.pbtc) + " t (PBTC)" : "não informado"));
-      partes.push("Vazio " + (typeof perfil.tara === "number" ? textoT(perfil.tara) + " t" : "não informado"));
-      const c = el("p", "rota-resumo-carga", partes.join(" · ") + ". Escolha ao iniciar."); c.id = "rota-resumo-carga";
-      caixa.append(c);
-    }
     return caixa;
   }
   function atualizarResumo() {
@@ -696,16 +687,16 @@
   }
 
   function folhaRota(r, perfil) {
-    const botoes = el("div", "linha-botoes");
-    botoes.append(botao("Limpar rota", "btn", limparRota));
+    const limpar = botao("Limpar rota", "btn rota-limpar", limparRota); limpar.id = "rota-limpar";
     // Cabeçalho e "Iniciar navegação" FIXOS (estilos/toque.css): o título no alto e o botão no pé da folha (.folha-topo e
     // .folha-rodape, sticky); os cartões e avisos rolam no meio. No iPhone SE o botão nunca sai da tela. O botão é o ÚLTIMO
     // filho (o sticky do pé só segura o que está no fim do fluxo); as restrições do caminhão continuam ANTES dele no texto.
     const topo = el("div", "folha-topo rota-topo");
-    topo.append(el("h2", null, "Rota para " + rotuloVeiculo(perfil)));
-    const itens = [topo, resumoRota(r, perfil)];
+    topo.append(el("h2", "so-leitor", "Rota para o destino")); // título só para o leitor de tela (o resumo já diz tudo); o veículo fica só na aba Veículo
     const chips = chipsPrefs();
-    if (chips) itens.push(chips, el("div", "rota-pref-info", ""));
+    const cab = el("div", "rota-cabecalho" + (chips ? " com-prefs" : "")); cab.append(resumoRota(r, perfil)); if (chips) cab.append(chips);
+    const itens = [topo, cab];
+    if (chips) itens.push(el("div", "rota-pref-info", ""));
     const lp = listaParadas();
     if (lp) itens.push(lp);
     const temNav = C.navegacao && C.navegacao.iniciar;
@@ -718,7 +709,6 @@
       // restrições do caminhão (ui/avisos.js) antes de "Iniciar navegação" (que fica no pé fixo da folha); seguem a rota ESCOLHIDA
       itens.push(...trocaveis("antesIniciar", r, opcoes));
       itens.push(lugarCustos());
-      itens.push(el("p", "rota-dica", "Toque num cartão ou numa linha cinza do mapa para escolher outra rota."));
       for (const a of r.avisos) itens.push(el("p", "aviso-rota", a));
       itens.push(...trocaveis("folha", r, opcoes));
     } else {
@@ -731,8 +721,8 @@
       itens.push(el("p", "rota-dica", r.resposta && r.resposta.longa ? "Rota longa: só a principal, sem alternativas." : "O servidor de rotas não sugeriu outro caminho."));
       itens.push(...extras("folha", r, null));
     }
-    itens.push(botoes);
-    if (temNav) { const pe = el("div", "folha-rodape rota-rodape"); pe.append(botaoIniciar()); itens.push(pe); }
+    // rodapé fixo: "Iniciar navegação" e "Limpar rota" sempre à vista (nada de rolar para achar o botão)
+    { const pe = el("div", "folha-rodape rota-rodape" + (temNav ? "" : " so-limpar")); if (temNav) pe.append(botaoIniciar()); pe.append(limpar); itens.push(pe); }
     C.folha.abrir(itens);
     atualizarResumo();
     atualizarCartoes();

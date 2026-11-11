@@ -49,10 +49,13 @@
     if (!e || typeof e !== "object") return null;
     const rod = e.rodovia ? String(e.rodovia) + (textoKm(e.km) ? ", km " + textoKm(e.km) : "") : null;
     const lugar = [e.bairro, e.cidade && e.uf ? e.cidade + ", " + e.uf : e.cidade || e.uf].filter(Boolean).join(" · ");
-    const titulo = rod || e.rua || lugar || (e.texto ? String(e.texto) : null);
+    const ruaNum = e.rua ? e.rua + (e.numero ? ", " + e.numero : "") : null; // rua com o número da casa mais próxima (se o mapa tem)
+    const titulo = rod || ruaNum || lugar || (e.texto ? String(e.texto) : null);
     if (!titulo) return null;
     const resto = [];
-    if (rod && e.rua) resto.push("Perto de " + e.rua);
+    if (rod && e.rua) resto.push("Perto de " + ruaNum);
+    if (rod && textoKm(e.km)) resto.push("km aproximado");
+    else if (ruaNum && e.numero) resto.push("número aproximado");
     if (lugar && titulo !== lugar) resto.push(lugar);
     return { titulo, linha: resto.join(" · ") };
   }
@@ -76,10 +79,30 @@
   // atual: o que está perto vem primeiro). Sem "lang": o Photon público só aceita default/de/en/fr (lang=pt responde 400);
   // o padrão devolve os nomes locais, em português no Brasil.
   const URL_PHOTON = "https://photon.komoot.io/api/";
-  function urlBusca(texto, pos, limite, base) {
+  function urlBusca(texto, pos, limite, base, opcoes) {
     let u = (base || URL_PHOTON) + "?q=" + encodeURIComponent(String(texto || "").trim()) + "&limit=" + (limite || 10);
     if (pos && isFinite(pos.lat) && isFinite(pos.lon)) u += "&lat=" + (Math.round(pos.lat * 1e4) / 1e4) + "&lon=" + (Math.round(pos.lon * 1e4) / 1e4);
+    if (opcoes && Array.isArray(opcoes.bbox) && opcoes.bbox.length === 4 && opcoes.bbox.every(isFinite)) u += "&bbox=" + opcoes.bbox.map((n) => Math.round(n * 1e4) / 1e4).join(",");
+    if (opcoes && opcoes.osmTag) u += "&osm_tag=" + encodeURIComponent(opcoes.osmTag);
     return u;
+  }
+  // Caixa do Brasil (minLon, minLat, maxLon, maxLat): fora dela (CEPs de Portugal, ruas da Argentina) não interessa a quem dirige aqui.
+  const BBOX_BRASIL = [-74, -34, -34, 6];
+  // Caixa ao redor da posição (graus; 0,35° ≈ 39 km): é onde "o que está perto" precisa ser achado, mesmo com nome comum.
+  function bboxPerto(pos, graus) {
+    const g = graus || 0.35;
+    return pos && isFinite(pos.lat) && isFinite(pos.lon) ? [pos.lon - g, pos.lat - g, pos.lon + g, pos.lat + g] : null;
+  }
+  // "260, aço" · "aço 260" · "rua do aço, 260" → { resto: "aço", numero: "260" }. Não é CEP (12345-678 / 12345678) nem coordenada.
+  // Sem número, ou só número: null.
+  function lerEnderecoComNumero(texto) {
+    const t = String(texto == null ? "" : texto).trim().replace(/\s+/g, " ");
+    if (!t || lerCoordenada(t) || /\d{5}-?\d{3}/.test(t)) return null;
+    const m = t.match(/^(?:n[ºo°.]?\s*)?(\d{1,5})\s*[,;]?\s+(.*[A-Za-zÀ-ÿ].*)$/i) || t.match(/^(.*[A-Za-zÀ-ÿ].*?)\s*[,;]?\s+(?:n[ºo°.]?\s*)?(\d{1,5})$/i);
+    if (!m) return null;
+    const antes = /^\d/.test(t);
+    const numero = antes ? m[1] : m[2], resto = (antes ? m[2] : m[1]).replace(/[,;\s]+$/, "").replace(/\s+n[ºo°.]?$/i, "").trim();
+    return resto.length >= 2 ? { resto, numero } : null;
   }
   const UF = { "acre": "AC", "alagoas": "AL", "amapa": "AP", "amazonas": "AM", "bahia": "BA", "ceara": "CE", "distrito federal": "DF",
     "espirito santo": "ES", "goias": "GO", "maranhao": "MA", "mato grosso": "MT", "mato grosso do sul": "MS", "minas gerais": "MG",
@@ -88,8 +111,9 @@
   function siglaUF(estado) { const n = normalizar(estado); return UF[n] || (estado ? String(estado) : null); }
   // GeoJSON do Photon → até `limite` resultados { nome, detalhe, lat, lon, cidade, uf }: no Brasil primeiro, sem repetir
   // (mesmo nome a < 50 m). nome: o nome do lugar ou a rua com número; detalhe: rua (se o nome não for ela), bairro, cidade/UF.
-  function resultadosBusca(json, limite) {
+  function resultadosBusca(json, limite, texto, numero) {
     const fs = json && Array.isArray(json.features) ? json.features : [];
+    const alvo = normalizar(texto);
     const lista = [];
     for (const f of fs) {
       const c = f && f.geometry && f.geometry.coordinates, p = (f && f.properties) || {};
@@ -101,16 +125,32 @@
       const uf = brasil ? siglaUF(p.state) : p.country || null;
       const cidade = p.city || p.town || p.village || p.county || null;
       const lugar = cidade && uf && cidade !== nome ? cidade + ", " + uf : cidade && cidade !== nome ? cidade : uf && uf !== nome ? uf : null;
-      const detalhe = [rua && rua !== nome ? rua : null, p.district && p.district !== nome ? p.district : null, lugar].filter(Boolean).join(" · ");
-      const r = { nome: String(nome), detalhe, lat: c[1], lon: c[0], cidade, uf, brasil };
+      const detalhe = p.type === "state" ? "Estado" : [rua && rua !== nome ? rua : null, p.district && p.district !== nome ? p.district : null, lugar].filter(Boolean).join(" · ");
+      // cidade/estado/município com o NOME IGUAL ao digitado vem antes de ruas e bairros de mesmo nome ("São Paulo" é a cidade, não a Rua São Paulo daqui)
+      const lugarExato = !!alvo && (p.type === "city" || p.type === "state" || p.type === "county") && normalizar(p.name) === alvo;
+      const r = { nome: String(nome), detalhe, lat: c[1], lon: c[0], cidade, uf, brasil, lugarExato };
+      // endereço com número: o Photon acha a RUA (o ponto é o da rua, não o do número); o número vai no nome e o detalhe avisa
+      if (numero && p.type === "street" && !p.housenumber) { r.nome = r.nome + ", " + numero; r.detalhe = ["número aproximado: ponto da rua", r.detalhe].filter(Boolean).join(" · "); }
       const repetido = lista.some((x) => x.nome === r.nome && Math.abs(x.lat - r.lat) < 0.0005 && Math.abs(x.lon - r.lon) < 0.0005);
       if (!repetido) lista.push(r);
     }
-    lista.sort((a, b) => (a.brasil === b.brasil ? 0 : a.brasil ? -1 : 1)); // estável: mantém a ordem do Photon
+    lista.sort((a, b) => (a.brasil === b.brasil ? 0 : a.brasil ? -1 : 1) || (a.lugarExato === b.lugarExato ? 0 : a.lugarExato ? -1 : 1)); // estável: mantém a ordem do Photon
     return lista.slice(0, limite || 6).map((r) => ({ nome: r.nome, detalhe: r.detalhe, lat: r.lat, lon: r.lon }));
   }
 
-  const api = { URL_PHOTON, urlBusca, resultadosBusca, siglaUF, temaPorHorario, lerCoordenada, filtrarRecentes, normalizar, textoCoordenada, textoKm, textoEndereco, fraseEmergencia };
+  // Duas respostas do Photon (com e sem o viés da posição) numa só lista de features, sem repetir (osm_type + osm_id).
+  // Com o viés, ruas e bairros de mesmo nome perto do motorista tomam os 10 lugares e a cidade nem aparece; sem ele, ela vem.
+  function juntarBusca(respostas) {
+    const vistos = new Set(), features = [];
+    for (const j of respostas || []) for (const f of (j && Array.isArray(j.features) ? j.features : [])) {
+      const p = (f && f.properties) || {}, k = p.osm_id != null ? (p.osm_type || "") + p.osm_id : null;
+      if (k && vistos.has(k)) continue; if (k) vistos.add(k);
+      features.push(f);
+    }
+    return { type: "FeatureCollection", features };
+  }
+
+  const api = { URL_PHOTON, BBOX_BRASIL, urlBusca, bboxPerto, lerEnderecoComNumero, resultadosBusca, juntarBusca, siglaUF, temaPorHorario, lerCoordenada, filtrarRecentes, normalizar, textoCoordenada, textoKm, textoEndereco, fraseEmergencia };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoInterface = api;
 })(typeof window !== "undefined" ? window : globalThis);

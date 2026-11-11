@@ -1,15 +1,19 @@
 /* Rota, rodada 6: preferências, selo de compatibilidade, paradas, faixas/saída, lugares salvos, desvio do posto. */
 /* ---- chips de preferência na folha da rota ---- */
-.rota-prefs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 6px; }
+.rota-prefs { display: flex; flex-direction: column; gap: 4px; margin: 0; flex: none; }
+/* três círculos só com o símbolo (o nome vai no aria-label e na linha de informação abaixo); ligado = ✓ no canto de baixo à direita */
 .rota-pref {
-  flex: 1 1 0; min-width: 96px; min-height: 64px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 6px 10px; font: inherit; font-size: 14px; font-weight: 700; line-height: 1.15; text-align: center;
-  background: var(--campo); color: var(--texto); border: 2px solid var(--linha); border-radius: 12px; cursor: pointer;
+  position: relative; flex: none; width: 44px; height: 44px; min-width: 0; min-height: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  font: inherit; font-size: 11px; font-weight: 700; line-height: 1; text-align: center;
+  background: var(--campo); color: var(--texto); border: 2px solid var(--linha); border-radius: 50%; cursor: pointer;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.rota-pref .ico { width: 22px; height: 22px; flex: none; }
+.rota-pref .ico { width: 24px; height: 24px; flex: none; }
 .rota-pref.ligada { border-color: var(--primaria); background: var(--primaria-suave); }
-.rota-pref.ligada::after { content: "✓"; color: var(--primaria); font-size: 14px; }
+.rota-pref.ligada::after {
+  content: "✓"; position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--primaria); color: #fff; font-size: 13px; font-weight: 900; border: 2px solid var(--painel);
+}
 .rota-pref-info { display: grid; gap: 4px; margin: 0 0 6px; }
 .rota-pref-info:empty { display: none; }
 .rota-pref-info p { margin: 0; font-size: 14px; }

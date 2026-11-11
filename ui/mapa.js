@@ -16,7 +16,7 @@
 //      orientação (#btn-orientacao) alterna os dois e a escolha fica guardada (copiloto.mapa.orientacao.v1).
 //    Pinça/roda com o "seguir" ligado: zoom em volta do veículo (around: "center"); arrasto desliga o "seguir";
 //  - Recentralizar (#btn-recentralizar): pílula visível só sem o "seguir" e com GPS. Volta automática só navegando,
-//    15 s depois do FIM da interação (sem dedo na tela e depois da inércia), adiada por novo toque/roda; na hora, com
+//    10 s depois do FIM da interação (sem dedo na tela e depois da inércia), adiada por novo toque/roda; na hora, com
 //    manobra a ≤ 300 m, alerta aberto ou o veículo saindo da área visível (estava na tela quando o motorista soltou);
 //  - Redesenho: estilo do mapa pelo tema (Copiloto.tema: claro = liberty, escuro = dark) e tipo "Ruas" (sem prédios) ou
 //    "Ruas + prédios" (prédios do estilo e, sem extrusão no estilo, a camada 3D própria "copiloto-predios-3d"). Trocar o
@@ -37,7 +37,7 @@
   let modo = (C.util.lerJSON(CHAVE_MODO, null) || {}).modo === "simples" ? "simples" : "completo";
 
   // ------------------------------------------------------------ seguir, orientação e câmera
-  const VOLTA_SEGUIR_MS = 15000, MANOBRA_PERTO_M = 300, PITCH_RUMO = 45;
+  const VOLTA_SEGUIR_MS = 10000, MANOBRA_PERTO_M = 300, PITCH_RUMO = 45;
   const linear = (t) => t;
   let orientacao = (C.util.lerJSON(CHAVE_ORIENTACAO, null) || {}).modo === "norte" ? "norte" : "rumo"; // "norte" | "rumo"
   let navAntes = false, manobraM = null;
@@ -647,6 +647,7 @@
   C.aoIniciar(() => {
     const mapa = new maplibregl.Map({
       container: "mapa", style: estiloUrl, center: [-49.25, -16.68], zoom: 6, attributionControl: { compact: true },
+      clickTolerance: 10, // dedo de verdade mexe mais que os 3 px padrão: sem isto o toque simples virava arrasto e não abria o ponto
     });
     C.mapa = mapa;
     mapa.once("style.load", guardarBase); // antes de os pacotes acrescentarem camadas (eles esperam o "load")
@@ -670,20 +671,45 @@
       avisouErro = true;
       C.mensagem("O mapa não carregou. Confira a internet e recarregue a página.", 8000);
     });
-    mapa.on("click", (e) => {
+    // toque simples no mapa → "mapa-clique". Reserva para o dedo real: se o MapLibre não entregou o clique em ~350 ms (dedo que
+    // mexeu um pouco e virou arrasto curto), um toque de 1 dedo, < 450 ms e < 18 px de movimento é tratado como clique.
+    let ultimoCliqueEm = 0;
+    const emitirClique = (lngLat, point, alvo) => {
+      ultimoCliqueEm = Date.now();
       // toque num marcador (relato, posto, destino), popup ou controle do mapa não é "toque no mapa"
-      const alvo = e.originalEvent && e.originalEvent.target;
       const sobreMarcador = !!(alvo && alvo.closest && alvo.closest(".maplibregl-marker, .maplibregl-popup, .maplibregl-ctrl"))
         || !!document.querySelector(".maplibregl-popup");
       let camada = null;
       try {
-        for (const f of mapa.queryRenderedFeatures(e.point)) {
+        for (const f of mapa.queryRenderedFeatures(point)) {
           const id = f.layer && f.layer.id;
           if (id && idsBase && !idsBase.camadas.has(id) && id !== PREDIOS_3D) { camada = id; break; }
         }
       } catch (err) { /* estilo trocando */ }
-      C.emit("mapa-clique", { lngLat: e.lngLat, point: e.point, sobreMarcador, camada });
-    });
+      C.emit("mapa-clique", { lngLat, point, sobreMarcador, camada });
+    };
+    mapa.on("click", (e) => emitirClique(e.lngLat, e.point, e.originalEvent && e.originalEvent.target));
+    {
+      const cont = mapa.getContainer();
+      let ini = null;
+      cont.addEventListener("touchstart", (e) => { ini = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), alvo: e.target, mexeu: 0 } : null; }, { capture: true, passive: true });
+      cont.addEventListener("touchmove", (e) => {
+        if (!ini) return;
+        if (e.touches.length !== 1) { ini = null; return; }
+        ini.mexeu = Math.max(ini.mexeu, Math.hypot(e.touches[0].clientX - ini.x, e.touches[0].clientY - ini.y));
+      }, { capture: true, passive: true });
+      cont.addEventListener("touchend", (e) => {
+        const t = ini; ini = null;
+        if (!t || e.touches.length || t.mexeu > 18 || Date.now() - t.t > 450) return;
+        const antes = ultimoCliqueEm;
+        setTimeout(() => {
+          if (ultimoCliqueEm !== antes) return; // o MapLibre já entregou o clique
+          const r = cont.getBoundingClientRect(), point = { x: t.x - r.left, y: t.y - r.top };
+          let lngLat; try { lngLat = mapa.unproject([point.x, point.y]); } catch (err) { return; }
+          emitirClique(lngLat, [point.x, point.y], t.alvo);
+        }, 350);
+      }, { capture: true, passive: true });
+    }
     C.on("tema", () => trocarEstilo(C.tema.estiloMapa()));
     window.addEventListener("online", reconferirEstilo);
     C.on("mapa-tipo", () => {
