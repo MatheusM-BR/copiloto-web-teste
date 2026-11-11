@@ -216,6 +216,7 @@
   }
   function iniciarVolta() {
     cancelarVolta();
+    return; // decisão do motorista (11/11): o mapa NUNCA recentraliza sozinho depois de mexer; só o botão Recentralizar
     if (seguindo || !navegando() || usuarioMexendo()) return;
     visivelNoFim = veiculoVisivel();
     timerVolta = setTimeout(() => {
@@ -233,6 +234,7 @@
     iniciarVolta();
   }
   function checarVoltaImediata() {
+    return; // sem volta automática (ver iniciarVolta)
     if (seguindo || !navegando() || usuarioMexendo() || !C.estado.ultimaPos) return;
     const manobra = manobraM != null && manobraM <= MANOBRA_PERTO_M;
     const alerta = !!(C.alerta && C.alerta.atual && C.alerta.atual());

@@ -600,7 +600,7 @@
       else if (s === "limite") raiz.appendChild(el("p", "postos-limite", "No limite do alcance estimado (" + A.formatarAlcance(est.km) + ")."));
     }
     limparMini();
-    raiz.append(blocoMini(p), blocoPreco(p), blocoComodidades(p));
+    raiz.append(blocoPreco(p), blocoMini(p), blocoComodidades(p));
     // fonte, datas e licença
     const rodape = el("footer", "pc-rodape");
     if (p.cnpj) rodape.appendChild(el("p", "dica", "CNPJ " + p.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")));

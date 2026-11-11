@@ -302,6 +302,8 @@
     if (d.camada && CAMADAS_COM_TOQUE.indexOf(d.camada) >= 0) return;
     // a linha da rota (fora da navegação) reabre a folha da rota (ui/rota.js); navegando, ela é só mais um ponto do mapa
     if ((d.camada === "rota" || d.camada === "rota-toque") && C.rota && C.rota.destino() && !(C.navegacao && C.navegacao.ativa && C.navegacao.ativa())) return;
+    // com rota traçada, o toque no mapa não marca ponto nem destino (atrapalha a condução); só o botão de busca e a linha da rota
+    if (C.rota && C.rota.destino()) return;
     // com a folha do ponto por cima da rota, o primeiro toque só a fecha e devolve a rota
     if (folhaGuardada && folhaToque && folhaToque.isConnected) { fecharToque(); return; }
     abrirToque(d.lngLat);
