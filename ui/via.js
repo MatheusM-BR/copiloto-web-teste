@@ -66,7 +66,7 @@
     rotularMenosTerra();
   }
   function preencher(e, runs, completo) {
-    e.runs = runs; e.completo = completo; e.resumo = V.resumir(runs, e.acum); e.estado = "ok";
+    e.runs = runs; e.completo = completo; e.resumo = V.resumir(runs, e.acum); e.estado = "ok"; setTimeout(() => C.emit("via:pronta", { coords: e.coords, trechos: e.resumo.trechosRampaAlta, acum: e.acum, temRelevo: !!e.resumo.temRelevo }), 0);
     if (selecionada === e.chave) desenharTrechos(e);
     avisar(e);
   }
@@ -265,16 +265,27 @@
   C.rotaExtras = C.rotaExtras || { folha: [], cartao: [] };
   C.rotaExtras.folha.push(function (r, opcoes) {
     const bloco = el("div", "via-bloco");
+    // Pacote B: recolhido (<details> "Via do trajeto"); a linha mostra o essencial (piso: terra, ruim, sem terra) sem abrir
+    const sec = C.rotaExtras.secao ? C.rotaExtras.secao("via", "Via do trajeto", "", bloco, "rota-sec-via") : null;
+    const valor = () => {
+      if (!sec || !blocoVivo) return;
+      // leitura pura: obter() reordena o Map (mais recente por último) e este ouvinte roda DENTRO de for (… of entradas.values()) (laço infinito)
+      const ev = entradas.get(chaveDe(blocoVivo.rota)); if (!ev) return;
+      const x = textoTerra(ev);
+      sec.definirValor(x.t); sec.dataset.estado = x.c;
+    };
     const montar = (rr) => {
       bloco.textContent = "";
       const e = obter(rr);
       selecionada = e.chave;
       if (e.estado === "ok") desenharTrechos(e); else limparTrechos();
       bloco.append(modo() === "avancado" ? cartaoAvancado(e, rr) : linhaTerra(e, rr, true));
+      registrar(e, sec || bloco, valor);
+      valor();
     };
-    montar(r);
     blocoVivo = { bloco, montar, rota: r };
-    return bloco;
+    montar(r);
+    return sec || bloco;
   });
   C.rotaExtras.cartao.push(function (r) {
     const e = obter(r);

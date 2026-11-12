@@ -26,8 +26,25 @@
 .v-perigosa {
   display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid var(--linha); border-radius: 12px; background: var(--painel); min-height: 64px;
 }
-.v-perigosa input { flex: none; width: 48px; height: 48px; min-height: 48px; margin: 0; accent-color: var(--primaria); }
-#tela-veiculo .v-perigosa input { min-height: 48px; }
+/* o interruptor em si (trilho + bolinha) está em estilos/conta.css; aqui só a posição: texto à esquerda, interruptor à direita */
+.v-perigosa { flex-direction: row-reverse; justify-content: space-between; align-items: center; }
+#tela-veiculo .v-perigosa input[type="checkbox"] { min-height: 48px; }
 .v-perigosa-txt { display: grid; gap: 2px; min-width: 0; }
 .dado-perigosa { color: var(--atencao); font-weight: 700; }
 .dados .dado-carga { font-weight: 700; color: var(--texto); }
+
+/* Pacote F (item 18): Carregado/Vazio no topo, "?" no lugar da explicação de cada campo, "Salvar" fixo no pé da tela */
+.v-carga-op { min-height: 72px; }
+.v-rot-linha { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 48px; }
+.v-ajuda {
+  flex: none; width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--linha); background: var(--campo); color: var(--primaria);
+  font-size: 20px; font-weight: 800; padding: 0;
+}
+.v-ajuda[aria-expanded="true"] { background: var(--primaria); border-color: var(--primaria); color: var(--primaria-texto); }
+.campo-dica[hidden] { display: none; }
+#form-perfil > .linha-botoes {
+  position: sticky; bottom: 0; z-index: 3; margin: 0 -14px -14px; padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--painel); border-top: 1px solid var(--linha); border-radius: 0 0 14px 14px; flex-wrap: nowrap;
+}
+#form-perfil > .linha-botoes .btn { flex: 1 1 0; min-height: 64px; font-size: 18px; font-weight: 800; }
+#form-perfil > .linha-botoes .btn[hidden] { display: none; }

@@ -244,7 +244,12 @@
   // "Continuar" / "Retomar" (dentro do gesto) e de novo ao começar a navegação e ao voltar ao app (visibilitychange).
   // O motorista pode desligar em Configurações → "Manter a tela ligada" (vale até a próxima navegação).
   let travaTela = null, semTela = false, telaPorNavegacao = false, telaManual = false, navAntes = false, timerTela = null;
-  const MSG_TELA_FALHOU = "Não deu para manter a tela ligada. Deixe a tela sem bloquear nos Ajustes do iPhone (Tela e Brilho › Bloqueio automático › Nunca).";
+  // Revisão de UX 12/11 (item 3): texto curto; navegando, vai para o painel da navegação (no mapa ficava por baixo de SOS, "!" e "Rumo")
+  const MSG_TELA_FALHOU = "Tela pode apagar. Ajustes › Tela e Brilho › Bloqueio › Nunca.";
+  function avisarTelaFalhou() {
+    try { if (C.navegacao && typeof C.navegacao.mensagemPainel === "function" && C.navegacao.mensagemPainel(MSG_TELA_FALHOU, 9000)) return; } catch (e) { /* cai no mapa */ }
+    C.mensagem(MSG_TELA_FALHOU, 9000);
+  }
   const navegando = () => !!(C.navegacao && typeof C.navegacao.ativa === "function" && C.navegacao.ativa());
   const telaLigada = () => !!travaTela && !travaTela.released;
   function marcarTela(v) {
@@ -254,7 +259,7 @@
   async function pedirTelaLigada(avisar) {
     if (telaLigada()) return true;
     if (!("wakeLock" in navigator) || !navigator.wakeLock || typeof navigator.wakeLock.request !== "function") {
-      if (avisar) C.mensagem(MSG_TELA_FALHOU, 9000);
+      if (avisar) avisarTelaFalhou();
       return false;
     }
     try {
@@ -264,7 +269,7 @@
       if (avisar) C.mensagem("Tela ligada.", 3000);
       return true;
     } catch (e) {
-      if (avisar && document.visibilityState === "visible") C.mensagem(MSG_TELA_FALHOU, 9000);
+      if (avisar && document.visibilityState === "visible") avisarTelaFalhou();
       return false;
     }
   }

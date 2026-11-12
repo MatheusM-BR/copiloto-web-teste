@@ -45,7 +45,10 @@
   // Zoom antes da manobra (rodada 6, rotapref.js): a < distM da manobra o fator sobe de 0 a 1 (curva suave) e a câmera aproxima
   // zoomExtra níveis e inclina até `pitch`; depois da manobra volta. fatorCam anda no máximo um passo por leitura (sem tremer).
   const RP = window.CopilotoRotaPref;
-  let camCfg = RP.configCamera(C.util.lerJSON(RP.CHAVE_CAMERA, null)), fatorCam = 0, extraZoomAtual = 0;
+  // Só o interruptor (ligado/desligado) vale do que ficou guardado: as versões antigas gravavam também distância (300 m) e zoom (+1,2)
+  // e, guardados, eles prenderiam o motorista no ajuste fraco de antes. Distância, zoom e inclinação vêm sempre do padrão (rotapref.js).
+  const camGuardada = C.util.lerJSON(RP.CHAVE_CAMERA, null);
+  let camCfg = RP.configCamera(camGuardada && typeof camGuardada.ligado === "boolean" ? { ligado: camGuardada.ligado } : null), fatorCam = 0, extraZoomAtual = 0;
   let dedos = 0, mouseApertado = false, gestoAtivo = false, panDesligadoPorPinca = false;
   let timerVolta = null, visivelNoFim = true;
 
@@ -84,6 +87,8 @@
     }
     return Math.max(0, fim);
   }
+  function velocidadeMs() { const g = C.estado.gps, v = g ? (g.kmh != null ? g.kmh : g.velKmh) : null; return v != null && isFinite(v) ? v / 3.6 : null; }
+  function caminhaoAtivo() { try { const r = C.rota && C.rota.atual ? C.rota.atual() : null; return !!(r && window.CopilotoRota.ehCaminhao(r.perfil)); } catch (e) { return false; } }
   function zoomPorVelocidade() {
     const g = C.estado.gps;
     const v = g ? (g.kmh != null ? g.kmh : g.velKmh) : null;
@@ -127,10 +132,14 @@
       if (r && r.confiavel && r.graus != null && r.fonte !== "bussola") o.bearing = r.graus;
     }
     // fator da câmera de manobra: só navegando; as leituras sem manobra à frente o levam de volta a 0
-    if (nav) fatorCam = RP.suavizar(fatorCam, RP.fatorManobra(manobraM, camCfg), RP.fatorManobra(manobraM, camCfg) > fatorCam ? 0.34 : 0.2);
-    else fatorCam = 0;
-    const alvoCam = RP.alvoCamera({ zoom: 0, pitch: PITCH_RUMO }, fatorCam, camCfg);
-    extraZoomAtual = alvoCam.zoom;
+    // (a câmera só chega aqui com o "seguir" ligado: arrastou o mapa, ela não mexe até o botão Recentralizar)
+    const zb = nav ? zoomPorVelocidade() : null;
+    if (nav) {
+      const alvoF = RP.fatorManobra(manobraM, camCfg, velocidadeMs(), caminhaoAtivo());
+      fatorCam = RP.suavizar(fatorCam, alvoF, 0.2); // no máximo 0,2 por leitura (≤ ~0,5 nível de zoom por segundo): sem salto
+    } else fatorCam = 0;
+    const alvoCam = RP.alvoCamera({ zoom: zb != null ? zb : 16, pitch: PITCH_RUMO }, fatorCam, camCfg);
+    extraZoomAtual = zb != null ? alvoCam.zoom - zb : 0;
     if (orientacao === "rumo" && nav) {
       o.pitch = alvoCam.pitch;
       // câmera à frente: o veículo fica no terço inferior, sem ficar embaixo de botão (ver lugarDoVeiculo)
@@ -143,7 +152,7 @@
       o.padding = { top: topo ? Math.min(H * 0.5, topo + 16) : 0, bottom: 0, left: 0, right: 0 };
     }
     if (nav) {
-      const z = zoomPorVelocidade();
+      const z = zb;
       if (z != null) o.zoom = Math.min(19, Math.max(11, z + deltaZoomUsuario + extraZoomAtual));
     } else if (zoomSeguir != null) {
       o.zoom = zoomSeguir;
@@ -509,8 +518,15 @@
   // versão compacta (ícone + texto, ≥ 64 px) POR CIMA do velocímetro enquanto o mapa não segue (a atribuição continua livre).
   function posicionarRecentralizar(mr, topos) {
     const rec = $("btn-recentralizar"), vel = document.querySelector(".painel-mapa > .velocidade");
-    if (!rec || !vel || !visivel(vel)) return;
-    const vr = vel.getBoundingClientRect();
+    if (!rec || !vel) return;
+    // sem o velocímetro (parado e sem rota, ui/barra.js: classe sem-vel) a pílula usa o canto do pé (SOS ou atalhos) como referência
+    const velOk = visivel(vel);
+    let vr;
+    if (velOk) vr = vel.getBoundingClientRect();
+    else {
+      const ref = [$("btn-sos"), $("mapa-atalhos")].filter(visivel).map((e) => e.getBoundingClientRect()).sort((a, b) => a.top - b.top)[0];
+      vr = ref || { left: mr.left + 12, top: mr.bottom - BASE, bottom: mr.bottom - BASE, width: 0, height: 0, right: mr.left + 12 };
+    }
     const largura = rec.classList.contains("compacta") ? 210 : Math.max(rec.offsetWidth || 0, 180);
     let teto = mr.top + MARGEM;
     for (const r of topos) if (r.left < vr.left + largura && r.right > vr.left && r.top < vr.top) teto = Math.max(teto, r.bottom + MARGEM);
@@ -522,7 +538,7 @@
     for (const r of retangulos(".maplibregl-ctrl-bottom-right > *, .maplibregl-ctrl-bottom-left > *")) {
       if (r.left < vr.left + largura && r.right > vr.left && r.top < base && r.bottom > base - 64 - 10) base = Math.min(base, r.top);
     }
-    const compacta = base - 10 - 64 < teto;
+    const compacta = velOk && base - 10 - 64 < teto;
     if (rec.classList.contains("compacta") !== compacta) rec.classList.toggle("compacta", compacta);
     const b = Math.round(compacta ? mr.bottom - vr.bottom : mr.bottom - base + 10) + "px";
     if (rec.style.bottom !== b) rec.style.bottom = b;
@@ -634,7 +650,7 @@
     config: () => Object.assign({}, camCfg),
     definir: (o) => {
       camCfg = RP.configCamera(Object.assign({}, camCfg, o));
-      C.util.gravarJSON(RP.CHAVE_CAMERA, camCfg);
+      C.util.gravarJSON(RP.CHAVE_CAMERA, { ligado: camCfg.ligado }); // só o interruptor (ver camGuardada)
       C.emit("camera:manobra", Object.assign({}, camCfg));
     },
     fator: () => fatorCam,
@@ -646,12 +662,28 @@
   C.mapaEstiloUrl = estiloUrl; // ui/offline.js (E3) guarda o estilo no cache para o mapa abrir sem internet (muda com o tema: evento "mapa-estilo")
   C.mapaEstilo = { url: () => estiloUrl, trocar: trocarEstilo, aplicarPredios, trocando: () => trocando, reconferir: reconferirEstilo };
 
+  // Atribuição do mapa (© OpenStreetMap contributors, ODbL, OpenFreeMap) FECHADA por padrão: só o (i) de 48 px fica à vista e o texto completo abre
+  // por ele (revisão UX 12/11, item 8a). O MapLibre abre o modo compacto já aberto; aqui fechamos uma vez, logo depois de criar o mapa. A licença
+  // não some: o (i) está sempre na tela e o texto completo é o mesmo de antes. Nunca recolhe de novo sozinho (nem ao arrastar: quem fecha é o motorista).
+  function colapsarAtribuicao() {
+    const a = document.querySelector(".maplibregl-ctrl-attrib"); if (!a) return;
+    // o MapLibre só vira "compacto" (e já aberto) quando o texto das fontes chega, depois do estilo: fecha UMA vez, nessa hora
+    let feito = false;
+    const fechar = () => {
+      if (feito || !a.classList.contains("maplibregl-compact")) return false;
+      a.classList.remove("maplibregl-compact-show"); a.removeAttribute("open"); feito = true; return true;
+    };
+    if (fechar()) return;
+    const mo = new MutationObserver(() => { if (fechar()) mo.disconnect(); });
+    mo.observe(a, { attributes: true, attributeFilter: ["class"] });
+  }
   C.aoIniciar(() => {
     const mapa = new maplibregl.Map({
       container: "mapa", style: estiloUrl, center: [-49.25, -16.68], zoom: 6, attributionControl: { compact: true },
       clickTolerance: 10, // dedo de verdade mexe mais que os 3 px padrão: sem isto o toque simples virava arrasto e não abria o ponto
     });
     C.mapa = mapa;
+    colapsarAtribuicao();
     mapa.once("style.load", guardarBase); // antes de os pacotes acrescentarem camadas (eles esperam o "load")
     mapa.once("load", () => { carregou = true; aplicarPredios(); });
     window.copiloto = { mapa: mapa, nuvem: C.nuvem }; // atalho usado pelos testes de navegador

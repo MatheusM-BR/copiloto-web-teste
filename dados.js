@@ -191,12 +191,13 @@
 
   // ------------------------------------------------------------ avisos à frente
   // prioridade: maior = mais importante (restrição > trecho perigoso crítico > balança > curva forte > passagem de nível > lombada > radar)
-  const PRIORIDADE = { restricao: 100, restricao_possivel: 95, perigoso3: 90, perigoso2: 80, balanca: 70, balsa: 65, curva: 60, passagem_nivel: 50, area_escape: 45,
+  const PRIORIDADE = { restricao: 100, restricao_possivel: 95, perigoso3: 90, perigoso2: 80, balanca: 70, balsa: 65, curva: 60, descida: 55, passagem_nivel: 50, area_escape: 45,
     perigo: 42, obra: 40, lombada: 30, lombadas: 30, praca_pedagio: 20, radar: 10 };
   const TEXTO = {
     balanca: ["Balança à frente", "Balança à frente."], balsa: ["Balsa à frente", "Balsa à frente."],
     curva: ["Curva forte à frente", "Curva forte à frente."], passagem_nivel: ["Passagem de nível", "Passagem de nível à frente."],
     area_escape: ["Área de escape à frente", "Área de escape à frente."], perigo: ["Ponto de perigo à frente", "Atenção, ponto de perigo à frente."],
+    descida: ["Descida forte à frente", "Descida forte à frente. Use o freio motor."],
     lombada: ["Lombada", "Lombada à frente."], lombadas: ["Trecho com lombadas", "Trecho com lombadas."],
     radar: ["Radar", "Radar reportado à frente."], praca_pedagio: ["Praça de pedágio", "Praça de pedágio à frente."],
     obra: ["Obra recorrente", "Obra recorrente à frente."],
@@ -245,6 +246,19 @@
       out.push(aviso({ id: "prf:" + t.id, tipo: "perigoso", chave: t.nivel >= 3 ? "perigoso3" : "perigoso2", ao_longo_m: t.ao_longo_m, lat: t.lat, lon: t.lon,
         texto: "Trecho com muitos acidentes", fala: "Trecho com muitos acidentes", detalhe: det, fonte: resp.attribution || resp.fonte || null, nivel: t.nivel }));
       out[out.length - 1].nivel = t.nivel; out[out.length - 1].acidentes = t.acidentes;
+    }
+    return out;
+  }
+  // Descida forte (> 6 %) de pelo menos 1 km, do relevo da rota (Valhalla; passo de ~1,67 %): estimativa, não medição.
+  // trechos: resumo.trechosRampaAlta da Via do trajeto ({ sentido, km, i0 }); acumKm: km acumulados por ponto da rota.
+  const DESCIDA_MIN_KM = 1;
+  function avisosDeDescida(trechos, acumKm, coords) {
+    const out = [];
+    for (const t of Array.isArray(trechos) ? trechos : []) {
+      if (!t || t.sentido !== "descida" || !(t.km >= DESCIDA_MIN_KM) || !acumKm || typeof acumKm[t.i0] !== "number") continue;
+      const km = Math.round(t.km * 10) / 10;
+      out.push(aviso({ id: "descida:" + t.i0, tipo: "descida", ao_longo_m: acumKm[t.i0] * 1000, lat: coords && coords[t.i0] ? coords[t.i0][1] : undefined, lon: coords && coords[t.i0] ? coords[t.i0][0] : undefined, texto: TEXTO.descida[0], fala: TEXTO.descida[1],
+        detalhe: "Descida de " + String(km).replace(".", ",") + " km com inclinação acima de 6% (relevo estimado, passo de ~1,7%)", fonte: "Relevo do servidor de rotas (Valhalla)" }));
     }
     return out;
   }
@@ -587,7 +601,7 @@
   const api = { mesAno, CHAVE_DADOS, lerGuardados, buscarGuardado, guardar, UFS, nomeUF, ufDoTexto, ufsFaladas, ordenarUfs, interpretarDestinoKm, prefixoRodovia, rotuloKm, textoKmTela, falaKm, falaSemKm, avisoPrecisao, fmtKm,
     escolherKm, chavePosicao, devePedirKm, KM_INTERVALO_MS, KM_DESLOC_M, KM_DIST_MAX_M,
     distanciaM, acumuladoM, progressoM, rotaGeoJSON, simplificar, chaveRota,
-    PRIORIDADE, KINDS_FEICOES, AVISOS_SO_TELA_NO_MODO_ALERTAS, avisosDeFeicoes, avisosDeTrechos, avisosDeArtesp, avisosDeRestricoes, textoRestricao, CONFIANCA_PADRAO, NIVEL_ROTULO, avaliarConfianca, paramsConfianca, textoIdade, dimensaoDe, tituloPossiveis, juntarAvisos, contagens, textoContagens,
+    PRIORIDADE, KINDS_FEICOES, AVISOS_SO_TELA_NO_MODO_ALERTAS, avisosDeFeicoes, avisosDeTrechos, avisosDeArtesp, avisosDeDescida, avisosDeRestricoes, textoRestricao, CONFIANCA_PADRAO, NIVEL_ROTULO, avaliarConfianca, paramsConfianca, textoIdade, dimensaoDe, tituloPossiveis, juntarAvisos, contagens, textoContagens,
     antecedenciaM, criarAvisador, falaAviso, textoDistanciaFalada, FALA_INTERVALO_MS,
     usarSnv, textoPistaSnv, textoFonteSnv, SNV_COBERTURA_MIN, paramsRestricoes, dimensoesFaltando, resumoRestricoes, tituloRestricoes, fmtDistRota };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

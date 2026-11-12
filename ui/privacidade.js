@@ -322,14 +322,15 @@
       return { pos: desligada ? "Posição desconhecida: a localização está desligada nas suas escolhas de privacidade (Configurações → Privacidade)."
         : "Posição desconhecida: o GPS ainda não deu sinal.", trecho: null, velha: false };
     }
-    const prec = g.precisao != null && isFinite(g.precisao) ? " (precisão de ±" + Math.round(g.precisao) + " m)" : "";
-    const coords = "Latitude " + coord(g.lat) + ", longitude " + coord(g.lon) + prec;
+    // Pacote F (item 22): uma linha só, "lat, lon · ±N m" (o botão "Copiar" fica ao lado; a frase para o telefone ainda diz "latitude…, longitude…")
+    const prec = g.precisao != null && isFinite(g.precisao) ? " · ±" + Math.round(g.precisao) + " m" : "";
+    const coords = coord(g.lat) + ", " + coord(g.lon) + prec;
     const velha = !!(C.gps && C.gps.velho());
     if (velha) {
       const idade = C.gps.idadeMs(g);
       const min = Math.floor(idade / 60000);
       const ha = min < 1 ? "há menos de 1 min" : min < 60 ? "há " + min + " min" : "há " + Math.floor(min / 60) + " h " + String(min % 60).padStart(2, "0") + " min";
-      return { pos: "Última posição conhecida, " + ha + ": " + coords, trecho: null, velha: true };
+      return { pos: coords, nota: "Última posição conhecida, " + ha + ".", trecho: null, velha: true };
     }
     const rota = C.rota && typeof C.rota.atual === "function" ? C.rota.atual() : null;
     if (!rota) return { pos: coords, trecho: null, velha: false };
@@ -364,16 +365,21 @@
     const pos = el("div", "cartao e5-posicao"); pos.id = "e5-posicao"; pos.setAttribute("aria-live", "polite");
     const end = el("div", "e5-endereco"); end.id = "e5-endereco"; end.hidden = true;
     const endLinha = el("div", "e5-endereco-linha"); endLinha.id = "e5-endereco-linha"; endLinha.hidden = true;
+    const nota = el("div", "e5-coord-nota"); nota.id = "e5-coord-nota"; nota.hidden = true;
     const coordEl = el("div", "e5-coord"); coordEl.id = "e5-coord";
     // Lote 4: coordenadas copiáveis (lat, lon com ponto: cola no mapa ou na mensagem). Desligado sem GPS.
-    const copiar = botao("Copiar coordenadas", "btn e5-copiar", () => { copiarCoordenadas(); }); copiar.id = "e5-copiar-coord"; copiar.disabled = true;
-    pos.append(el("h2", null, "Você está em"), end, endLinha, coordEl, copiar);
+    const copiar = botao("Copiar", "btn e5-copiar", () => { copiarCoordenadas(); }); copiar.id = "e5-copiar-coord"; copiar.disabled = true;
+    copiar.setAttribute("aria-label", "Copiar coordenadas");
+    const linhaCoord = el("div", "e5-coord-linha"); linhaCoord.append(coordEl, copiar);
+    pos.append(el("h2", null, "Você está em"), end, endLinha, nota, linhaCoord);
+    // a frase pronta para dizer ao telefone fica logo abaixo do 191 (item 22)
     const frase = el("p", "e5-frase"); frase.id = "e5-frase"; frase.hidden = true;
     const lista = el("div", "e5-numeros");
     for (const n of NUMEROS) {
       const a = el("a", "e5-ligar"); a.href = "tel:" + n.tel; a.id = "e5-tel-" + n.tel;
       a.append(el("b", null, n.tel), el("span", null, n.nome), el("small", null, n.quando));
       lista.append(a);
+      if (n.tel === "191") lista.append(frase);
     }
     // Enviar minha localização (SOS): menu de compartilhar do aparelho (navigator.share) com o endereço e os links do
     // OpenStreetMap e do Google Maps; sem compartilhar, copia o texto.
@@ -383,7 +389,7 @@
     const fonte = el("p", "e5-aviso e5-fonte-endereco"); fonte.id = "e5-fonte-endereco"; fonte.hidden = true;
     // Lote 4: contatos de emergência SÓ os que o motorista cadastrou (guardados neste aparelho; nada vem pronto)
     const contatos = el("div", "cartao e5-contatos"); contatos.id = "e5-contatos";
-    telaEmerg.append(pos, frase, lista, env, contatos, aviso, fonte);
+    telaEmerg.append(pos, lista, env, contatos, aviso, fonte);
     desenharContatos();
   }
   // ---- contatos do motorista (localStorage; sem nuvem)
@@ -477,6 +483,8 @@
     let trechoEl = $("e5-trecho");
     if (coordEl.textContent !== p.pos) coordEl.textContent = p.pos;
     coordEl.classList.toggle("e5-velha", !!p.velha);
+    coordEl.classList.toggle("e5-sem-gps", !C.estado.gps);
+    trocarTexto($("e5-coord-nota"), p.nota || "");
     { const cp = $("e5-copiar-coord"); const tem = !!C.estado.gps; if (cp && cp.disabled === tem) cp.disabled = !tem; }
     // trecho da rota: só existe quando há o que dizer
     if (!p.trecho && trechoEl) trechoEl.remove();

@@ -7,7 +7,7 @@
 // destinos recentes da navegação (E1; tocar num recente já traça a rota).
 // Toque no mapa — um só comportamento: TOQUE SIMPLES num ponto do mapa (fora de marcador, popup ou posto) abre a folha do
 // ponto com o endereço (Copiloto.endereco.perto, se existir) ou a coordenada, "Ir para cá" (vira destino e traça a rota;
-// navegando, pergunta antes de trocar), "Relatar aqui" e "Salvar como casa/base". Nunca vira destino sozinho.
+// navegando, pergunta antes de trocar), "Relatar aqui" e "Salvar este ponto" (submenu: casa/base e lugar); "×" no título fecha. Nunca vira destino sozinho.
 // Casa/base: copiloto.base.v1 = { lat, lon, rotulo } (formato antigo, lido como Casa por ui/lugares.js, que guarda a lista em
 // copiloto.lugares.v1: Casa, Base e até 5 favoritos).
 // Expõe Copiloto.busca: abrir(), procurar(texto) → Promise<[{ nome, detalhe, lat, lon }]> (também para a voz: "ir para X";
@@ -146,19 +146,26 @@
     for (const r of lista) ul.append(itemResultado(r));
     res.append(ul);
   }
-  function desenharBusca() {
-    const texto = $("busca-texto").value, t = texto.trim();
-    const lista = I.filtrarRecentes(recentes(), texto);
+  // Recentes abaixo dos resultados/avisos. Com aviso de falha (sem internet, erro de rede) eles ficam sempre à vista: se o que foi digitado
+  // não bate com nenhum, mostra todos (revisão UX, item 20: o aviso nunca toma o lugar da lista).
+  function desenharRecentes(texto, comAviso) {
+    let lista = I.filtrarRecentes(recentes(), texto);
+    if (comAviso && !lista.length) lista = recentes().slice(0, MAX_RESULTADOS);
     const ul = $("busca-recentes"); ul.textContent = "";
     for (const d of lista) ul.append(itemDestino(d, "btn-recente"));
     $("busca-recentes-titulo").hidden = !lista.length;
+    return lista;
+  }
+  function desenharBusca() {
+    const texto = $("busca-texto").value, t = texto.trim();
+    desenharRecentes(texto, false);
     $("busca-dica").textContent = "Ou toque no mapa e escolha \"Ir para cá\".";
     clearTimeout(timerBusca);
     const seq = ++seqBusca;
     if (!t) { mostrarResultados([]); return; }
     const c = I.lerCoordenada(t);
     if (c) { procurar(t).then((l) => { if (seq === seqBusca) mostrarResultados(l); }); return; }
-    if (!online()) { mostrarResultados([], "Sem internet: a busca por endereço volta com a conexão. Por enquanto, só os destinos recentes."); return; }
+    if (!online()) { desenharRecentes(texto, true); mostrarResultados([], "Sem internet: a busca por endereço volta com a conexão. Por enquanto, só os destinos recentes."); return; }
     // começo de rodovia ("BR-1", "SP-33"): sugere rodovias (ui/km.js, copiloto_km_highways) para completar com o km
     const pref = C.km && C.km.prefixo ? C.km.prefixo(t) : null;
     if (pref) {
@@ -179,6 +186,7 @@
         mostrarResultados(l, l.length ? null : "Nada encontrado para \"" + t + "\". Tente outro nome, a cidade junto ou toque no mapa.");
       } catch (e) {
         if (seq !== seqBusca) return;
+        desenharRecentes(texto, true);
         mostrarResultados([], (e.rede ? "Sem conexão com a busca de endereços" : e.message.replace(/\.$/, "")) + ". Os destinos recentes continuam abaixo.");
       }
     }, ESPERA_TECLA_MS);
@@ -190,10 +198,7 @@
     $("busca-texto").value = texto || "";
     if (lista === undefined) { desenharBusca(); return; }
     clearTimeout(timerBusca); seqBusca++;
-    const rec = I.filtrarRecentes(recentes(), texto || "");
-    const ul = $("busca-recentes"); ul.textContent = "";
-    for (const d of rec) ul.append(itemDestino(d, "btn-recente"));
-    $("busca-recentes-titulo").hidden = !rec.length;
+    desenharRecentes(texto || "", !!aviso);
     mostrarResultados(lista || [], aviso || null);
   }
   function aoEnviarBusca(ev) {
@@ -214,6 +219,7 @@
       else mostrarResultados([], "Nada encontrado para \"" + t + "\". Tente outro nome, a cidade junto ou toque no mapa.");
     }, (e) => {
       if (seq !== seqBusca) return;
+      desenharRecentes(texto, true);
       mostrarResultados([], (e.rede ? "Sem conexão com a busca de endereços" : e.message.replace(/\.$/, "")) + ". Os destinos recentes continuam abaixo.");
     });
   }
@@ -263,16 +269,23 @@
       C.folha.fechar();
     });
     base.id = "toque-base";
-    const fechar = botao("Fechar", "btn btn-pequeno", fecharToque); fechar.id = "toque-fechar";
     // rodada 6: Casa, Base ou um favorito nomeado (ui/lugares.js)
     const lugar = botao("Salvar lugar", "btn btn-pequeno toque-lugar", () => {
       tirarPino(); folhaGuardada = null;
       C.lugares.escolherParaSalvar(p, titulo.dataset.endereco || null);
     });
     lugar.id = "toque-lugar"; if (!C.lugares) lugar.hidden = true;
-    const linha2 = el("div", "toque-botoes2"); linha2.append(base, lugar, fechar);
+    // revisão UX (item 21): "Ir para cá" + "Relatar aqui" na primeira linha; "Salvar…" abre o submenu (Casa/base e lugar); "Fechar" vira "×" no título
+    const menu = el("div", "toque-salvar-menu"); menu.id = "toque-salvar-menu"; menu.hidden = true; menu.append(base, lugar);
+    const salvar = botao("Salvar este ponto", "btn toque-salvar", () => {
+      menu.hidden = !menu.hidden; salvar.setAttribute("aria-expanded", String(!menu.hidden));
+      if (!menu.hidden && menu.scrollIntoView) { try { menu.scrollIntoView({ block: "nearest" }); } catch (e) { /* ignora */ } } // tela baixa (SE): o submenu aparece inteiro
+    });
+    salvar.id = "toque-salvar"; salvar.setAttribute("aria-expanded", "false"); salvar.setAttribute("aria-controls", "toque-salvar-menu");
+    const fechar = botao("×", "toque-x", fecharToque); fechar.id = "toque-fechar"; fechar.setAttribute("aria-label", "Fechar");
+    const cab = el("div", "toque-cab"); cab.append(titulo, fechar);
     const raiz = el("div", "toque-folha"); raiz.id = "toque-folha";
-    raiz.append(titulo, det, linha, linha2);
+    raiz.append(cab, det, linha, salvar, menu);
     folhaToque = raiz;
     C.folha.abrir([raiz]);
     // endereço do ponto, se o pacote de endereço existir (do mapa guardado ou da internet); sem ele, fica a coordenada

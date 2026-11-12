@@ -206,7 +206,8 @@
     ["banho", "Banho", "banho", "Só com banho confirmado"],
   ];
   function filtrosUi() {
-    const f = el("div", "postos-filtros"); f.setAttribute("role", "group"); f.setAttribute("aria-label", "Filtros (só o que a fonte confirma)");
+    // Revisão UX 12/11 (item 10): UMA linha rolável de chips de 48 px (Diesel, Caminhão, 24 h, Banho, Aberto agora, Menor preço, bandeiras).
+    const f = el("div", "postos-filtros"); f.setAttribute("role", "group"); f.setAttribute("aria-label", "Filtros (só o que a fonte confirma), aberto agora, menor preço e bandeira");
     for (const [chave, rotulo, icone, completo] of FILTROS) {
       const b = el("button", "btn btn-pequeno postos-chip"); b.type = "button"; b.id = "postos-filtro-" + chave;
       b.append(ic(icone), el("span", null, rotulo));
@@ -217,11 +218,11 @@
       });
       f.appendChild(b);
     }
+    filtrosUi2(f);
     return f;
   }
-  // Segunda linha (R6): "Aberto agora" e bandeira. Rola para o lado se não couber; cada chip tem 64 px de altura.
-  function filtrosUi2() {
-    const f = el("div", "postos-filtros2"); f.setAttribute("role", "group"); f.setAttribute("aria-label", "Aberto agora e bandeira");
+  // R6: "Aberto agora", "Menor preço" e bandeira entram na mesma linha (acrescentados ao grupo f).
+  function filtrosUi2(f) {
     const refazer = () => { desenharFolha({ carregando: true }); atualizarLista(); };
     const ab = el("button", "btn btn-pequeno postos-chip postos-chip-aberto"); ab.type = "button"; ab.id = "postos-chip-aberto";
     ab.append(ic("relogio"), el("span", null, "Aberto agora"));
@@ -246,7 +247,6 @@
       });
       f.appendChild(b);
     }
-    return f;
   }
 
   function titulo() {
@@ -259,7 +259,7 @@
     limparMini();
     // ordem pensada para a tela pequena: título, filtros e os POSTOS primeiro; dicas e litros (opcionais) depois
     const h2 = el("h2", "postos-titulo"); h2.append(ic("bomba"), document.createTextNode(o.carregando ? "Buscando postos…" : titulo()));
-    const itens = [h2, filtrosUi(), filtrosUi2()];
+    const itens = [h2, filtrosUi()];
     const dicas = [];
     if (!o.carregando && !o.erro && modoLista === "perto") dicas.push(el("p", "dica", "Sem rumo do GPS (parado?): mostrando os mais perto em qualquer direção, em linha reta."));
     if (!o.carregando && !o.erro && modoLista === "rumo") dicas.push(el("p", "dica", "Pelo seu rumo, distância em linha reta. Trace uma rota para ver os postos no caminho."));
@@ -386,26 +386,27 @@
     const corpo = el("span", "postos-corpo");
     const topo = el("span", "postos-topo");
     const nome = el("span", "postos-nome", P.nomePosto(p));
+    const preco = el("span", "postos-preco"); preco.dataset.key = p.station_key; preco.hidden = true; // "S10 R$ 6,79 · 03/11" na mesma linha da distância
     const dist = el("span", "postos-dist"); dist.setAttribute("aria-hidden", "true");
     dist.append(ic(modoLista === "rota" ? "rota" : "reta"), document.createTextNode(P.formatarDistancia(p.distancia_m)),
       el("small", "postos-dist-rot", modoLista === "rota" ? "à frente" : "em linha reta"));
-    topo.append(nome, dist);
+    topo.append(nome, dist, preco);
     const dv = modoLista === "rota" ? chipDesvio(p) : null;
     if (dv) topo.appendChild(dv);
     const marca = el("span", "postos-marca"); marca.setAttribute("aria-hidden", "true");
     marca.append(document.createTextNode(P.nomeBandeira(p.brand) + " "), estrelas(p, "postos-estrelas"));
     const icones = el("span", "postos-icones"); icones.setAttribute("aria-hidden", "true");
     const sim = P.amenidadesSim(p.attributes);
-    for (const x of sim) { const am = el("span", "postos-am"); am.append(ic(x.icone, null, "ico-sim"), el("span", null, x.rotulo)); icones.appendChild(am); }
+    // 24 px, uma linha, só o desenho: o nome de cada serviço fica no title e no texto do leitor de tela (abaixo)
+    for (const x of sim) { const am = el("span", "postos-am"); am.title = x.rotulo; am.append(ic(x.icone, null, "ico-sim")); icones.appendChild(am); }
     if (!sim.length) icones.append(ic("ajuda", null, "ico-desc"), el("span", "postos-sem", "sem informação"));
     const ab = P.situacaoAbertura(p, new Date());
     if (ab.estado !== "?") icones.appendChild(seloAbertura(p, false));
     const desv = modoLista === "rota" ? P.desvioMin(p) : null;
     if (desv) { const dv = el("span", "postos-desvio"); dv.append(ic("relogio"), document.createTextNode(desv + " min")); dv.title = "Desvio estimado de cerca de " + desv + " min"; icones.appendChild(dv); }
-    const preco = el("span", "postos-preco"); preco.dataset.key = p.station_key; preco.hidden = true;
-    corpo.append(topo, preco, marca, icones);
+    corpo.append(topo, marca, icones);
+    if (proximo) { const t = el("span", "postos-selo"); t.append(ic("ok"), document.createTextNode("Próximo com diesel")); corpo.insertBefore(t, topo); } // faixa de 24 px no topo do cartão
     b.append(logoBandeira(p), corpo);
-    if (proximo) { const t = el("span", "postos-selo"); t.append(ic("ok"), document.createTextNode("Próximo com diesel")); b.appendChild(t); }
     // texto para o leitor de tela (e fonte do que o motorista vê em ícones): nada some, só deixa de ocupar a tela
     b.append(dica(textoDistancia(p) + " · " + P.nomeBandeira(p.brand) + " · " + ab.texto + (desv ? " · desvio de cerca de " + desv + " min" : "") + " · " + P.rotuloConfianca(p)), dica(r.conhecidos.length ? r.conhecidos.join(" · ") : "Serviços: não informados"));
     if (r.conhecidos.length && r.naoInformados.length) b.appendChild(dica("Não informado: " + r.naoInformados.join(", ")));
@@ -430,7 +431,8 @@
     const caixa = el("p", "postos-media dica"); caixa.id = "postos-media"; caixa.hidden = true;
     precoDaRegiao(p, "diesel_s10").then((r) => P.precoDaRegiao(r, "Diesel S10"), () => null).then((x) => {
       if (!caixa.isConnected || !x || !x.ok) return;
-      caixa.textContent = "Diesel S10, média ANP da região (" + x.uf + ")" + (x.semana ? ", semana de " + x.semana : "") + ": " + P.formatarReais(x.preco) + "/L. Não é o preço de cada posto.";
+      caixa.textContent = "Média ANP da região (" + x.uf + "): S10 " + P.formatarReais(x.preco) + "/L"; // uma linha; a semana vai no title
+      caixa.title = "Média do estado, não o preço de cada posto" + (x.semana ? " · semana de " + x.semana : "");
       caixa.hidden = false;
     });
     return caixa;
@@ -447,48 +449,37 @@
     }
     return precoCache.get(k);
   }
+  // Revisão UX 12/11 (item 11): UMA linha de preço do posto ("Diesel S10 R$ 6,79/L · ANP há 8 dias"); sem preço do posto, a frase fixa
+  // "Sem preço deste posto: a ANP só informa a média da região." (nunca inventa preço); a média da região é uma linha só, e some
+  // quando não há (nada de "data sem informação" nem frase que contradiga a outra).
   function blocoPreco(p) {
     const caixa = el("section", "pc-preco"); caixa.id = "postos-preco";
     const cab = el("h3", "pc-sub"); cab.append(ic("bomba"), document.createTextNode("Preço do diesel"));
-    const valores = el("div", "pc-valores");
-    valores.appendChild(el("p", "pc-linha", "Buscando o preço médio da região…"));
-    const fonte = el("p", "dica pc-data"); fonte.id = "postos-datas";
     const doPosto = el("div", "pc-posto"); doPosto.id = "postos-preco-posto"; doPosto.hidden = true;
     const sem = el("p", "dica pc-sem", "Sem preço deste posto: a ANP só informa a média da região.");
-    caixa.append(cab, doPosto, valores, fonte, sem);
+    const regiao = el("p", "dica pc-data"); regiao.id = "postos-datas"; regiao.hidden = true;
+    caixa.append(cab, doPosto, sem, regiao);
     carregarPrecos([p]).then(() => {
       if (!caixa.isConnected) return;
       const pr = precoDe(p);
-      if (!pr || !(pr.diesel_s10 || pr.diesel_s500)) return;
+      const k = pr && (pr.diesel_s10 ? "diesel_s10" : pr.diesel_s500 ? "diesel_s500" : null);
+      if (!k) return;
+      const u = pr[k], nome = k === "diesel_s10" ? "Diesel S10" : "Diesel S500";
       doPosto.textContent = "";
-      doPosto.appendChild(el("p", "pc-linha pc-neste", "Neste posto"));
-      let ref = null;
-      for (const [k, nome] of [["diesel_s10", "Diesel S10"], ["diesel_s500", "Diesel S500"]]) {
-        if (!pr[k]) continue;
-        ref = ref || pr[k];
-        const c = el("p", "pc-valor"); c.append(el("span", "pc-prod", nome), el("strong", null, P.formatarReais(pr[k].preco) + "/L"));
-        doPosto.appendChild(c);
-      }
-      doPosto.appendChild(el("p", "dica pc-data-posto", "Preço coletado pela ANP neste posto em " + (ref.dia || "data sem informação") + (ref.idade != null ? " (" + P.textoIdade(ref.idade) + ")" : "") + ". Pode ter mudado desde então."));
+      const linha = el("p", "pc-valor pc-linha-preco");
+      linha.append(el("strong", null, nome + " " + P.formatarReais(u.preco) + "/L"), document.createTextNode(" · ANP" + (u.idade != null ? " " + P.textoIdade(u.idade) : (u.dia ? " " + u.dia : ""))));
+      linha.title = "Preço coletado pela ANP neste posto em " + (u.dia || "data não informada") + ". Pode ter mudado desde então.";
+      doPosto.appendChild(linha);
       doPosto.hidden = false; sem.hidden = true;
     });
-    const prod = [["diesel_s10", "Diesel S10"], ["diesel_s500", "Diesel S500"]];
+    const prod = [["diesel_s10", "S10"], ["diesel_s500", "S500"]];
     Promise.all(prod.map(([k, nome]) => precoDaRegiao(p, k).then((r) => P.precoDaRegiao(r, nome), () => null))).then((res) => {
       if (!caixa.isConnected) return;
-      valores.textContent = "";
-      if (res.every((x) => x === null)) {
-        valores.appendChild(el("p", "pc-linha", "Preço médio da região: sem informação agora (sem conexão com o servidor)."));
-        fonte.textContent = "Preço ANP: data sem informação."; return;
-      }
-      const ref = res.find((x) => x && x.ok);
-      res.forEach((x, i) => {
-        const c = el("p", "pc-valor");
-        if (x && x.ok) c.append(el("span", "pc-prod", prod[i][0] === "diesel_s10" ? "Diesel S10" : "Diesel S500"), el("strong", null, P.formatarReais(x.preco) + "/L"));
-        else c.append(el("span", "pc-prod", prod[i][1]), el("strong", "pc-vazio", "sem preço da região"));
-        valores.appendChild(c);
-      });
-      fonte.textContent = ref ? "Preço médio da região (" + ref.uf + ") · ANP" + (ref.semana ? ", semana de " + ref.semana : ", semana sem informação") + "."
-        : "Preço ANP: sem informação para esta região.";
+      const ok = res.map((x, i) => (x && x.ok ? [prod[i][1], x] : null)).filter(Boolean);
+      if (!ok.length) return; // sem média da região (ou sem conexão): a linha não aparece, sem texto de "sem informação"
+      const ref = ok[0][1];
+      regiao.textContent = "Média da região (" + ref.uf + "): " + ok.map(([n, x]) => n + " " + P.formatarReais(x.preco) + "/L").join(" · ") + (ref.semana ? " · ANP, semana de " + ref.semana : " · ANP");
+      regiao.hidden = false;
     });
     return caixa;
   }
@@ -497,8 +488,7 @@
   function celula(a) {
     const li = el("li", "pc-amen pc-" + (a.estado === "sim" ? "sim" : a.estado === "nao" ? "nao" : "desc") + (a.estado === "?" ? " nao-informado" : ""));
     const ico = el("span", "pc-amen-ico"); ico.setAttribute("aria-hidden", "true");
-    ico.appendChild(ic(a.icone));
-    ico.appendChild(a.estado === "sim" ? ic("ok", null, "pc-selo") : a.estado === "nao" ? ic("fechar", null, "pc-selo") : el("span", "pc-selo pc-selo-q", "?"));
+    ico.appendChild(ic(a.icone)); // sem ícone-selo sobreposto: o estado vai em palavra de 13 px (Tem / Não tem / ?) abaixo do rótulo
     const rot = el("span", "pc-amen-rot", a.rotulo); rot.setAttribute("aria-hidden", "true");
     const est = el("span", "pc-amen-estado", a.estado === "sim" ? "Tem" : a.estado === "nao" ? "Não tem" : "?"); est.setAttribute("aria-hidden", "true");
     li.append(ico, rot, est, el("span", "so-leitor", a.rotulo + ": " + a.texto));
@@ -521,8 +511,6 @@
       f.append(icos, el("span", null, "Sem informação na fonte: " + faltam.map((x) => x.rotulo.toLowerCase()).join(", ")));
       sec.appendChild(f);
     }
-    const leg = el("p", "dica pc-legenda"); leg.append(ic("ok"), "tem ", ic("fechar"), "não tem ", el("span", "pc-selo-q-leg", "?"), " sem informação");
-    sec.appendChild(leg);
     return sec;
   }
 

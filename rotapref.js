@@ -161,24 +161,37 @@
   }
 
   // ------------------------------------------------------------ 4. câmera na manobra
+  // Padrão LIGADO e bem visível: a < distM da manobra (mais longe quanto mais rápido, e mais ainda de caminhão) a câmera vai até
+  // o zoom `zoom` (17,5 ≈ o cruzamento inteiro na tela; nunca menos que +zoomExtra sobre o zoom normal da velocidade) e inclina
+  // até `pitch`; depois da manobra o fator volta a 0 e a câmera desce sozinha.
   const CHAVE_CAMERA = "copiloto.camera.manobra.v1";
-  const CAMERA_PADRAO = { ligado: true, distM: 300, zoomExtra: 1.2, pitch: 58 };
+  const CAMERA_PADRAO = { ligado: true, distM: 400, zoom: 17.5, zoomExtra: 1, pitch: 58 };
+  const ANTECIPA_S = { carro: 15, caminhao: 22 }, DIST_MAX_M = 700;
   function configCamera(o) {
     const c = Object.assign({}, CAMERA_PADRAO);
     if (o && typeof o === "object") {
       if (typeof o.ligado === "boolean") c.ligado = o.ligado;
       if (isFinite(o.distM) && o.distM >= 100 && o.distM <= 600) c.distM = Number(o.distM);
+      if (isFinite(o.zoom) && o.zoom >= 15 && o.zoom <= 19) c.zoom = Number(o.zoom);
       if (isFinite(o.zoomExtra) && o.zoomExtra >= 0 && o.zoomExtra <= 2.5) c.zoomExtra = Number(o.zoomExtra);
       if (isFinite(o.pitch) && o.pitch >= 30 && o.pitch <= 70) c.pitch = Number(o.pitch);
     }
     return c;
   }
-  // 0 longe da manobra; sobe de 0 a 1 entre distM e distM/2 (curva suave); 1 daí até a manobra
-  function fatorManobra(manobraM, cfg) {
+  // A que distância da manobra a câmera começa: distM no mínimo; em velocidade, ~15 s (carro) ou ~22 s (caminhão, que freia e muda
+  // de faixa mais devagar) de antecedência, até 700 m. velMs ausente → distM.
+  function distanciaCamera(velMs, cfg, caminhao) {
+    const c = cfg || CAMERA_PADRAO;
+    if (!(velMs > 0) || !isFinite(velMs)) return c.distM;
+    return Math.min(DIST_MAX_M, Math.max(c.distM, velMs * (caminhao ? ANTECIPA_S.caminhao : ANTECIPA_S.carro)));
+  }
+  // 0 longe da manobra; sobe de 0 a 1 entre a distância da câmera e 60% dela (curva suave); 1 daí até a manobra
+  function fatorManobra(manobraM, cfg, velMs, caminhao) {
     const c = cfg || CAMERA_PADRAO;
     if (!c.ligado || manobraM == null || !isFinite(manobraM) || manobraM < 0) return 0;
-    if (manobraM >= c.distM) return 0;
-    const t = Math.min(1, (c.distM - manobraM) / (c.distM / 2));
+    const d = distanciaCamera(velMs, c, caminhao);
+    if (manobraM >= d) return 0;
+    const t = Math.min(1, (d - manobraM) / (d * 0.4));
     return t * t * (3 - 2 * t);
   }
   // Anda do valor atual ao alvo no máximo "passo" por chamada (uma leitura de GPS): zoom e inclinação nunca dão salto.
@@ -187,10 +200,15 @@
     const d = alvo - atual;
     return Math.abs(d) <= passo ? alvo : atual + Math.sign(d) * passo;
   }
+  // quanto somar ao zoom normal (base) para chegar ao zoom da manobra: pelo menos zoomExtra, e até cfg.zoom
+  function zoomExtraPara(zoomBase, cfg) {
+    const c = cfg || CAMERA_PADRAO;
+    return Math.max(c.zoomExtra, c.zoom - (isFinite(zoomBase) ? zoomBase : 0));
+  }
   // zoom e inclinação para um fator 0–1; base: o que a câmera usaria sem a manobra
   function alvoCamera(base, fator, cfg) {
     const c = cfg || CAMERA_PADRAO;
-    return { zoom: base.zoom + c.zoomExtra * fator, pitch: base.pitch + (Math.max(base.pitch, c.pitch) - base.pitch) * fator };
+    return { zoom: base.zoom + zoomExtraPara(base.zoom, c) * fator, pitch: base.pitch + (Math.max(base.pitch, c.pitch) - base.pitch) * fator };
   }
 
   // ------------------------------------------------------------ 5. faixas e saída
@@ -245,8 +263,49 @@
     const todas = faixas.map((f, i) => ({ f, i }));
     const ind = todas.filter((x) => x.f.indicada), val = todas.filter((x) => x.f.valida);
     const quais = ind.length && ind.length < faixas.length ? ind : val.length && val.length < faixas.length ? val : [];
-    if (!quais.length) return faixas.length + " faixas.";
+    if (!quais.length) return faixas.length + (faixas.length === 1 ? " faixa." : " faixas.");
     return "Use a faixa " + quais.map((x) => (x.i + 1) + "ª").join(" ou ") + " da esquerda para a direita, " + FALA[quais[0].f.direcoes[0]] + ".";
+  }
+  // Direção da manobra (tipo do Valhalla) → "esquerda" | "direita" | "frente" | "retorno" | null (destino, início…)
+  function direcaoDoTipo(tipo) {
+    if ([9, 10, 11, 18, 20, 23].includes(tipo)) return "direita";
+    if ([14, 15, 16, 19, 21, 24].includes(tipo)) return "esquerda";
+    if ([12, 13].includes(tipo)) return "retorno";
+    if ([8, 17, 22].includes(tipo)) return "frente";
+    return null;
+  }
+  const FAMILIA = { direita: ["direita", "dir_leve", "dir_forte", "junta_dir"], esquerda: ["esquerda", "esq_leve", "esq_forte", "junta_esq"], frente: ["frente"], retorno: ["retorno"] };
+  // Faixas a partir do texto OSM `turn:lanes` ("left|through|through;right": faixas separadas por "|", opções por ";"; vazio e
+  // "none" = em frente). `manobra` ("esquerda" | "direita" | "frente" | "retorno") marca como válidas as faixas que levam a ela.
+  // Texto vazio, sem faixa, ou com valor desconhecido em TODAS as faixas → null (nada inventado).
+  function faixasDeOsm(texto, manobra) {
+    if (typeof texto !== "string" || !texto.trim()) return null;
+    const partes = texto.split("|");
+    if (partes.length < 2 || partes.length > 8) return null;
+    const alvo = FAMILIA[manobra] || null;
+    const out = [];
+    for (const p of partes) {
+      const t = p.trim().toLowerCase();
+      const dirs = t === "" || t === "none" ? ["frente"] : direcoes(t);
+      if (!dirs.length) return null; // valor que não entendemos: melhor não desenhar do que desenhar errado
+      out.push({ direcoes: dirs, valida: !!alvo && dirs.some((d) => alvo.includes(d)), indicada: false });
+    }
+    return out;
+  }
+  const NUM = ["", "uma", "duas", "três", "quatro", "cinco", "seis", "sete", "oito"];
+  // Frase falada: "Use as duas faixas da direita." / "Use a faixa da esquerda." / "Use a 2ª faixa da esquerda para a direita."
+  // Só com 2+ faixas e uma indicação que NÃO seja todas as faixas; senão "" (a voz não diz nada).
+  function falaFaixas(faixas) {
+    if (!faixas || faixas.length < 2) return "";
+    const n = faixas.length;
+    const ind = faixas.map((f, i) => (f.indicada ? i : -1)).filter((i) => i >= 0), val = faixas.map((f, i) => (f.valida ? i : -1)).filter((i) => i >= 0);
+    const q = ind.length && ind.length < n ? ind : val.length && val.length < n ? val : [];
+    if (!q.length) return "";
+    const k = q.length, contigua = q[k - 1] - q[0] === k - 1;
+    if (contigua && q[k - 1] === n - 1) return k === 1 ? "Use a faixa da direita." : "Use as " + NUM[k] + " faixas da direita.";
+    if (contigua && q[0] === 0) return k === 1 ? "Use a faixa da esquerda." : "Use as " + NUM[k] + " faixas da esquerda.";
+    if (contigua && k === 1) return "Use a " + (q[0] + 1) + "ª faixa a partir da esquerda.";
+    return "Use as faixas " + q.map((i) => i + 1).join(", ").replace(/, (\d+)$/, " e $1") + ", a partir da esquerda.";
   }
   // Saída da manobra do /route: sign.exit_number_elements / exit_name_elements / exit_branch / exit_toward. Sem nada: null.
   function lerSaida(sign) {
@@ -265,7 +324,8 @@
   const api = { CHAVE_PREFS, PREFS, IDS, normalizarPrefs, algumaAtiva, versaoDoStatus, suporteDoStatus, urlStatus, efetivas, rotulosAtivos,
     diferenca, textoDiferenca, avisosNaoEvitou, seloCompat,
     MAX_PARADAS, distM, normalizarParada, adicionarParada, marcosDasParadas, aindaFaltam, desvioPosto, ordenarAoLongo,
-    CHAVE_CAMERA, CAMERA_PADRAO, configCamera, fatorManobra, suavizar, alvoCamera,
+    CHAVE_CAMERA, CAMERA_PADRAO, configCamera, distanciaCamera, fatorManobra, suavizar, zoomExtraPara, alvoCamera,
+    faixasDeOsm, direcaoDoTipo, falaFaixas,
     direcoes, faixa, lerFaixas, faixasDaManobra, textoFaixas, lerSaida, GLIFO, FALA };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoRotaPref = api;

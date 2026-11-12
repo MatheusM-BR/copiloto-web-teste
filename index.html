@@ -28,7 +28,8 @@
 </head>
 <body>
 <div id="app">
-  <div class="aviso" role="alert">Dados de teste — não use para navegação real</div>
+  <!-- Faixa de teste (revisão UX 12/11, item 9): 18 px, âmbar, só na tela inicial (ui/barra.js põe a classe "recolhida" nas outras telas) -->
+  <div class="aviso" id="aviso-teste" role="note">Dados de teste — não use para navegação real</div>
 
   <main>
     <div id="mapa" aria-label="Mapa"></div>
@@ -81,7 +82,7 @@
     <section id="tela-busca" class="tela tela-busca" hidden aria-label="Buscar destino">
       <form class="busca-form" id="busca-form" role="search" novalidate>
         <label class="busca-rotulo" for="busca-texto"><span class="so-leitor">Destino</span>
-          <input id="busca-texto" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Endereço, lugar, empresa ou lat, lon">
+          <input id="busca-texto" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Para onde?" aria-label="Destino: endereço, lugar, empresa ou lat, lon">
         </label>
       </form>
       <div class="busca-atalhos">

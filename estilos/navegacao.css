@@ -31,25 +31,36 @@
 .nav-painel .nav-reentrada { color: var(--texto); }
 /* barra do pé: a linha da velocidade (ui/limite.js põe a placa dentro de .velocidade) fica por cima do alto da barra */
 .painel-mapa > .nav-rodape {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 0; height: var(--rodape-h, 156px); display: flex; align-items: flex-end; gap: 8px;
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 0; height: var(--rodape-h, 156px); display: flex; align-items: flex-end; gap: 4px;
   background: var(--painel); border-top: 1px solid var(--linha); border-radius: 20px 20px 0 0;
-  padding: 0 max(12px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 8px) max(12px, env(safe-area-inset-left, 0px));
+  padding: 0 max(6px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 8px) max(10px, env(safe-area-inset-left, 0px));
   box-shadow: 0 -6px 20px rgba(0,0,0,.3);
 }
 .painel-mapa > .nav-rodape[hidden] { display: none; }
-.nav-info { flex: 1; min-width: 0; min-height: 64px; display: flex; flex-direction: column-reverse; justify-content: center; }
-.nav-info span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nav-info b { font-size: 17px; line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; overflow: hidden;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
-.nav-info span { font-size: 24px; font-weight: 800; line-height: 1.15; color: var(--texto); font-variant-numeric: tabular-nums; }
-.nav-encerrar { flex: none; min-height: 64px; width: 64px; padding: 0; display: grid; place-items: center; align-content: center; gap: 0;
-  color: var(--perigo-txt); border-color: var(--perigo-txt); }
-.nav-encerrar-icone { font-size: 22px; line-height: 1; }
-.nav-encerrar-texto { font-size: 12px; line-height: 1.2; font-weight: 700; }
-.nav-postos { flex: none; min-height: 64px; width: 64px; padding: 0; display: grid; place-items: center; color: var(--primaria); border-color: var(--primaria); }
-.nav-postos .ico { width: 30px; height: 30px; }
-.nav-ver-aviso { flex: none; min-height: 64px; min-width: 64px; padding: 0; font-size: 24px; color: var(--atencao); }
+/* Revisão de UX 12/11, item 6: RESTAM / TEMPO / CHEGADA em colunas (rótulo 12 px em cima, valor até 22 px embaixo), nunca com
+   reticências nem -webkit-line-clamp. O tamanho do valor (--pe-fs) e do rótulo (--pe-rot) é ajustado por ui/navegacao.js
+   (ajustarPe) até caber; em ≤ 340 px, ou sem caber nem no piso, só RESTAM e CHEGADA (classe .duas). */
+.nav-info { flex: 1 1 0; min-width: 0; min-height: 64px; display: grid; grid-auto-flow: column; grid-auto-columns: auto; justify-content: space-between; align-content: center; column-gap: 6px; }
+.nav-col { display: grid; gap: 1px; min-width: 0; align-content: center; }
+.nav-rot { font-size: var(--pe-rot, 12px); font-weight: 700; letter-spacing: .02em; line-height: 1.1; color: var(--suave); white-space: nowrap; }
+.nav-col > span, .nav-col > b { font-size: var(--pe-fs, 22px); font-weight: 800; line-height: 1.1; color: var(--texto); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nav-info.duas .nav-col-tempo { display: none; }
+@media (max-width: 340px) { .nav-info .nav-col-tempo { display: none; } }
+/* botões do pé: ícone de 26 px e rótulo de 13 px embaixo (Postos / Avisos / Sair); alvo de 64 × 64 */
+.nav-encerrar, .nav-postos, .nav-ver-aviso { flex: none; min-height: 64px; min-width: 64px; width: 64px; padding: 0; display: grid; place-items: center; align-content: center; gap: 2px; }
+.nav-encerrar .ico, .nav-postos .ico, .nav-ver-aviso .ico { width: 26px; height: 26px; }
+.nav-rotulo { font-size: 13px; line-height: 1.1; font-weight: 700; white-space: nowrap; }
+.nav-glifo { font-size: 22px; line-height: 1; }
+.nav-encerrar { color: var(--perigo-txt); border-color: var(--perigo-txt); }
+.nav-postos { color: var(--primaria); border-color: var(--primaria); }
+.nav-ver-aviso { color: var(--atencao); }
 .nav-aviso { font-size: 14px; color: var(--texto); cursor: pointer; }
+/* mensagem curta do app navegando (ui/navegacao.js mensagemPainel): no painel, 1–2 linhas, some sozinha */
+.nav-msg { font-size: 15px; font-weight: 700; line-height: 1.25; color: var(--texto); background: var(--atencao-suave); border-left: 4px solid var(--atencao); padding: 6px 10px; border-radius: 8px; }
+.nav-msg[hidden] { display: none; }
+
+/* Revisão de UX 12/11, item 14: navegando, o mãos-livres cobre o "Falar" (fica escondido) e o "Rumo" só aparece depois de
+   arrastar o mapa (junto do "Recentralizar") — ver estilos/comandos.css */
 
 /* Com a navegação ativa: mensagem curta vai para cima da barra do pé */
 #app.nav-ativa .msg-mapa { top: auto; left: 12px; transform: none; max-width: calc(100% - 24px); }
@@ -110,6 +121,39 @@
   #app.nav-ativa .alerta button { min-height: 64px; font-size: 17px; }
 }
 
+.nav-ver-aviso[hidden] { display: none; }
+
+/* Revisão de UX 12/11, itens 1 e 5: com o cartão "VOCÊ NÃO PASSA" aberto (ou o alerta crítico de altura/peso), o painel encolhe:
+   manobra numa linha só (ícone 44 px e distância 28 px; instrução, via, "Depois", nota e pílula de descanso saem), cartão em
+   grade (placa + título na 1ª linha; texto da restrição e distância na 2ª; fonte, os dois números e os botões de 76 px embaixo).
+   Alvo (390×664): painel ≤ 330 px, mapa visível ≥ 100 px, e o cartão NUNCA passa por cima do pé (com altura baixa o painel rola
+   por dentro: max-height até o pé; os botões continuam à vista no fim da rolagem). Só muda o layout: textos, cores e ids são os de ui/avisos.js. */
+:is(.nav-painel:has(.aviso-dado.critico:not([hidden])), #app.nav-ativa:has(#alerta.critico:not([hidden])) .nav-painel) { gap: 5px; padding-top: 6px; padding-bottom: 8px; }
+:is(.nav-painel:has(.aviso-dado.critico:not([hidden])), #app.nav-ativa:has(#alerta.critico:not([hidden])) .nav-painel) .nav-icone { width: 44px; height: 44px; font-size: 32px; border-radius: 12px; }
+:is(.nav-painel:has(.aviso-dado.critico:not([hidden])), #app.nav-ativa:has(#alerta.critico:not([hidden])) .nav-painel) .nav-dist { font-size: 28px; }
+:is(.nav-painel:has(.aviso-dado.critico:not([hidden])), #app.nav-ativa:has(#alerta.critico:not([hidden])) .nav-painel) :is(.nav-instrucao, .nav-rua, .nav-seguinte, .nav-aviso, .nav-msg, .descanso-pilula) { display: none; }
+#app.nav-ativa:has(#alerta:not([hidden])) .nav-msg { display: none; }
+#nav-painel .aviso-dado.critico {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; grid-template-areas: "placa titulo titulo" "texto texto dist" "fonte fonte fonte" "nums nums nums" "botoes botoes botoes" "msg msg msg";
+  gap: 4px 8px; padding: 8px 10px; align-items: center; min-width: 0;
+}
+#nav-painel .aviso-dado.critico .critico-cab, #nav-painel .aviso-dado.critico .critico-linha { display: contents; }
+#nav-painel .aviso-dado.critico .critico-cab > svg { grid-area: placa; width: 36px; height: 36px; }
+#nav-painel .aviso-dado.critico .critico-titulo { grid-area: titulo; font-size: clamp(19px, 6vw, 26px); white-space: nowrap; min-width: 0; }
+#nav-painel .aviso-dado.critico .aviso-dado-dist { grid-area: dist; font-size: clamp(22px, 6.4vw, 26px); line-height: 1; white-space: nowrap; }
+#nav-painel .aviso-dado.critico .aviso-dado-texto { grid-area: texto; font-size: 15px; line-height: 1.2; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#nav-painel .aviso-dado.critico .critico-fonte { grid-area: fonte; font-size: 13px; line-height: 1.2; }
+#nav-painel .aviso-dado.critico .critico-nums { grid-area: nums; gap: 6px; }
+#nav-painel .aviso-dado.critico .critico-num { padding: 4px 10px 5px; gap: 0; border-radius: 10px; }
+#nav-painel .aviso-dado.critico .critico-num small { font-size: 13px; line-height: 1.25; letter-spacing: .03em; }
+#nav-painel .aviso-dado.critico .critico-num b { font-size: 26px; line-height: 1.1; }
+#nav-painel .aviso-dado.critico .critico-botoes { grid-area: botoes; gap: 8px; }
+#nav-painel .aviso-dado.critico .critico-btn { min-height: 76px; font-size: 19px; }
+#nav-painel .aviso-dado.critico .critico-msg { grid-area: msg; }
+@media (orientation: portrait) {
+  #nav-painel:has(.aviso-dado.critico:not([hidden])) { max-height: calc(100% - var(--rodape-h, 132px) - 8px); overflow-y: auto; overscroll-behavior: contain; }
+}
+
 /* Folhas da navegação */
 .nav-escolha { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .nav-grande { min-height: 72px; font-size: 20px; font-weight: 800; }
@@ -149,3 +193,9 @@
   display: grid; place-items: center; font-size: 30px; font-weight: 900; line-height: 1; }
 .nav-reentrada-texto { font-size: 17px; font-weight: 800; }
 .folha #nav-voltar { width: 100%; min-height: 72px; }
+
+/* Telas estreitas (iPhone SE, 320–360 px): botões do pé de 64 px e margens menores; as colunas do pé se ajustam sozinhas (ajustarPe) */
+@media (max-width: 360px) {
+  .painel-mapa > .nav-rodape { gap: 3px; padding-right: max(4px, env(safe-area-inset-right, 0px)); padding-left: max(8px, env(safe-area-inset-left, 0px)); }
+  .folha .rota-rodape .btn-iniciar-nav { font-size: 16px; }
+}

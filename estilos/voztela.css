@@ -47,3 +47,11 @@
 
 /* seletores do cartão de voz e do limite de velocidade: alvo de toque ≥ 52 px */
 #tela-voz input:not([type="checkbox"]), #tela-voz select, #tela-voz .linha-check { min-height: 64px; } /* igual ao que tinham na tela Conta */
+
+/* Pacote F (item 17): alertas por categoria, uma linha de 64 px por categoria (texto à esquerda, interruptor à direita; o desenho do
+   interruptor está em estilos/conta.css) */
+.voz-card-categorias .voz-cat { border-top: 1px solid var(--linha); min-height: 72px; padding: 6px 0; }
+.voz-card-categorias .voz-cat:first-of-type { border-top: 0; }
+.voz-cat-txt { display: grid; gap: 2px; min-width: 0; }
+.voz-cat-txt b { font-size: 17px; color: var(--texto); }
+.voz-cat-txt small { font-size: 13px; line-height: 1.3; color: var(--suave); }

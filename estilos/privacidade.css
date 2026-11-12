@@ -37,12 +37,17 @@
    números em linhas de 64 px (nome à esquerda, número à direita; 191 em vermelho). O SOS é um item pequeno no menu de
    Configurações e no formulário do "!" (estilos/interface.css). */
 .e5-posicao h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); }
-.e5-endereco { font-size: 22px; font-weight: 800; line-height: 1.2; }
+.e5-endereco { font-size: 28px; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
 .e5-endereco-linha { font-size: 16px; }
 .e5-endereco[hidden], .e5-endereco-linha[hidden], .e5-frase[hidden] { display: none; }
-.e5-coord { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; word-break: break-word; }
+/* item 22: coordenadas numa linha só (14 px) com "Copiar" ao lado; sem GPS, a frase de aviso pode quebrar */
+.e5-coord-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.e5-coord { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.e5-coord.e5-sem-gps { font-weight: 500; }
+.e5-coord-nota { font-size: 14px; color: var(--atencao); font-weight: 700; }
+.e5-coord-nota[hidden] { display: none; }
 .e5-trecho { font-size: 16px; color: var(--texto); }
-.e5-frase { margin: 0 0 14px; background: var(--painel); border: 1px solid var(--linha); border-radius: 16px; padding: 14px 16px; font-size: 16px; line-height: 1.45; }
+.e5-frase { margin: 0; background: var(--painel); border: 1px solid var(--linha); border-radius: 16px; padding: 14px 16px; font-size: 16px; line-height: 1.45; }
 .e5-numeros { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
 .e5-ligar {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 64px; padding: 8px 20px;
@@ -70,7 +75,7 @@
 .e5-perm-txt b { color: var(--texto); font-size: 15px; }
 
 /* Lote 4: SOS. Coordenadas copiáveis e contatos que o motorista cadastrou (nada vem pronto) */
-.e5-copiar { width: 100%; min-height: 64px; margin-top: 4px; }
+.e5-copiar { width: auto; min-width: 96px; min-height: 64px; margin: 0; padding: 0 16px; font-weight: 800; }
 .e5-contatos h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); }
 .e5-contato { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
 .e5-contato .e5-contato-rm { min-height: 64px; }

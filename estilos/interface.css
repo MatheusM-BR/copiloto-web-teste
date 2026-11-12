@@ -33,8 +33,13 @@
 
 .so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* faixa "Dados de teste" mais fina (continua sempre à vista) */
-.aviso { font-size: 12px; padding-top: calc(env(safe-area-inset-top, 0px) + 4px); padding-bottom: 4px; }
+/* faixa "Dados de teste" (revisão UX, item 9): fina (18 px), âmbar (não vermelha) e só na tela inicial; nas demais telas ela se
+   recolhe (ui/barra.js, classe "recolhida") e sobra só o recuo do topo do iPhone, para o conteúdo não ir para baixo da barra de status */
+.aviso {
+  box-sizing: content-box; height: 18px; padding: env(safe-area-inset-top, 0px) 6px 0; font-size: 13px; line-height: 18px; font-weight: 700; letter-spacing: 0;
+  background: var(--atencao-fundo); color: var(--atencao-fundo-texto); white-space: nowrap; overflow: hidden;
+}
+.aviso.recolhida { height: 0; font-size: 0; line-height: 0; color: transparent; background: var(--bg); }
 
 /* ------------------------------------------------------------ tela inicial: busca + engrenagem no alto */
 .barra-topo {
@@ -146,9 +151,10 @@
 }
 .busca-item::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--suave); }
 .busca-item.busca-coordenada::before, .busca-item.busca-nome::before { border-color: var(--acento); background: var(--acento); }
-.busca-item-texto { display: grid; gap: 2px; min-width: 0; }
-.busca-item-nome { font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.busca-item-detalhe { font-size: 13px; color: var(--suave); }
+/* resultado em 2 linhas: o nome inteiro (quebra se preciso) e o "…" só no detalhe (revisão UX, item 20) */
+.busca-item-texto { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; min-width: 0; flex: 1; }
+.busca-item-nome { font-size: 17px; overflow-wrap: anywhere; white-space: normal; line-height: 1.25; }
+.busca-item-detalhe { font-size: 13px; color: var(--suave); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .busca-dica { margin-top: 8px; }
 
 /* ------------------------------------------------------------ toque no mapa: pino e folha "Ir para cá / Relatar aqui" */

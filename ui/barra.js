@@ -8,7 +8,9 @@
 // Também monta o que a tela inicial ganhou (P1.1): cartão do veículo ativo acima da busca (#mapa-veiculo, "Ajustar" → aba Veículo) e
 // os atalhos Casa / Base / Recente (#mapa-atalhos, ≥ 64 px, acima da barra). Nada de dado inventado: sem veículo, o cartão pede o
 // cadastro; sem Casa/Base/Recente salvos, o atalho diz isso.
-// Classes no #app: com-barra, com-atalhos, com-veiculo (usadas em estilos/barra.css). Expõe Copiloto.barra = { visivel(), atualizar() }.
+// Revisão UX 12/11 (pacote C): a faixa "Dados de teste" (#aviso-teste, 18 px âmbar) só aparece na tela inicial limpa (nas outras, classe
+// "recolhida"); o velocímetro redondo some parado e sem rota (classe sem-vel no #app); o cartão do veículo traz "Vazio (14,2 t)" / "Carregado (45 t)".
+// Classes no #app: com-barra, com-atalhos, com-veiculo, sem-vel (usadas em estilos/barra.css). Expõe Copiloto.barra = { visivel(), atualizar() }.
 (function (C) {
   "use strict";
   const { $, el } = C.util;
@@ -42,6 +44,12 @@
     app.classList.toggle("com-barra", mostrar);
     app.classList.toggle("com-atalhos", limpo);
     app.classList.toggle("com-veiculo", limpo);
+    const faixa = $("aviso-teste");
+    if (faixa) { // só mexe quando muda (o observador do #app não pode entrar em laço)
+      if (faixa.classList.contains("recolhida") === limpo) faixa.classList.toggle("recolhida", !limpo);
+      if (faixa.hasAttribute("aria-hidden") === limpo) { if (limpo) faixa.removeAttribute("aria-hidden"); else faixa.setAttribute("aria-hidden", "true"); }
+    }
+    atualizarVelocidade();
     const atual = C.abas.atual();
     for (const b of barra.querySelectorAll(".barra-aba")) {
       const ativa = b.dataset.aba === atual;
@@ -49,6 +57,17 @@
       b.classList.toggle("ativa", ativa);
     }
     if (limpo) { desenharVeiculo(); desenharAtalhos(); }
+  }
+  // velocímetro redondo: "0 km/h" ou "--" parado e sem rota não informa nada e ocupa 84 px no canto (item 8c). Aparece navegando, com
+  // rota/destino, andando (> 0 km/h) ou com a placa do limite à vista.
+  function atualizarVelocidade() {
+    const app = $("app"), vel = document.querySelector(".painel-mapa > .velocidade");
+    if (!app || !vel) return;
+    const n = parseFloat(String(($("vel") || {}).textContent || "").replace(",", "."));
+    const placa = vel.querySelector(".limite-placa:not([hidden])");
+    const rota = !!(C.rota && C.rota.destino && C.rota.destino());
+    const some = !navegando() && !rota && !placa && !(isFinite(n) && n > 0);
+    if (app.classList.contains("sem-vel") !== some) app.classList.toggle("sem-vel", some);
   }
   function agendar() {
     if (pedido) return;
@@ -62,13 +81,20 @@
     const c = $("mapa-veiculo"); if (!c) return;
     const v = C.veiculos && C.veiculos.ativo ? C.veiculos.ativo() : null;
     c.querySelector(".mapa-veiculo-nome").textContent = v ? v.nome : "Nenhum veículo ativo";
-    const det = [];
+    const det = [], fmtT = (t) => String(t).replace(".", ",") + " t";
+    // item 24: "Vazio (14,2 t) · Altura 4,4 m": a carga do cadastro ("Carga agora") com o peso que ela usa (vazio: peso vazio; carregado: PBTC)
+    const carga = v && (v.carga === "Vazio" || v.carga === "Carregado") ? v.carga : null;
+    const pesoCarga = carga === "Vazio" ? v.tara : carga === "Carregado" ? v.pbtc : null;
     if (v) {
+      if (carga) det.push(carga + (pesoCarga != null ? " (" + fmtT(pesoCarga) + ")" : ""));
       if (v.altura != null) det.push("Altura " + fmtM(v.altura));
-      if (v.pbtc != null) det.push("PBTC " + String(v.pbtc).replace(".", ",") + " t");
+      if (v.pbtc != null && !carga) det.push("PBTC " + fmtT(v.pbtc));
       if (!det.length) det.push(v.tipo);
     } else det.push("Cadastre para a rota respeitar o seu caminhão");
-    c.querySelector(".mapa-veiculo-dados").textContent = det.join(" · ");
+    const dados = c.querySelector(".mapa-veiculo-dados");
+    dados.textContent = "";
+    if (carga) { const ch = el("span", "mapa-veiculo-carga" + (carga === "Vazio" ? " vazio" : " carregado"), det.shift()); dados.append(ch, det.length ? " · " + det.join(" · ") : ""); }
+    else dados.textContent = det.join(" · ");
     c.querySelector(".mapa-veiculo-ajustar > span").textContent = v ? "Ajustar" : "Cadastrar";
   }
   function montarVeiculo() {
@@ -147,6 +173,9 @@
     const ad = $("aviso-dado"); if (ad) mo.observe(ad, { attributes: true, attributeFilter: ["hidden", "class"] });
     // altura do velocímetro (cresce com a placa do limite): o SOS fica logo acima dele
     const vel = document.querySelector(".painel-mapa > .velocidade");
+    const velTxt = $("vel");
+    if (velTxt) new MutationObserver(agendar).observe(velTxt, { childList: true, characterData: true, subtree: true });
+    if (vel) new MutationObserver(agendar).observe(vel, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
     if (vel && typeof ResizeObserver === "function") new ResizeObserver(() => { const h = Math.round(vel.getBoundingClientRect().height); if (h) $("app").style.setProperty("--vel-h", h + "px"); }).observe(vel);
     atualizar();
   });

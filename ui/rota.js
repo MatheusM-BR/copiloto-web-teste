@@ -145,7 +145,7 @@
             if (Math.abs(h - ultima) < 4) return;
             ultima = h;
             clearTimeout(tf);
-            tf = setTimeout(() => { if (rotaAtual && !navAtiva() && !fo.hidden && fo.dataset.decisao === "1") enquadrarRota(); }, 200);
+            tf = setTimeout(() => { if (Date.now() - ultimoToggleSecao < 1500) return; if (rotaAtual && !navAtiva() && !fo.hidden && fo.dataset.decisao === "1") enquadrarRota(); }, 200);
           }).observe(fo);
         }
         mapa.on("click", "rota-toque", (e) => {
@@ -341,6 +341,30 @@
   // piso ruim): C.rotaExtras.folha(rota, opcoes) → nó(s) e C.rotaExtras.cartao(rota, i) → nó (linha dentro do cartão da alternativa).
   C.rotaExtras = C.rotaExtras || { folha: [], cartao: [] };
   C.rotaExtras.antesIniciar = C.rotaExtras.antesIniciar || []; // ui/avisos.js: cartão de restrições ANTES de "Iniciar navegação"
+  // Pacote B: a folha de decisão só leva o que decide (resumo, restrição, Desviar / Seguir mesmo assim, Iniciar); o resto vai em
+  // seções recolhidas <details> com título e valor em UMA linha. C.rotaExtras.secao(id, titulo, valor, corpo, classe) devolve o
+  // <details> (d.definirValor(texto) troca o valor da linha). Quem abriu uma seção a encontra aberta quando a folha é refeita.
+  // C.rotaExtras.slot: lugar fixo no pé da folha (acima de "Iniciar navegação") para os botões da restrição (ui/avisos.js).
+  const CHAVE_SECOES = "copiloto.rota.secoes.v1"; // seções que o motorista abriu (continuam abertas nas próximas rotas)
+  const secoesAbertas = new Set(); let ultimoToggleSecao = 0;
+  try { const g = JSON.parse(localStorage.getItem(CHAVE_SECOES) || "[]"); if (Array.isArray(g)) for (const x of g) if (typeof x === "string") secoesAbertas.add(x); } catch (e) { /* sem armazenamento: começa tudo fechado */ }
+  function secao(id, titulo, valor, corpo, classe) {
+    const d = el("details", "rota-sec" + (classe ? " " + classe : "")); d.id = "rota-sec-" + id; d.dataset.sec = id;
+    const sm = el("summary", "rota-sec-sum"), v = el("span", "rota-sec-v", valor || "");
+    sm.append(el("span", "rota-sec-t", titulo), v); d.append(sm);
+    const c = el("div", "rota-sec-corpo"); for (const n of [].concat(corpo || [])) if (n) c.append(n);
+    d.append(c);
+    if (secoesAbertas.has(id)) d.open = true;
+    // abrir ou fechar uma seção muda a altura da folha: isso NÃO re-enquadra o mapa (o mapa não se mexe sozinho por um toque na folha)
+    d.addEventListener("toggle", () => {
+      ultimoToggleSecao = Date.now(); if (d.open) secoesAbertas.add(id); else secoesAbertas.delete(id);
+      try { localStorage.setItem(CHAVE_SECOES, JSON.stringify(Array.from(secoesAbertas))); } catch (e) { /* ignora */ }
+    });
+    d.definirValor = (t) => { v.textContent = t || ""; };
+    d.corpo = c;
+    return d;
+  }
+  C.rotaExtras.secao = secao;
   // Extras que dependem da rota escolhida (restrições, estado, via): com várias opções, trocam de lugar quando a escolha muda.
   // Cada grupo tem uma âncora escondida; os nós ficam logo depois dela.
   const grupos = {};
@@ -579,7 +603,13 @@
 
   // Custos da rota (ui/custos.js): lugar reservado logo depois de "Iniciar navegação" (modo Padrão/Avançado, pedágio,
   // combustível e total); ui/custos.js preenche ao ouvir "rota:folha" e põe a diferença de custo em cada cartão.
-  function lugarCustos() { const d = el("div", "rota-custos"); d.id = "rota-custos"; return d; }
+  // Pacote B: recolhido (<details> "Custos"); ui/custos.js põe o valor na linha (#rota-custos-valor) e preenche #rota-custos
+  function lugarCustos() {
+    const d = el("div", "rota-custos"); d.id = "rota-custos";
+    const sec = secao("custos", "Custos", "", d); sec.classList.add("rota-sec-custos");
+    sec.querySelector(".rota-sec-v").id = "rota-custos-valor";
+    return sec;
+  }
 
   // ---------- preferências na folha da rota (chips com símbolo; ≥ 56 px; escondem o que o servidor não suporta)
   function chipsPrefs() {
@@ -590,8 +620,10 @@
     for (const d of RP.PREFS) {
       if (sup[d.id] !== true) continue;
       const b = el("button", "rota-pref" + (prefs[d.id] ? " ligada" : "")); b.type = "button"; b.id = "rota-pref-" + d.id;
-      if (window.CopilotoIcones) b.append(window.CopilotoIcones.no(d.icone)); else b.append(el("span", null, CURTO[d.id]));
-      b.setAttribute("aria-pressed", String(!!prefs[d.id])); b.setAttribute("aria-label", d.longo + (prefs[d.id] ? ": ligado" : ": desligado")); b.title = d.rotulo;
+      // Pacote B: chip de 56 px com o símbolo E o rótulo ("Sem pedágio", "Sem balsa", "Sem terra"); o nome acessível leva o mesmo texto
+      if (window.CopilotoIcones) b.append(window.CopilotoIcones.no(d.icone));
+      b.append(el("span", "rota-pref-rotulo", CURTO[d.id] || d.rotulo));
+      b.setAttribute("aria-pressed", String(!!prefs[d.id])); b.setAttribute("aria-label", (CURTO[d.id] || d.rotulo) + (prefs[d.id] ? ": ligado" : ": desligado")); b.title = d.longo;
       b.addEventListener("click", () => { prefs[d.id] = !prefs[d.id]; gravarPrefs(); C.emit("rota:prefs", Object.assign({}, prefs)); tracarRota(); });
       caixa.appendChild(b);
     }
@@ -694,35 +726,39 @@
     const topo = el("div", "folha-topo rota-topo");
     topo.append(el("h2", "so-leitor", "Rota para o destino")); // título só para o leitor de tela (o resumo já diz tudo); o veículo fica só na aba Veículo
     const chips = chipsPrefs();
-    const cab = el("div", "rota-cabecalho" + (chips ? " com-prefs" : "")); cab.append(resumoRota(r, perfil)); if (chips) cab.append(chips);
+    // Pacote B: resumo e, logo abaixo, os chips (em linha, com rótulo); depois a restrição do caminhão (o que decide), as opções e o resto recolhido
+    // (com restrição que o caminhão não passa a folha reordena por CSS: resumo, cartão e só depois os chips; ver rota6.css)
+    const cab = el("div", "rota-cabecalho"); cab.append(resumoRota(r, perfil));
     const itens = [topo, cab];
-    if (chips) itens.push(el("div", "rota-pref-info", ""));
+    if (chips) itens.push(chips, el("div", "rota-pref-info", ""));
     const lp = listaParadas();
     if (lp) itens.push(lp);
     const temNav = C.navegacao && C.navegacao.iniciar;
+    // lugar dos botões da restrição, no pé fixo (ui/avisos.js os põe aqui; vazio = escondido)
+    const slot = el("div", "rota-decisao"); slot.id = "rota-decisao"; C.rotaExtras.slot = slot;
     if (opcoes) {
       prepararInfos();
+      // restrições do caminhão (ui/avisos.js) logo depois do resumo; seguem a rota ESCOLHIDA
+      itens.push(...trocaveis("antesIniciar", r, opcoes));
       const lista = el("div", "rota-opcoes");
       lista.setAttribute("role", "group"); lista.setAttribute("aria-label", "Opções de rota");
       for (let i = 0; i < opcoes.rotas.length; i++) lista.appendChild(cartao(i));
       itens.push(lista);
-      // restrições do caminhão (ui/avisos.js) antes de "Iniciar navegação" (que fica no pé fixo da folha); seguem a rota ESCOLHIDA
-      itens.push(...trocaveis("antesIniciar", r, opcoes));
       itens.push(lugarCustos());
       for (const a of r.avisos) itens.push(el("p", "aviso-rota", a));
       itens.push(...trocaveis("folha", r, opcoes));
     } else {
       const c = Alt.caracteristicas(r.resposta);
-      for (const a of r.avisos) itens.push(el("p", "aviso-rota", a));
       itens.push(...extras("antesIniciar", r, null));
       itens.push(lugarCustos());
+      for (const a of r.avisos) itens.push(el("p", "aviso-rota", a));
       const extra = Alt.etiquetas(c, Alt.relatosNaRota(r.coords, relatosConhecidos(), Date.now()));
       itens.push(el("p", "rota-detalhe", extra.join(" · ")));
       itens.push(el("p", "rota-dica", r.resposta && r.resposta.longa ? "Rota longa: só a principal, sem alternativas." : "O servidor de rotas não sugeriu outro caminho."));
       itens.push(...extras("folha", r, null));
     }
-    // rodapé fixo: "Iniciar navegação" e "Limpar rota" sempre à vista (nada de rolar para achar o botão)
-    { const pe = el("div", "folha-rodape rota-rodape" + (temNav ? "" : " so-limpar")); if (temNav) pe.append(botaoIniciar()); pe.append(limpar); itens.push(pe); }
+    // rodapé fixo: botões da restrição (se houver), "Iniciar navegação" e "Limpar rota" sempre à vista (nada de rolar para achar o botão)
+    { const pe = el("div", "folha-rodape rota-rodape" + (temNav ? "" : " so-limpar")); pe.append(slot); if (temNav) pe.append(botaoIniciar()); pe.append(limpar); itens.push(pe); }
     C.folha.abrir(itens);
     atualizarResumo();
     atualizarCartoes();

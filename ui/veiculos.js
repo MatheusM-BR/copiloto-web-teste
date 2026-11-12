@@ -131,11 +131,46 @@
       campo("consumo", "Consumo (km/L)", "decimal", "2,5", "Média real do conjunto. Entra no alcance estimado."));
   }
 
+  // Pacote F (item 18): formulário mais curto. "Carregado/Vazio" sobe para o topo (logo abaixo do título, antes do nome); a explicação de
+  // cada campo vai para um "?" (e para o title do campo) em vez de ocupar 2 linhas por campo; o texto de rodapé encolhe; "Salvar" fica
+  // fixo no pé da tela (estilos/veiculos.css). Os ids, a validação e a gravação continuam os mesmos.
+  const AJUDA_CURTA = {
+    "d-carga": "Carregado usa o PBTC; Vazio, o peso vazio. Tocar de novo limpa.",
+    "d-perigosa": "Só fica no perfil; ainda não muda a rota nem os túneis.",
+  };
+  function condensarForm() {
+    const form = $("form-perfil"); if (!form || form.dataset.condensado) return;
+    form.dataset.condensado = "1";
+    const grupo = $("v-carga-grupo"), titulo = $("titulo-form");
+    if (grupo && titulo) titulo.after(grupo);
+    for (const [id, txt] of Object.entries(AJUDA_CURTA)) { const e = $(id); if (e) e.textContent = txt; }
+    for (const dica of form.querySelectorAll("label .campo-dica")) {
+      const rotulo = dica.closest("label");
+      if (!rotulo || rotulo.classList.contains("v-perigosa")) continue;
+      const campo = rotulo.querySelector("input, select");
+      const no = Array.from(rotulo.childNodes).find((n) => n.nodeType === 3 && n.textContent.trim());
+      if (!campo || !no) continue;
+      const nome = no.textContent.trim();
+      const linha = document.createElement("span"); linha.className = "v-rot-linha";
+      const txt = document.createElement("span"); txt.className = "v-rot"; txt.textContent = nome;
+      const b = document.createElement("button"); b.type = "button"; b.className = "v-ajuda"; b.textContent = "?";
+      b.setAttribute("aria-label", "O que é " + nome.replace(/\s*\(.*$/, "")); b.setAttribute("aria-expanded", "false"); b.setAttribute("aria-controls", dica.id);
+      b.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); dica.hidden = !dica.hidden; b.setAttribute("aria-expanded", String(!dica.hidden)); });
+      linha.append(txt, b);
+      rotulo.insertBefore(linha, no); no.remove();
+      campo.title = dica.textContent.trim();
+      dica.hidden = true;
+    }
+    const nota = Array.from(form.querySelectorAll("p.dica")).find((p) => /Deixe em branco/.test(p.textContent));
+    if (nota) nota.textContent = "Em branco = não informado. O Copiloto não inventa medida.";
+  }
+
   C.veiculos = { ativo, lista: () => estado.perfis.slice() };
 
   C.aoIniciar(() => {
     carregar();
     criarCamposAutonomia();
+    condensarForm();
     for (const t of V.TIPOS) $("f-tipo").add(new Option(t, t));
     for (const c of V.CARGAS) $("f-carga").add(new Option(c, c));
     $("f-tipo").value = "Carreta"; ligarCarga(); marcarCarga();

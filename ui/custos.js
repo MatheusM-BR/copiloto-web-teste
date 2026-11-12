@@ -172,6 +172,8 @@
     }
   }
 
+  // Pacote B: "Custos" é uma seção recolhida da folha; o valor na linha dela diz o essencial sem abrir
+  function valorLinha(texto) { const v = document.getElementById("rota-custos-valor"); if (v) v.textContent = texto || ""; }
   function desenhar(forcar) {
     const caixa = document.getElementById("rota-custos");
     if (!caixa || !document.getElementById("folha").contains(caixa)) { ultimo = null; return; }
@@ -180,10 +182,11 @@
     caixa.textContent = "";
     caixa.dataset.modo = modo;
     caixa.appendChild(seletor("rota-modo", "Modo da rota", [["padrao", "Padrão"], ["avancado", "Avançado"]], modo, definirModo, "custos-modo"));
-    if (modo !== "avancado" || !rota) { ultimo = null; desenharCartoes(perfil); return; }
+    if (modo !== "avancado" || !rota) { ultimo = null; valorLinha("Modo Padrão"); desenharCartoes(perfil); return; }
 
     const r = resumo(rota, perfil, forcar);
     ultimo = r;
+    valorLinha(!perfil ? "cadastre o veículo" : r.erro === "rede" ? "sem internet" : r.erro === "conta" ? "entre na conta" : r.carregando ? "calculando…" : (K.partesTotal(r.total).valor ? "Total " + K.partesTotal(r.total).valor : "indisponível"));
     const bloco = el("div", "custos-caixa"); bloco.id = "custos-caixa";
     bloco.setAttribute("aria-live", "polite");
     if (!perfil) {

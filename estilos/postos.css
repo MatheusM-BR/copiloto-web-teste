@@ -18,14 +18,14 @@
 .postos-filtros .btn[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
 .postos-atributos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 14px; }
 .postos-atributos .nao-informado { color: var(--suave); font-style: italic; }
-.folha p.postos-credito { font-size: 12px; }
+.folha p.postos-credito { font-size: 13px; }
 
 /* ------------------------------------------------------------ R5: lista com ícones e card do posto */
 .ico { width: 20px; height: 20px; flex: none; vertical-align: middle; }
 .postos-titulo { display: flex; align-items: center; gap: 8px; }
 .postos-titulo .ico { width: 24px; height: 24px; color: var(--acento); }
 .postos-filtros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.postos-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; font-size: 12px; line-height: 1.1; min-width: 0; }
+.postos-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; font-size: 13px; line-height: 1.1; min-width: 0; }
 .postos-chip .ico { width: 22px; height: 22px; }
 .folha .postos-chip[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
 .postos-item { flex-direction: row; align-items: center; gap: 10px; position: relative; color: var(--texto); }
@@ -38,11 +38,11 @@
 .postos-icones { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ok-texto); min-height: 22px; }
 .postos-icones .ico { width: 22px; height: 22px; }
 .postos-icones .ico-desc, .postos-sem { color: var(--suave); }
-.postos-sem { font-size: 12px; }
+.postos-sem { font-size: 13px; }
 .postos-proximo { border-color: var(--ok); border-width: 2px; }
-.postos-selo { position: absolute; top: -9px; right: 10px; display: inline-flex; align-items: center; gap: 3px; background: var(--ok); color: #04210f; font-size: 11px; font-weight: 800; padding: 1px 8px 1px 5px; border-radius: 999px; }
+.postos-selo { position: absolute; top: -9px; right: 10px; display: inline-flex; align-items: center; gap: 3px; background: var(--ok); color: #04210f; font-size: 13px; font-weight: 800; padding: 1px 8px 1px 5px; border-radius: 999px; }
 .postos-selo .ico { width: 13px; height: 13px; stroke-width: 3; }
-.postos-item .postos-fora, .postos-item .postos-limite { position: absolute; right: 10px; bottom: 6px; display: inline-flex; align-items: center; gap: 3px; font-size: 12px; }
+.postos-item .postos-fora, .postos-item .postos-limite { position: absolute; right: 10px; bottom: 6px; display: inline-flex; align-items: center; gap: 3px; font-size: 13px; }
 .postos-item.alcance-fora, .postos-item.alcance-limite { padding-bottom: 26px; }
 .pc-logo { width: 44px; height: 44px; flex: none; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px; letter-spacing: .02em; border: 2px solid rgba(255, 255, 255, .25); }
 .pc-logo-grande { width: 52px; height: 52px; font-size: 18px; }
@@ -67,9 +67,7 @@
 .pc-amen { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; min-width: 0; }
 .pc-amen-ico { position: relative; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; border: 2px solid var(--linha); }
 .pc-amen-ico .ico { width: 26px; height: 26px; }
-.pc-amen-rot { font-size: 11px; line-height: 1.1; color: var(--suave); overflow-wrap: anywhere; }
-.pc-selo { position: absolute; right: -6px; bottom: -6px; width: 17px; height: 17px; border-radius: 50%; padding: 2px; stroke-width: 3.5; background: var(--painel); border: 1.5px solid currentColor; }
-.pc-selo-q { display: grid; place-items: center; font-size: 11px; font-weight: 800; line-height: 1; padding: 0; }
+.pc-amen-rot { font-size: 13px; line-height: 1.1; color: var(--suave); overflow-wrap: anywhere; }
 .pc-sim .pc-amen-ico { color: var(--ok-texto); border-color: var(--ok-texto); }
 .pc-sim .pc-amen-rot { color: var(--texto); font-weight: 700; }
 .pc-nao .pc-amen-ico { color: var(--suave); border-color: var(--linha); }
@@ -78,12 +76,9 @@
 .pc-desc .pc-amen-ico { color: var(--suave); border-style: dashed; }
 .pc-desc .pc-amen-ico > .ico:first-child { opacity: .6; }
 .folha .pc-horario { color: var(--texto); }
-.pc-semfonte { display: grid; gap: 4px; margin: 0; font-size: 12px; color: var(--suave); }
+.pc-semfonte { display: grid; gap: 4px; margin: 0; font-size: 13px; color: var(--suave); }
 .pc-semfonte-icos { display: flex; flex-wrap: wrap; gap: 8px; }
 .pc-semfonte-icos .ico { width: 20px; height: 20px; opacity: .65; }
-.folha .pc-legenda { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 12px; }
-.pc-legenda .ico { width: 14px; height: 14px; stroke-width: 3; }
-.pc-selo-q-leg { font-weight: 800; border: 1.5px solid currentColor; border-radius: 50%; width: 14px; height: 14px; display: inline-grid; place-items: center; font-size: 10px; }
 .pc-rodape { display: grid; gap: 2px; }
 .pc-acoes { position: sticky; bottom: -16px; background: var(--painel); display: grid; gap: 8px; padding: 8px 0 16px; margin-bottom: -16px; border-top: 1px solid var(--linha); }
 .pc-acoes .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; color: var(--texto); }
@@ -92,12 +87,12 @@
 .pc-acoes .pc-ir .ico { width: 24px; height: 24px; }
 .pc-acoes2 { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
 .pc-acoes2 .btn { padding: 0 6px; font-size: 14px; flex-direction: column; gap: 2px; }
-.folha .pc-troca { font-size: 12px; text-align: center; }
+.folha .pc-troca { font-size: 13px; text-align: center; }
 .pc-motivos { display: grid; gap: 8px; }
 .folha:has(.postos-lista), .folha:has(.posto-card) { max-height: 88%; }
 .pc-valores { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .folha .pc-valor { display: grid; gap: 0; color: var(--texto); font-size: 18px; font-variant-numeric: tabular-nums; }
-.pc-valor .pc-prod { font-size: 12px; color: var(--suave); font-weight: 600; }
+.pc-valor .pc-prod { font-size: 13px; color: var(--suave); font-weight: 600; }
 .pc-valor .pc-vazio { font-size: 13px; color: var(--suave); font-weight: 400; }
 
 /* R5: ícones nos cartões de rota (ui/rota.js): ao lado do texto, com o tamanho dele */
@@ -109,7 +104,7 @@
 .postos-filtros2 { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scroll-snap-type: x proximity; }
 .postos-filtros2 .postos-chip { flex: none; min-width: 72px; padding: 4px 8px; scroll-snap-align: start; }
 .folha .postos-filtros2 .postos-chip[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
-.postos-chip .pc-logo { width: 26px; height: 26px; font-size: 11px; }
+.postos-chip .pc-logo { width: 30px; height: 30px; font-size: 13px; }
 .pc-abertura { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 15px; }
 .pc-abertura .pc-ab-ico { width: 20px; height: 20px; stroke-width: 3; }
 .ab-aberto { color: var(--ok-texto); }
@@ -147,7 +142,7 @@
 .pc-nao .pc-amen-estado { color: var(--suave); }
 .pc-mini { display: grid; gap: 4px; }
 .pc-minimapa { position: relative; height: 150px; border-radius: 12px; overflow: hidden; border: 1px solid var(--linha); background: var(--campo); }
-.folha p.pc-mini-fonte { font-size: 12px; margin: 0; }
+.folha p.pc-mini-fonte { font-size: 13px; margin: 0; }
 .pc-mini-pino { width: 22px; height: 22px; border-radius: 50%; background: var(--primaria); border: 3px solid #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, .5); }
 .pc-atualizado { font-size: 13px; }
 
@@ -182,3 +177,52 @@
 .pc-posto .pc-neste { font-weight: 700; margin: 0 0 4px; }
 .pc-posto .pc-valor strong { font-size: 24px; }
 .postos-chip-barato { min-height: 64px; }
+
+/* ============================================================ Revisão UX 12/11 (pacote E, itens 10, 11 e 13)
+   Lista: chips em UMA linha rolável (≥ 48 px) e cartão compacto, para ver ≥ 2 cartões por tela em 390×664.
+   Cartão do posto: uma linha de preço, grade de comodidades 4×2 sem ícone-selo, nada abaixo de 13 px. */
+.folha .postos-titulo { margin: 0; font-size: 18px; }
+.postos-filtros { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 2px 0 4px; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.postos-filtros::-webkit-scrollbar { display: none; }
+.postos-filtros .postos-chip { flex: none; flex-direction: row; gap: 6px; min-height: 48px; min-width: 0; padding: 0 14px; font-size: 15px; font-weight: 700; line-height: 1.1; white-space: nowrap; scroll-snap-align: start; border-radius: 999px; }
+.postos-filtros .postos-chip .ico { width: 22px; height: 22px; }
+.postos-filtros .postos-chip-barato { min-height: 48px; }
+.postos-filtros .postos-chip .pc-logo { width: 28px; height: 28px; font-size: 13px; }
+.folha .postos-filtros .postos-chip[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
+.folha p.postos-media { padding: 6px 10px; font-size: 13px; line-height: 1.25; }
+
+/* cartão da lista: nome, "1,5 km · S10 R$ 6,79", marca, ícones de 24 px em 1 linha, "Ir até lá" */
+.postos-lista { gap: 8px; }
+.postos-cartao > .postos-item { min-height: 0; padding: 8px 12px 6px; gap: 10px; align-items: flex-start; }
+.postos-item .pc-logo { width: 40px; height: 40px; font-size: 14px; margin-top: 2px; }
+.postos-corpo { gap: 1px; }
+.postos-lista .postos-topo { gap: 0 8px; align-items: baseline; }
+.postos-lista .postos-topo .postos-nome { flex: 1 1 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 18px; line-height: 1.2; }
+.postos-lista .postos-dist { font-size: 18px; }
+.postos-lista .postos-dist .ico { width: 18px; height: 18px; }
+.postos-lista .postos-preco { display: inline; font-size: 16px; margin: 0; line-height: 1.2; }
+.postos-lista .postos-preco[hidden] { display: none; }
+.postos-lista .postos-marca { font-size: 13px; line-height: 1.2; }
+.postos-lista .postos-icones { flex-wrap: nowrap; overflow: hidden; gap: 4px 10px; min-height: 24px; }
+.postos-lista .postos-icones .ico { width: 24px; height: 24px; }
+.postos-lista .postos-am .ico { width: 24px; height: 24px; }
+.postos-lista .postos-icones .pc-abertura .pc-ab-ico { width: 24px; height: 24px; }
+.postos-lista .postos-sem { white-space: nowrap; }
+.postos-lista .postos-selo { position: static; align-self: flex-start; margin: 0 0 3px; padding: 2px 10px 2px 6px; line-height: 1.2; }
+.postos-cartao > .postos-item.postos-proximo .postos-selo { top: auto; }
+.postos-lista .postos-item .postos-fora, .postos-lista .postos-item .postos-limite { position: static; margin-top: 2px; }
+.postos-lista .postos-item.alcance-fora, .postos-lista .postos-item.alcance-limite { padding-bottom: 6px; }
+.postos-add { margin: 0 12px 10px; width: calc(100% - 24px); min-height: 64px; }
+
+/* cartão do posto: preço numa linha só */
+.pc-preco { gap: 6px; }
+.pc-posto { margin: 0; }
+.folha .pc-linha-preco { margin: 0; font-size: 16px; font-weight: 600; color: var(--texto); font-variant-numeric: tabular-nums; display: block; }
+.pc-linha-preco strong { font-size: 20px; font-weight: 800; }
+.folha .pc-sem, .folha .pc-data { margin: 0; font-size: 13px; line-height: 1.3; }
+.folha .pc-sem[hidden], .folha .pc-data[hidden] { display: none; }
+/* comodidades 4×2: ícone sem selo, rótulo e palavra do estado em 13 px */
+.pc-grade { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 4px; }
+.pc-amen-ico { width: 40px; height: 40px; }
+.pc-amen-estado { font-size: 13px; line-height: 1.1; }
+.pc-minimapa { height: 120px; }

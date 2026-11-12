@@ -220,6 +220,7 @@
     $("nav-aviso").hidden = !(tem && ver);
     $("nav-ver-aviso").hidden = !tem || ver;
     $("nav-ver-aviso").setAttribute("aria-expanded", String(tem && ver));
+    ajustarPe(); // o botão "Avisos" aparece/some: a largura das colunas do pé muda
     if (tem && ver) timerAviso = setTimeout(() => { if (nav === n) mostrarAviso(false); }, AVISO_MS);
   }
 
@@ -320,8 +321,47 @@
     $("nav-seguinte").textContent = s ? "Depois: " + s.instrucao : ""; $("nav-seguinte").hidden = !s;
     const prog = n.progresso || 0;
     const restS = Nav.tempoRestanteS(n.manobras, prog, n.geo.total, n.tempoTotalS);
-    $("nav-restante").textContent = Nav.formatarDistancia(restanteM(n)) + " · " + Nav.formatarDuracao(restS);
-    $("nav-chegada").textContent = Nav.textoChegada(Date.now(), restS);
+    // pé (revisão de UX 12/11, item 6): RESTAM / TEMPO / CHEGADA em três colunas, valor curto, sem "(estimada)" (o rótulo basta)
+    const temTempo = typeof restS === "number" && isFinite(restS);
+    const dist = Nav.formatarDistancia(restanteM(n)), tempo = duracaoPe(restS);
+    const chega = temTempo ? Nav.formatarHora(new Date(Date.now() + restS * 1000)) : "--:--";
+    $("nav-restante").textContent = dist; $("nav-tempo").textContent = tempo; $("nav-chegada").textContent = chega;
+    $("nav-info").setAttribute("aria-label", "Restam " + dist + ", tempo " + tempo + ", chegada " + (temTempo ? "às " + chega : "desconhecida") + " (estimada)");
+    ajustarPe();
+  }
+
+  // Duração curta para a coluna TEMPO ("13 min", "2h05", "< 1 min"): cabe numa coluna estreita sem cortar
+  function duracaoPe(s) {
+    if (typeof s !== "number" || !isFinite(s)) return "--";
+    const min = Math.round(s / 60);
+    if (min < 1) return "< 1 min";
+    const h = Math.floor(min / 60), m = min % 60;
+    return h > 0 ? h + "h" + String(m).padStart(2, "0") : m + " min";
+  }
+  // Os valores do pé nunca ganham reticências: se a linha não couber (telas de 360–375 px, distância de 4 dígitos), o tamanho
+  // do valor (--pe-fs) e do rótulo (--pe-rot) descem até o piso; sem caber nem no piso, a coluna TEMPO sai (2 colunas, como ≤ 340 px).
+  let peChave = "";
+  const PE_PASSOS = [[22, 12], [21, 12], [20, 12], [19, 12], [18, 12], [17, 12], [16, 12], [16, 11], [15, 11]];
+  function ajustarPe(forcar) {
+    const info = $("nav-info");
+    if (!info || !info.getClientRects().length) { peChave = ""; return; }
+    const chave = [$("nav-restante").textContent, $("nav-tempo").textContent, $("nav-chegada").textContent, innerWidth, innerHeight, info.classList.contains("duas") ? 1 : 0, $("nav-ver-aviso").hidden ? 0 : 1].join("|");
+    if (!forcar && chave === peChave) return;
+    // cabe: as colunas visíveis (largura natural) mais as folgas ficam dentro da linha, com 8 px de respiro até o botão "Postos"
+    const cabe = () => {
+      const cols = Array.from(info.children).filter((c) => c.getClientRects().length > 0);
+      const soma = cols.reduce((t, c) => t + c.getBoundingClientRect().width, 0) + 6 * Math.max(0, cols.length - 1);
+      return soma + 8 <= info.clientWidth + 0.5 && info.scrollWidth <= info.clientWidth + 0.5;
+    };
+    const usar = (fs, rot) => { info.style.setProperty("--pe-fs", fs + "px"); info.style.setProperty("--pe-rot", rot + "px"); };
+    info.classList.remove("duas");
+    let ok = false;
+    for (const [fs, rot] of PE_PASSOS) { usar(fs, rot); if (cabe()) { ok = true; break; } }
+    if (!ok) {
+      info.classList.add("duas");
+      for (const [fs, rot] of PE_PASSOS) { usar(fs, rot); if (cabe()) break; }
+    }
+    peChave = [$("nav-restante").textContent, $("nav-tempo").textContent, $("nav-chegada").textContent, innerWidth, innerHeight, info.classList.contains("duas") ? 1 : 0, $("nav-ver-aviso").hidden ? 0 : 1].join("|");
   }
 
   function status(texto) { const e = $("nav-status"); e.textContent = texto; e.hidden = !texto; }
@@ -745,7 +785,7 @@
     if (n.recalculo) { try { n.recalculo.abort(); } catch (e) { /* ignora */ } n.recalculo = null; }
     if (n.troca) { try { n.troca.abort(); } catch (e) { /* ignora */ } n.troca = null; }
     if (n.conferencia) { try { n.conferencia.abort(); } catch (e) { /* ignora */ } n.conferencia = null; }
-    $("nav-offline").hidden = true; $("nav-reentrada").hidden = true;
+    $("nav-offline").hidden = true; $("nav-reentrada").hidden = true; $("nav-msg").hidden = true;
     apagarAndamento();
     clearTimeout(timerRetomada); timerRetomada = null; clearTimeout(timerAviso); timerAviso = null;
     $("app").classList.remove("nav-ativa");
@@ -1000,29 +1040,38 @@
     const reT = el("div", "nav-reentrada-texto"); reT.id = "nav-reentrada-texto";
     re.append(seta, reT);
     const rod = el("div", "nav-rodape");
-    const info = el("div", "nav-info");
+    const info = el("div", "nav-info"); info.id = "nav-info"; info.setAttribute("role", "group");
+    const coluna = (cls, rotulo, no) => { const c = el("div", "nav-col " + cls); c.append(el("small", "nav-rot", rotulo), no); return c; };
     const rest = el("span", "nav-restante"); rest.id = "nav-restante";
+    const tempo = el("span", "nav-tempo"); tempo.id = "nav-tempo";
     const cheg = el("b", "nav-chegada"); cheg.id = "nav-chegada";
-    info.append(cheg, rest);
-    const ver = botao("ⓘ", "btn nav-ver-aviso", () => mostrarAviso($("nav-aviso").hidden, true)); ver.id = "nav-ver-aviso"; ver.hidden = true;
+    info.append(coluna("nav-col-restam", "RESTAM", rest), coluna("nav-col-tempo", "TEMPO", tempo), coluna("nav-col-chega", "CHEGADA", cheg));
+    // botões do pé: ícone + rótulo de 13 px embaixo (Postos / Avisos / Sair); o rótulo acessível continua o longo
+    const rotuloBotao = (b, nome, texto) => { b.append(window.CopilotoIcones ? window.CopilotoIcones.no(nome, { classe: "ico" }) : el("span", "nav-glifo", texto[0]), el("span", "nav-rotulo", texto)); };
+    const ver = botao("", "btn nav-ver-aviso", () => mostrarAviso($("nav-aviso").hidden, true)); ver.id = "nav-ver-aviso"; ver.hidden = true;
+    rotuloBotao(ver, "aviso", "Avisos");
     ver.setAttribute("aria-label", "Aviso da rota"); ver.title = "Aviso da rota"; ver.setAttribute("aria-controls", "nav-aviso");
     const fim = el("button", "btn nav-encerrar"); fim.type = "button"; fim.id = "nav-encerrar";
-    fim.append(el("span", "nav-encerrar-icone", "✕"), el("span", "nav-encerrar-texto", "Encerrar"));
-    fim.setAttribute("aria-label", "Encerrar navegação"); fim.addEventListener("click", () => confirmarEncerrar());
-    // lote 1: atalho dos postos à frente como ícone de 64 px (a lista é a mesma de sempre, ui/postos.js)
+    rotuloBotao(fim, "fechar", "Sair");
+    fim.setAttribute("aria-label", "Encerrar navegação"); fim.title = "Encerrar navegação"; fim.addEventListener("click", () => confirmarEncerrar());
+    // lote 1: atalho dos postos à frente (a lista é a mesma de sempre, ui/postos.js)
     const posto = el("button", "btn nav-postos"); posto.type = "button"; posto.id = "nav-atalho-postos";
     posto.setAttribute("aria-label", "Postos à frente"); posto.title = "Postos à frente";
-    if (window.CopilotoIcones) posto.append(window.CopilotoIcones.no("bomba", { classe: "ico" })); else posto.textContent = "⛽";
+    rotuloBotao(posto, "bomba", "Postos");
     posto.addEventListener("click", () => { if (C.postos && C.postos.abrirProximo) C.postos.abrirProximo(); });
     rod.append(info, posto, ver, fim);
     const av = el("div", "nav-aviso"); av.id = "nav-aviso"; av.hidden = true;
     av.addEventListener("click", () => mostrarAviso(false));
-    p.append(linha, seg, off, st, re, av);
+    // mensagem curta do app durante a navegação (ex.: "tela pode apagar"): fica no painel, nunca por baixo dos botões do mapa
+    const msg = el("div", "nav-msg"); msg.id = "nav-msg"; msg.hidden = true; msg.setAttribute("role", "status");
+    msg.addEventListener("click", () => { msg.hidden = true; });
+    p.append(linha, seg, off, st, re, av, msg);
     document.querySelector("main").appendChild(p);
     // Redesenho (navegando = mínimo): chegada, restante, aviso e "Encerrar" numa barra embaixo, ao lado da velocidade
     rod.id = "nav-rodape"; rod.hidden = true; rod.setAttribute("aria-label", "Chegada e restante");
     $("painel-mapa").appendChild(rod);
-    new MutationObserver(() => { rod.hidden = p.hidden; }).observe(p, { attributes: true, attributeFilter: ["hidden"] });
+    new MutationObserver(() => { rod.hidden = p.hidden; if (!p.hidden) requestAnimationFrame(() => ajustarPe(true)); }).observe(p, { attributes: true, attributeFilter: ["hidden"] });
+    window.addEventListener("resize", () => ajustarPe(true));
     // fim do painel (px a partir do topo do mapa): a faixa do alerta e os botões do mapa ficam abaixo dele
     const marcarFim = () => {
       const app = $("app");
@@ -1033,8 +1082,19 @@
     new MutationObserver(marcarFim).observe(p, { attributes: true, attributeFilter: ["hidden"] });
   }
 
+  // Revisão de UX 12/11 (item 3): mensagem curta do app enquanto navega, no painel (1–2 linhas) em vez de no mapa, onde ficava
+  // por baixo de SOS, "!" e "Rumo". Devolve true se mostrou (sem navegação, quem chama usa Copiloto.mensagem).
+  let timerMsgPainel = null;
+  function mensagemPainel(texto, ms) {
+    if (!nav) return false;
+    const e = $("nav-msg"); if (!e) return false;
+    e.textContent = texto; e.hidden = false;
+    clearTimeout(timerMsgPainel); timerMsgPainel = setTimeout(() => { e.hidden = true; }, ms || 5000);
+    return true;
+  }
+
   C.navegacao = {
-    iniciar, encerrar: (opcoes) => finalizar(false, opcoes), ativa: () => !!nav, trocarDestino, adicionarParada, adotarRota, voltar,
+    iniciar, mensagemPainel, encerrar: (opcoes) => finalizar(false, opcoes), ativa: () => !!nav, trocarDestino, adicionarParada, adotarRota, voltar,
     // estado da rota offline (testes e outros pacotes) ou null sem navegação
     offline: () => (nav ? { rotaOffline: nav.rotaOffline, conferidaEm: nav.conferidaEm, semRede: nav.semRede, fora: nav.fora, volta: nav.volta,
       semCurvas: nav.semCurvas, conferindo: !!nav.conferencia } : null),

@@ -1,6 +1,6 @@
 /* Relatos: marcadores e popups locais, da nuvem e pendentes (ui/relatos.js, ui/comunidade.js) */
 .relato-marca {
-  background: var(--atencao-fundo); color: var(--atencao-fundo-texto); font-weight: 800; font-size: 11px; letter-spacing: .02em;
+  background: var(--atencao-fundo); color: var(--atencao-fundo-texto); font-weight: 800; font-size: 13px; letter-spacing: .02em;
   border: 2px solid #fff; border-radius: 8px; padding: 2px 6px; white-space: nowrap; cursor: pointer;
 }
 .relato-marca.transitorio { background: #e5484d; color: #fff; }
@@ -28,19 +28,32 @@
 .popup-relato .botoes-voto button { min-height: 64px; font-size: 16px; }
 .popup-relato .confirmar-retirar button { min-height: 48px; }
 
-/* A3 + lote 1: formulário de relato — grade de 2 colunas, botões >= 84 px, ícone + nome curto (sem legenda), sem cor de
-   categoria: só a gravidade (acidente e ponte baixa) fica em vermelho; valor com teclado numérico */
-.folha .r-pergunta { color: var(--texto); font-size: 18px; font-weight: 700; }
-.r-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+/* A3 + lote 1 + revisão UX 12/11 (item 7): formulário de relato. 6 tipos principais em tiles de 88 px (3 por linha, ícone em
+   cima do nome), "Mais tipos" expande os outros em linhas de 64 px (2 por linha); sem cor de categoria: só a gravidade
+   (acidente, ponte baixa, risco à segurança) fica em vermelho; valor com teclado numérico. A folha do relato usa quase toda a
+   altura útil (a regra geral .folha tem 58%): grade visível sem rolar em 390×664, Cancelar/Salvar fixos no rodapé. */
+.folha:has(#r-grade) { max-height: calc(100% - 8px); }
+.folha:has(#r-grade) .r-topo { padding-bottom: 6px; gap: 6px; }
+.folha .r-topo h2 { font-size: 18px; line-height: 1.2; margin: 0; }
+.folha .r-topo button.r-sos { min-height: 48px; min-width: 72px; font-size: 18px; padding: 0 12px; }
+.r-grade { display: grid; gap: 8px; }
+.r-principais { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.r-mais { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.r-mais[hidden] { display: none; }
 .r-tipo-btn {
-  min-height: 84px; padding: 8px 12px; border-radius: 16px; border: 2px solid var(--linha); background: var(--campo); color: var(--texto);
-  display: flex; align-items: center; justify-content: flex-start; gap: 12px; text-align: left;
+  border-radius: 16px; border: 2px solid var(--linha); background: var(--campo); color: var(--texto);
+  display: flex; align-items: center; text-align: left;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.r-tipo-btn .r-nome { font-size: 18px; font-weight: 700; line-height: 1.15; color: var(--texto); min-width: 0; overflow-wrap: anywhere; }
+.r-tipo-btn.principal { min-height: 88px; padding: 8px 4px; flex-direction: column; justify-content: center; gap: 4px; text-align: center; }
+.r-tipo-btn.secundario { min-height: 64px; padding: 6px 10px; justify-content: flex-start; gap: 10px; }
+.r-tipo-btn.principal .r-ico { width: 36px; height: 36px; }
+.r-tipo-btn.secundario .r-ico { width: 28px; height: 28px; }
+.r-tipo-btn .r-nome { font-size: 16px; font-weight: 700; line-height: 1.15; color: var(--texto); min-width: 0; overflow-wrap: anywhere; }
 .r-tipo-btn.grave { border-color: var(--perigo-txt); background: var(--perigo-suave); }
 .r-tipo-btn.grave .r-ico { color: var(--perigo-txt); }
 .r-tipo-btn.escolhido { border-color: var(--acento); background: var(--primaria-suave); box-shadow: 0 0 0 2px var(--acento) inset; }
+.btn.r-mais-btn { min-height: 56px; width: 100%; font-size: 17px; font-weight: 700; }
 .r-valor-rotulo[hidden] { display: none; }
 .r-valor-rotulo input { min-height: 64px; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .folha .r-erro { color: var(--perigo-txt); font-size: 15px; font-weight: 600; }

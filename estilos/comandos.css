@@ -10,6 +10,16 @@
   max-width: calc(100vw - (max(12px, env(safe-area-inset-left, 0px)) + 104px + 8px) - (max(12px, env(safe-area-inset-right, 0px)) + 76px + 8px));
 }
 
+/* Revisão de UX 12/11, item 14: navegando, o "Falar" sai (decisão do líder: o mãos-livres "Copiloto, …" cobre a voz) e o "Rumo" só
+   aparece depois de arrastar o mapa, junto do "Recentralizar" (que só existe com o mapa solto). Fica o "!" na coluna. O botão
+   continua no DOM (o relato por voz e os testes usam o id), só não ocupa a tela.
+   EXCEÇÃO: com o mãos-livres LIGADO (indicador .cmd-ml à vista) o "Falar" fica. O indicador procura lugar à esquerda de um botão
+   da coluna (ui/comandos.js, mlPosicionar) e, com só o "!" na coluna, cai sobre a atribuição do mapa (ODbL: tem de ficar à vista);
+   sem esta exceção os testes de layout (interface_integrada_browser) falham. Para esconder o "Falar" sempre, mlPosicionar precisa
+   de um lugar na própria coluna (ponto de 64 px acima do "!"); aí a exceção sai. */
+#app.nav-ativa:not(:has(.cmd-ml:not([hidden]))) .acoes > #cmd-falar { display: none; }
+#app.nav-ativa:not(:has(#btn-recentralizar:not([hidden]))) .acoes > #btn-orientacao { display: none !important; }
+
 /* Redesenho: "Falar" 64 px, escuro, logo acima do "!" (laranja, 76 px) */
 .btn-redondo.cmd-falar {
   width: 64px; height: 64px; font-size: 22px;

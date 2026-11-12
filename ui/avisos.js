@@ -87,10 +87,12 @@
     if (p.trechos.dados) listas.push(D.avisosDeTrechos(p.trechos.dados));
     if (p.artesp.dados) listas.push(D.avisosDeArtesp(p.artesp.dados));
     if (e.restricoes.dados) listas.push(D.avisosDeRestricoes(e.restricoes.dados));
+    // descida forte: do relevo da Via do trajeto (ui/via.js avisa pelo evento "via:pronta"; não pede nada ao servidor)
+    if (e.descidas && e.descidas.length) listas.push(e.descidas);
     if (!listas.length) return;
     // Projeto de dados confiáveis, nível D: sem data, atrasado ou heurístico, então não aparece nem fala (o dado fica no banco).
     // Obra de painel ARTESP chega com ~2 meses de atraso. Curva só entra se for fechada (raio ≤ 60 m): filtro em dados.js.
-    const ocultos = window.COPILOTO_MOSTRAR_OCULTOS === true ? [] : ["obra"];
+    const ocultos = window.COPILOTO_MOSTRAR_OCULTOS === true ? [] : ["obra", "radar"];
     for (let i = 0; i < listas.length; i++) listas[i] = listas[i].filter((a) => !ocultos.includes(a.tipo));
     e.avisos = R.finalizar(D.juntarAvisos(listas));
     e.guardado = false;
@@ -225,7 +227,7 @@
     faixa.dataset.tipo = a.tipo; faixa.hidden = false;
     clearTimeout(faixaTimer); faixaTimer = setTimeout(esconderFaixa, critico ? 60000 : 20000);
   }
-  const ICONE_AVISO = { restricao: "aviso", restricao_possivel: "aviso", perigoso: "aviso", balanca: "balanca", balsa: "rota", curva: "reta", passagem_nivel: "aviso", lombada: "aviso", lombadas: "aviso",
+  const ICONE_AVISO = { restricao: "aviso", restricao_possivel: "aviso", perigoso: "aviso", balanca: "balanca", balsa: "rota", curva: "reta", descida: "aviso", passagem_nivel: "aviso", lombada: "aviso", lombadas: "aviso",
     radar: "r_radar", praca_pedagio: "pedagio", obra: "obras", area_escape: "reta", perigo: "aviso" };
   // intervalo mínimo entre falas (20 s; window.COPILOTO_AVISO_INTERVALO_MS encurta nos testes)
   function opcoesAvisador() { const ms = Number(window.COPILOTO_AVISO_INTERVALO_MS); return ms > 0 ? { intervaloMs: ms } : {}; }
@@ -282,7 +284,7 @@
     if (C.rotaLonga && C.rotaLonga.enquadrar) { setTimeout(() => C.rotaLonga.enquadrar(alvo), 80); return; }
     C.mapaPronto(() => { try { C.mapa.fitBounds(alvo.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(alvo[0], alvo[0])), { padding: 60, duration: 500 }); } catch (x) { /* ignora */ } });
   }
-  const SIGLA = { restricao: "✕", restricao_possivel: "?", perigoso: "⚠", balanca: "⚖", curva: "↪", passagem_nivel: "🚂", lombada: "▲", lombadas: "▲", radar: "◎", balsa: "⛴", area_escape: "⤵", perigo: "!", obra: "🚧", praca_pedagio: "$" };
+  const SIGLA = { restricao: "✕", restricao_possivel: "?", perigoso: "⚠", balanca: "⚖", curva: "↪", descida: "↘", passagem_nivel: "🚂", lombada: "▲", lombadas: "▲", radar: "◎", balsa: "⛴", area_escape: "⤵", perigo: "!", obra: "🚧", praca_pedagio: "$" };
   // tipo: "restricoes" (só as violadas) ou null (todos os avisos)
   function verNoMapa(r, tipo) {
     const e = obter(r); if (!e) return;
@@ -305,6 +307,16 @@
   }
 
   // ------------------------------------------------------------ folha da rota: restrições (antes de "Iniciar navegação")
+  // Pacote B: o cartão vermelho é COMPACTO (o que decide: VOCÊ NÃO PASSA, os dois números, a 1ª restrição, a fonte); os botões
+  // "Desviar" e "Seguir mesmo assim" vão para o pé fixo da folha (C.rotaExtras.slot, ao lado de "Iniciar navegação") e o resto
+  // (lista completa, "Ver no mapa", fonte do OSM e "a ausência de restrição não libera a via", possíveis, condicionais) fica em
+  // seções recolhidas <details> (C.rotaExtras.secao, ui/rota.js). Só o bloco mais novo mexe no pé (donoSlot).
+  let donoSlot = null;
+  function secao(id, titulo, valor, corpo, classe) {
+    if (C.rotaExtras && C.rotaExtras.secao) return C.rotaExtras.secao(id, titulo, valor, corpo, classe);
+    const d = el("div", "rota-sec " + (classe || "")); d.append(el("p", null, titulo + " " + (valor || ""))); for (const n of [].concat(corpo || [])) if (n) d.append(n);
+    d.definirValor = () => {}; return d;
+  }
   function abrirPerfil() { if (C.abas) C.abas.irPara("veiculo"); }
   function itemRestricao(r, e, classe) {
     const it = el("div", "dados-restr-item " + classe);
@@ -322,8 +334,11 @@
   // botão ficar no mesmo lugar de sempre quando não há nada a dizer.
   function cartaoRestricoes(e, r) {
     const bloco = el("div", "dados-restr-bloco"); bloco.id = "dados-restricoes";
+    donoSlot = bloco; // este é o bloco da rota escolhida agora: o pé da folha é dele
+    const meuSlot = () => (donoSlot === bloco && C.rotaExtras && C.rotaExtras.slot ? C.rotaExtras.slot : null);
     const montar = () => {
       bloco.textContent = ""; bloco.dataset.estado = "";
+      { const sl0 = meuSlot(); if (sl0) sl0.textContent = ""; }
       const perfil = veiculo();
       if (!caminhao(perfil)) return;
       const falta = D.dimensoesFaltando(perfil);
@@ -338,41 +353,47 @@
       bloco.dataset.estado = res.violadas.length ? "viola" : res.possiveis.length ? "possivel" : res.condicionais.length ? "condicional" : "ok";
       if (res.violadas.length && !mesmoAssim.has(e.chave)) {
         const c = el("div", "dados-restr-cartao viola"); c.id = "dados-restr-viola"; c.setAttribute("role", "alert");
-        c.append(el("b", "dados-restr-nao-passa", "VOCÊ NÃO PASSA")); // lote 1 (Stitch P2.3): o aviso grande; o título abaixo diz quantas
-        const h3 = el("h3", null, D.tituloRestricoes(res.violadas.length));
-        if (window.CopilotoIcones) window.CopilotoIcones.prefixar(h3, "aviso"); // r6: triângulo antes do título (o texto fica)
-        c.append(h3);
+        const cab = el("div", "dados-restr-cab");
+        if (window.CopilotoIcones) { const ic = el("span", "dados-restr-ico"); ic.setAttribute("aria-hidden", "true"); ic.append(window.CopilotoIcones.no("aviso")); cab.append(ic); }
+        cab.append(el("b", "dados-restr-nao-passa", "VOCÊ NÃO PASSA")); // lote 1 (Stitch P2.3): o aviso grande
+        c.append(cab);
+        c.append(el("h3", "so-leitor", D.tituloRestricoes(res.violadas.length))); // o leitor de tela diz quantas; o cartão enxuto não repete
         const lim0 = Dv && res.violadas[0].viola && res.violadas[0].viola[0] ? Dv.paraLimites(res.violadas[0].viola[0]) : null;
-        if (lim0) { // os dois números da primeira restrição (a lista abaixo traz todas, por extenso)
-          const caixa = (rotulo, valor) => { const n = el("div", "critico-num"); n.setAttribute("aria-hidden", "true"); n.append(el("small", null, rotulo), el("b", null, valor)); return n; };
-          const nums = el("div", "critico-nums");
-          nums.append(caixa("Limite da via", Dv.textoMedida(lim0.limite, lim0.unidade)), caixa("Seu caminhão", Dv.textoMedida(lim0.veiculo, lim0.unidade)));
-          c.append(nums);
+        if (lim0) { // os dois números da primeira restrição numa linha (a lista completa, por extenso, fica em "Detalhes")
+          const l = el("p", "dados-restr-limites"); l.setAttribute("aria-hidden", "true");
+          l.append("Limite ", el("b", null, Dv.textoMedida(lim0.limite, lim0.unidade)), " · Seu caminhão ", el("b", null, Dv.textoMedida(lim0.veiculo, lim0.unidade)));
+          c.append(l);
         }
+        c.append(el("p", "dados-restr-linha1", D.textoRestricao(res.violadas[0]) + " · a " + D.fmtDistRota(res.violadas[0].ao_longo_m) + " da origem" + (res.violadas.length > 1 ? " (+" + (res.violadas.length - 1) + ")" : "")));
         if (res.violadas[0].info) { const f = el("p", "dados-restr-fonte-0", "Fonte: " + res.violadas[0].info.textoFonte); f.id = "dados-restr-fonte-0"; c.append(f); }
-        for (const x of res.violadas.slice(0, 12)) c.append(itemRestricao(x, e, "viola"));
-        if (res.violadas.length > 12) c.append(el("p", "dica", "e mais " + (res.violadas.length - 12) + "."));
         const dv = C.desvio ? C.desvio.estado(r) : null;
         const msg = dv ? mensagemDesvio(dv, res.violadas) : null;
         if (msg) { const m = el("p", "dados-desvio-msg " + dv.fase, msg); m.id = "dados-desvio-msg"; m.setAttribute("role", "status"); c.append(m); }
-        const bot = el("div", "linha-botoes");
+        // botões de decisão: no pé fixo da folha (sempre à vista); sem pé (folha sem o gancho), dentro do cartão
+        const sl = meuSlot();
+        const bot = sl || el("div", "linha-botoes");
         if (C.desvio && Dv) {
           const buscando = !!dv && dv.fase === "buscando";
           const grande = !!dv && dv.fase === "ok" && dv.facil === false;
           const des = botao(buscando ? "Procurando desvio…" : grande ? "Desviar +" + dv.extraKm + " km" : "Desviar", "btn btn-principal dados-restr-desviar", () => C.desvio.desviar(r)); des.id = "dados-restr-desviar"; des.disabled = buscando;
           bot.append(des);
         }
+        const ok = botao("Seguir mesmo assim", "btn dados-restr-mesmo", () => { mesmoAssim.add(e.chave); if (C.desvio && C.desvio.aceitar) C.desvio.aceitar(r); avisar(e, "restricoes"); }); ok.id = "dados-restr-mesmo";
+        bot.append(ok);
+        if (!sl) c.append(bot);
+        // detalhes (recolhido): todas as restrições, "Ver no mapa" e a fonte. Restrição do OSM é dado da comunidade: quem decide é o motorista
+        const det = [];
+        for (const x of res.violadas.slice(0, 12)) det.push(itemRestricao(x, e, "viola"));
+        if (res.violadas.length > 12) det.push(el("p", "dica", "e mais " + (res.violadas.length - 12) + "."));
         const ver = botao("Ver no mapa", "btn", () => verNoMapa(r, "restricoes")); ver.id = "dados-restr-ver";
         if (window.CopilotoIcones) window.CopilotoIcones.prefixar(ver, "mapa");
-        const ok = botao("Seguir mesmo assim", "btn dados-restr-mesmo", () => { mesmoAssim.add(e.chave); if (C.desvio && C.desvio.aceitar) C.desvio.aceitar(r); avisar(e, "restricoes"); }); ok.id = "dados-restr-mesmo";
-        bot.append(ver, ok); c.append(bot);
-        // restrição do OSM é dado da comunidade: limite da via × veículo está em cada item; quem decide é o motorista
-        c.append(el("p", "dados-fonte", (Dv ? Dv.AVISO_FONTE : "Segundo o mapa (OSM), dado da comunidade, estimado.") + " " + (res.fonte || "© OpenStreetMap contributors (ODbL)") + ". A ausência de restrição no mapa não libera a via."));
-        bloco.append(c);
+        det.push(ver);
+        det.push(el("p", "dados-fonte", (Dv ? Dv.AVISO_FONTE : "Segundo o mapa (OSM), dado da comunidade, estimado.") + " " + (res.fonte || "© OpenStreetMap contributors (ODbL)") + ". A ausência de restrição no mapa não libera a via."));
+        bloco.append(c, secao("restr-det", "Todas as restrições e fonte", String(res.violadas.length), det, "rota-sec-restr"));
       }
       if (res.possiveis.length) { // confiança média: âmbar, sem "VOCÊ NÃO PASSA" e sem desvio automático; só sugere
         const c = el("div", "dados-restr-cartao possivel"); c.id = "dados-restr-possivel"; c.setAttribute("role", "status");
-        c.append(el("b", "dados-restr-possivel-titulo", "Possível restrição — confira na pista"));
+        c.append(el("b", "dados-restr-possivel-titulo so-leitor", "Possível restrição — confira na pista"));
         const h3 = el("h3", null, D.tituloPossiveis(res.possiveis.length));
         if (window.CopilotoIcones) window.CopilotoIcones.prefixar(h3, "aviso");
         c.append(h3);
@@ -383,26 +404,28 @@
         if (C.desvio && C.desvio.sugerir) { const sg = botao("Sugerir desvio", "btn dados-restr-sugerir", () => C.desvio.sugerir(r)); sg.id = "dados-restr-sugerir"; bot.append(sg); }
         const ver = botao("Ver no mapa", "btn", () => verNoMapa(r, "restricoes")); ver.id = "dados-restr-ver-possivel"; bot.append(ver);
         c.append(bot);
-        bloco.append(c);
+        bloco.append(secao("possivel", "Possível restrição — confira na pista", String(res.possiveis.length), c, "rota-sec-possivel"));
       }
+      const outras = []; let nOutras = 0;
       if (res.condicionais.length) {
         const c = el("div", "dados-restr-cartao condicional"); c.id = "dados-restr-cond";
         c.append(el("h3", null, res.condicionais.length + (res.condicionais.length === 1 ? " restrição condicional" : " restrições condicionais") + " (horário, destino ou autorização)"));
         for (const x of res.condicionais.slice(0, 8)) c.append(itemRestricao(x, e, "condicional"));
-        bloco.append(c);
+        outras.push(c); nOutras += res.condicionais.length;
       }
       if (res.desconhecidas.length && modo() === "avancado") {
         const c = el("div", "dados-restr-cartao desconhecida"); c.id = "dados-restr-desc";
         c.append(el("h3", null, res.desconhecidas.length + (res.desconhecidas.length === 1 ? " restrição que não deu para avaliar" : " restrições que não deu para avaliar")));
         for (const x of res.desconhecidas.slice(0, 8)) c.append(itemRestricao(x, e, "desconhecida"));
-        bloco.append(c);
+        outras.push(c); nOutras += res.desconhecidas.length;
       }
       if (res.removidas.length && modo() === "avancado") { // contestadas por motoristas: fora da rota, registro mantido
         const c = el("div", "dados-restr-cartao desconhecida"); c.id = "dados-restr-removidas";
         c.append(el("h3", null, res.removidas.length + (res.removidas.length === 1 ? " restrição tirada da rota após contestação de motoristas" : " restrições tiradas da rota após contestação de motoristas")));
         for (const x of res.removidas.slice(0, 8)) c.append(itemRestricao(x, e, "desconhecida"));
-        bloco.append(c);
+        outras.push(c); nOutras += res.removidas.length;
       }
+      if (outras.length) bloco.append(secao("restr-outras", res.condicionais.length && outras.length === 1 ? "Restrições condicionais" : "Outras restrições", String(nOutras), outras, "rota-sec-outras"));
     };
     e.ouvintes.set(bloco, montar); montar();
     return bloco;
@@ -440,24 +463,29 @@
   // ------------------------------------------------------------ folha da rota: modo Avançado, contagens
   function linhaAvancado(e, r) {
     const bloco = el("div", "dados-avancado"); bloco.id = "dados-avancado";
+    // Pacote B: recolhido (<details> "Avisos do trajeto"); o valor na linha é o texto curto das contagens
+    const sec = secao("avisos", "Avisos do trajeto", "", bloco, "rota-sec-avisos");
     const montar = () => {
       bloco.textContent = "";
       const c = D.contagens(e.avisos), t = D.textoContagens(c);
       const p = e.partes, pend = ["feicoes", "trechos", "artesp"].filter((n) => p[n].estado === "carregando" || p[n].estado === "nada").length;
       const linha = el("div", "dados-avancado-linha");
+      let valor = "";
       if (t) {
         linha.append(el("span", "dados-contagens", t + (pend ? " · verificando…" : "")));
         const ver = botao("Ver no mapa", "btn dados-ver-mapa", () => verNoMapa(r, null)); ver.id = "dados-ver-mapa";
         linha.append(ver);
-      } else if (pend) linha.append(el("span", "dados-contagens", "Verificando curvas, balanças e trechos perigosos…"));
-      else if (["feicoes", "trechos", "artesp"].every((n) => p[n].estado === "ok")) linha.append(el("span", "dados-contagens", "Nenhuma curva fechada, balança nem trecho perigoso conhecidos nesta rota. Isso não garante via livre."));
-      else linha.append(el("span", "dados-contagens falha", "Não deu para verificar curvas e trechos perigosos" + (online() ? "." : " (sem internet).")));
+        valor = t;
+      } else if (pend) { linha.append(el("span", "dados-contagens", "Verificando curvas, balanças e trechos perigosos…")); valor = "verificando…"; }
+      else if (["feicoes", "trechos", "artesp"].every((n) => p[n].estado === "ok")) { linha.append(el("span", "dados-contagens", "Nenhuma curva fechada, balança nem trecho perigoso conhecidos nesta rota. Isso não garante via livre.")); valor = "nenhum conhecido"; }
+      else { linha.append(el("span", "dados-contagens falha", "Não deu para verificar curvas e trechos perigosos" + (online() ? "." : " (sem internet)."))); valor = "não verificado"; }
       bloco.append(linha);
       const f = fontes(e);
       if (f) bloco.append(el("p", "dados-fonte", f + ". Estimado."));
+      sec.definirValor(valor);
     };
     e.ouvintes.set(bloco, montar); montar();
-    return bloco;
+    return sec;
   }
   C.rotaExtras = C.rotaExtras || { folha: [], cartao: [] };
   C.rotaExtras.antesIniciar = C.rotaExtras.antesIniciar || [];
@@ -477,6 +505,7 @@
     C.on("rota", (r) => { if (!r || !r.coords) return; const e = obter(r); if (e) selecionada = e.chave; limparMarcadores(); });
     C.on("rota-limpa", () => { selecionada = null; folhaAnterior = null; limparMarcadores(); });
     C.on("navegacao", aoNavegar);
+    C.on("via:pronta", (d) => { const x = d && d.coords ? entradas.get(D.chaveRota(d.coords)) : null; if (!x || !d.temRelevo) return; x.descidas = D.avisosDeDescida(d.trechos, d.acum, d.coords); if (x.descidas.length) { montarAvisos(x); avisar(x, "descida"); } });
     C.on("desvio:estado", (d) => { const e = d && entradas.get(d.chave); if (e) avisar(e, "desvio"); else if (selecionada) { const x = entradas.get(selecionada); if (x) avisar(x, "desvio"); } });
     C.on("veiculo", () => { for (const e of entradas.values()) if (e.chave === selecionada) buscarRestricoes(e, veiculo()); });
     window.addEventListener("online", tentarDeNovo);

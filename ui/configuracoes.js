@@ -71,10 +71,25 @@
     for (const [id, nome] of Object.entries(ICONES_SEG)) { const b = $(id); if (b) I.prefixar(b, nome); }
   }
 
+  // Pacote F (item 17): as linhas de liga/desliga ganham um interruptor de verdade (trilho 52 × 32 px num alvo de 56 × 48 px; a linha toda,
+  // 64 px, responde ao toque). O texto "Ligado/Desligado" fica só para o leitor de tela (estilos/conta.css, ".tg"). Os grupos do menu
+  // continuam os de antes (Rota, Veículo e voz, Tela e mapa, Privacidade e conta): reagrupar por Navegação/Rota pesada/Voz/Memória mexe
+  // no index.html e nos testes de ordem do menu.
+  const INTERRUPTORES = ["cfg-camera", "cfg-fachada", "btn-tela"];
+  function interruptores() {
+    for (const id of INTERRUPTORES) {
+      const b = $(id);
+      if (!b || b.querySelector(":scope > .tg")) continue;
+      const tg = document.createElement("span"); tg.className = "tg"; tg.setAttribute("aria-hidden", "true");
+      b.appendChild(tg);
+    }
+  }
+
   C.configuracoes = { abrir: () => C.abas.irPara("config"), irPara };
 
   C.aoIniciar(() => {
     simbolos();
+    interruptores();
     C.abas.registrar({ id: "config", rotulo: "Configurações", tela: $("tela-config"), botao: $("btn-config"), aoAbrir: desenhar });
     for (const b of document.querySelectorAll("#tela-config [data-tema]")) b.addEventListener("click", () => { C.tema.escolha(b.dataset.tema); desenhar(); });
     for (const b of document.querySelectorAll("#tela-config [data-tipo]")) b.addEventListener("click", () => { C.tema.tipoMapa(b.dataset.tipo); desenhar(); });

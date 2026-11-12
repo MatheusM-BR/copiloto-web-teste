@@ -41,6 +41,8 @@
   flex: none; min-height: 48px; min-width: 88px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--primaria); background: var(--primaria-suave);
   color: var(--primaria); font-size: 15px; font-weight: 800;
 }
+/* item 24: carga atual do cadastro em "chip" ("Vazio (14,2 t)") na frente das medidas */
+.mapa-veiculo-carga { display: inline-block; padding: 0 8px; margin-right: 2px; border-radius: 999px; background: var(--primaria-suave); color: var(--primaria); font-weight: 800; }
 #app.com-veiculo { --topo-extra: 66px; }
 /* o que ficava a 84 px do topo (alerta, mensagem, cartão do GPS) desce junto com o cartão */
 #app:not(.nav-ativa) .alerta { top: calc(84px + var(--topo-extra, 0px)); }
@@ -54,7 +56,7 @@
 }
 #app.com-atalhos .mapa-atalhos { display: grid; }
 .atalho {
-  min-height: 64px; min-width: 0; padding: 8px 10px; border-radius: 16px; border: 1px solid var(--linha); background: var(--painel); color: var(--texto);
+  min-height: 64px; min-width: 0; padding: 8px 8px; border-radius: 16px; border: 1px solid var(--linha); background: var(--painel); color: var(--texto);
   display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 8px; row-gap: 1px; align-content: center; text-align: left;
   box-shadow: 0 4px 16px rgba(0, 0, 0, .3); -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
@@ -70,49 +72,37 @@
 #app.com-atalhos .btn-sos { bottom: calc(14px + var(--atalhos-h) + var(--vel-h, 84px) + 10px); }
 #app.com-atalhos .maplibregl-ctrl-bottom-right, #app.com-atalhos .maplibregl-ctrl-bottom-left { bottom: var(--atalhos-h); }
 
+/* velocímetro redondo parado e sem rota (ui/barra.js, classe sem-vel): some, e o SOS desce para o canto */
+#app.sem-vel .painel-mapa > .velocidade { display: none; }
+#app.sem-vel .btn-sos { bottom: 14px; }
+#app.sem-vel.com-atalhos .btn-sos { bottom: calc(14px + var(--atalhos-h)); }
+
+/* até 400 px (iPhone 12/13/14 em 390 também): os dados do veículo podem passar para uma 2ª linha, nunca ficam cortados com "…"
+   ("Carregado (45 t) · Altura 4,4 m"); o cartão fica com 64 px e o que desce junto com ele (--topo-extra) acompanha */
+@media (max-width: 400px) {
+  .mapa-veiculo { min-height: 64px; }
+  .mapa-veiculo-dados { white-space: normal; line-height: 1.25; }
+  #app.com-veiculo { --topo-extra: 76px; }
+}
+/* telas estreitas (≤ 380 px: 320 SE, 360, 375): cartão do veículo sem o ícone e com "Ajustar" menor; atalhos em coluna (ícone, nome, depois o rótulo)
+   para "Recente" caber na borda e nada ser cortado (revisão UX, item 8b) */
+@media (max-width: 380px) {
+  .mapa-veiculo { padding-left: 12px; }
+  .mapa-veiculo-icone { display: none; }
+  .mapa-veiculo-ajustar { min-width: 72px; padding: 0 10px; }
+  .atalho { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; justify-items: center; text-align: center; min-height: 72px; padding: 6px 4px; row-gap: 0; }
+  .atalho-icone, .atalho-nome, .atalho-sub { grid-column: 1; max-width: 100%; }
+  .atalho-icone { grid-row: 1; } .atalho-nome { grid-row: 2; } .atalho-sub { grid-row: 3; }
+  #app.com-atalhos { --atalhos-h: 84px; }
+}
+
 /* ------------------------------------------------------------ com a barra, o pé da folha não precisa do recuo do iPhone (a barra já o tem) */
 #app.com-barra .folha-rodape { padding-bottom: 12px; }
 #app.com-barra .folha { bottom: var(--teclado, 0px); }
 
-/* ------------------------------------------------------------ folha de planejamento da rota (P1.4, ui/rota.js) */
-.rota-cabecalho { display: block; }
-.rota-cabecalho.com-prefs { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
-.rota-resumo { display: grid; gap: 4px; padding: 10px 14px; border-radius: 16px; background: var(--campo); border: 1px solid var(--linha); }
-.rota-resumo-trecho { margin: 0; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; color: var(--suave); }
-.folha .rota-resumo-trecho { color: var(--suave); }
-.rota-resumo-de { flex: none; }
-.rota-resumo-seta { flex: none; color: var(--primaria); font-weight: 800; }
-.rota-resumo-para { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--texto); font-weight: 700; }
-.rota-resumo-nums { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.rota-resumo-dados { font-size: 28px; line-height: 1.15; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
-.rota-resumo-chegada { padding: 4px 12px; border-radius: 999px; background: var(--primaria-suave); color: var(--primaria); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.folha .rota-resumo-carga { margin: 2px 0 0; font-size: 13px; color: var(--suave); }
-/* cartões de alternativa: a escolhida em azul (token), selo de compatibilidade em verde / âmbar / vermelho */
-.rota-opcao { border-radius: 16px; padding: 8px 14px; }
-.rota-opcao.escolhida, :root[data-tema="claro"] .rota-opcao.escolhida { border-color: var(--primaria); background: var(--primaria-suave); }
-.rota-opcao.escolhida .rota-opcao-rotulo::before, :root[data-tema="claro"] .rota-opcao.escolhida .rota-opcao-rotulo::before { color: var(--primaria); }
-.rota-selo { font-size: 13px; padding: 2px 10px; }
-.rota-opcao-dados { font-variant-numeric: tabular-nums; }
-/* botão principal: azul, 80 px, com o símbolo de navegar */
-.folha .rota-rodape .btn-iniciar-nav {
-  min-height: 80px; border-radius: 16px; font-size: 22px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 12px;
-}
-.folha .rota-rodape .btn-iniciar-nav .ico-prefixo { width: 30px; height: 30px; flex: none; }
-.folha .btn-iniciar-nav { min-height: 80px; }
-
 /* ------------------------------------------------------------ painel da manobra: a via só aparece quando a instrução não a cita (lote 2) */
 .nav-rua.redundante { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; padding: 0; }
 #app.com-barra .folha { max-height: min(66%, calc(100% - 232px)); }
-/* folha da rota (decisão): cabeçalho, círculos, cartões e botões à vista sem rolar; deixa só o necessário do mapa acima */
-#app.com-barra .folha[data-decisao="1"] { max-height: min(72%, calc(100% - 190px)); }
-#app.com-barra .folha[data-decisao="1"].rl-longa { max-height: 52%; } /* viagem do tamanho do país: sobra mais mapa acima da folha */
-#app.com-barra .folha[data-decisao="1"] .rota-resumo { padding: 8px 12px; gap: 2px; }
-#app.com-barra .folha[data-decisao="1"] .rota-resumo-dados { font-size: 24px; }
-#app.com-barra .folha[data-decisao="1"] .rota-resumo-chegada { padding: 2px 10px; font-size: 14px; }
-#app.com-barra .folha[data-decisao="1"] .rota-opcao { padding: 6px 12px; min-height: 64px; }
-#app.com-barra .folha[data-decisao="1"] .rota-opcao-linha { gap: 2px 6px; }
-#app.com-barra .folha[data-decisao="1"] .rota-opcoes { gap: 6px; }
-#app.com-barra .folha[data-decisao="1"] .folha-rodape { padding-top: 6px; padding-bottom: 8px; }
 
 /* celular deitado (tela baixa): o app pede para girar e a barra sai para não comer a pouca altura que sobra */
 @media (orientation: landscape) and (max-height: 540px) { .barra-abas { display: none; } }
@@ -123,9 +113,3 @@
   #app.com-veiculo { --topo-extra: 0px; }
   #app.com-atalhos { --atalhos-h: 0px; }
 }
-#app.com-barra .folha[data-decisao="1"] .btn-iniciar-nav { min-height: 76px; }
-#app.com-barra .folha[data-decisao="1"] .rota-resumo-nums { gap: 2px 8px; }
-#app.com-barra .folha[data-decisao="1"] .rota-resumo-dados { font-size: 22px; }
-#app.com-barra .folha[data-decisao="1"] .rota-resumo-chegada { font-size: 13px; padding: 1px 8px; }
-#app.com-barra .folha[data-decisao="1"] .rota-opcao-linha { font-size: 12px; }
-#app.com-barra .folha[data-decisao="1"] .rota-selo { font-size: 11px; padding: 1px 6px; }

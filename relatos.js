@@ -10,16 +10,17 @@
   // lote 1b (risco à segurança): soConta = só vale com conta (nunca fica só no aparelho, nunca vira alerta local);
   // neutro = texto sempre neutro (tituloNeutro no alerta, no popup e na voz; sem nível "confirmado", sem contagem de votos);
   // grave = botão em vermelho de gravidade na grade; aviso190 = a grade mostra "Em perigo agora? Ligue 190." antes de enviar.
+  // principal (revisão UX 12/11, item 7): posição (1 a 6) na grade de tiles grandes do formulário; os outros tipos ficam atrás de "Mais tipos".
   const TIPOS = {
     altura_maxima:      { rotulo: "Altura máxima (ponte ou viaduto)", curto: "Altura máxima",  sigla: "ALT",     ttlMs: 180 * D, valor: { rotulo: "Altura (m)", min: 1.5, max: 6,   unidade: "m" } },
     limite_peso:        { rotulo: "Limite de peso (ponte)",           curto: "Peso máximo",    sigla: "PESO",    ttlMs: 180 * D, valor: { rotulo: "Peso (t)",   min: 1,   max: 100, unidade: "t" } },
-    obra:               { rotulo: "Obra na pista",                    curto: "Obra",           sigla: "OBRA",    ttlMs: 7 * D },
-    buraco:             { rotulo: "Buraco ou pista danificada",       curto: "Buraco",         sigla: "BURACO",  ttlMs: 30 * D },
-    acidente:           { rotulo: "Acidente",                         curto: "Acidente",       sigla: "ACID",    ttlMs: 3 * H,  sentido: true, risco: true },
-    radar_movel:        { rotulo: "Radar móvel",                      curto: "Radar móvel",    sigla: "RADAR",   ttlMs: 2 * H,  sentido: true },
-    animal:             { rotulo: "Animal na pista",                  curto: "Animal",         sigla: "ANIMAL",  ttlMs: 1 * H,  risco: true },
+    obra:               { rotulo: "Obra na pista",                    curto: "Obra",           sigla: "OBRA",   principal: 3,    ttlMs: 7 * D },
+    buraco:             { rotulo: "Buraco ou pista danificada",       curto: "Buraco",         sigla: "BURACO", principal: 5,  ttlMs: 30 * D },
+    acidente:           { rotulo: "Acidente",                         curto: "Acidente",       sigla: "ACID",   principal: 1,    ttlMs: 3 * H,  sentido: true, risco: true },
+    radar_movel:        { rotulo: "Radar móvel",                      curto: "Radar",          sigla: "RADAR",  principal: 4,   ttlMs: 2 * H,  sentido: true },
+    animal:             { rotulo: "Animal na pista",                  curto: "Animal",         sigla: "ANIMAL", principal: 6,  ttlMs: 1 * H,  risco: true },
     // taxonomia 7.1 (E5)
-    fila:               { rotulo: "Fila ou trânsito parado",          curto: "Fila",           sigla: "FILA",    ttlMs: 1 * H,  sentido: true, risco: true },
+    fila:               { rotulo: "Fila ou trânsito parado",          curto: "Trânsito",        sigla: "FILA",   principal: 2,    ttlMs: 1 * H,  sentido: true, risco: true },
     objeto:             { rotulo: "Objeto na pista",                  curto: "Objeto",         sigla: "OBJETO",  ttlMs: 2 * H,  sentido: true, risco: true },
     veiculo_parado:     { rotulo: "Veículo parado",                   curto: "Veículo parado", sigla: "PARADO",  ttlMs: 2 * H,  sentido: true, risco: true },
     alagamento:         { rotulo: "Alagamento",                       curto: "Alagamento",     sigla: "ÁGUA",    ttlMs: 6 * H },

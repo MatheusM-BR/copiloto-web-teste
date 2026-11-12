@@ -70,10 +70,14 @@
     const sel = el("select"); sel.id = "r-tipo"; sel.hidden = true; sel.setAttribute("aria-hidden", "true"); sel.tabIndex = -1;
     sel.add(new Option("", ""));
     const grade = el("div", "r-grade"); grade.id = "r-grade"; grade.setAttribute("role", "radiogroup"); grade.setAttribute("aria-label", "O que você viu?");
+    // Revisão UX 12/11 (item 7): 6 tipos principais em tiles grandes (3 por linha, ≥ 84 px) visíveis sem rolar; os demais atrás
+    // de "Mais tipos", em linhas de 64 px. Todos os botões [data-tipo] ficam dentro de #r-grade (os escondidos com [hidden]).
+    const principais = el("div", "r-principais"), mais = el("div", "r-mais"); mais.id = "r-mais"; mais.hidden = true;
     const botoesTipo = new Map();
-    for (const [id, cfg] of Object.entries(Relatos.TIPOS)) {
+    const ordem = Object.entries(Relatos.TIPOS).sort((x, y) => (x[1].principal || 99) - (y[1].principal || 99));
+    for (const [id, cfg] of ordem) {
       sel.add(new Option(cfg.rotulo, id));
-      const b = el("button", "r-tipo-btn" + (cfg.risco ? " risco" : "") + (cfg.grave || id === "acidente" || id === "altura_maxima" ? " grave" : "")); // lote 1: só a gravidade (acidente, ponte baixa, risco à segurança) em vermelho
+      const b = el("button", "r-tipo-btn " + (cfg.principal ? "principal" : "secundario") + (cfg.risco ? " risco" : "") + (cfg.grave || id === "acidente" || id === "altura_maxima" ? " grave" : "")); // lote 1: só a gravidade (acidente, ponte baixa, risco à segurança) em vermelho
       b.type = "button"; b.dataset.tipo = id; b.setAttribute("role", "radio"); b.setAttribute("aria-checked", "false");
       b.setAttribute("aria-label", cfg.rotulo);
       if (window.CopilotoIcones) b.append(window.CopilotoIcones.no(window.CopilotoIcones.ICONE_RELATO[id] || "aviso", { classe: "r-ico" })); // r6: ícone grande em cima do nome
@@ -88,9 +92,18 @@
         else if (cfg.aviso190) { pararContagem(); aviso190.scrollIntoView({ block: "start" }); } // o aviso vem ANTES de enviar
         else iniciarContagem(cfg);
       });
-      grade.appendChild(b);
+      (cfg.principal ? principais : mais).appendChild(b);
       botoesTipo.set(id, b);
     }
+    const nMais = botoesTipo.size - principais.children.length;
+    const maisBtn = botao("Mais tipos (" + nMais + ")", "btn r-mais-btn", () => mostrarMais(mais.hidden));
+    maisBtn.id = "r-mais-btn"; maisBtn.setAttribute("aria-expanded", "false"); maisBtn.setAttribute("aria-controls", "r-mais");
+    function mostrarMais(abrir) {
+      mais.hidden = !abrir; maisBtn.setAttribute("aria-expanded", String(abrir));
+      maisBtn.textContent = abrir ? "Menos tipos" : "Mais tipos (" + nMais + ")";
+      if (abrir) mais.scrollIntoView({ block: "nearest" });
+    }
+    grade.append(principais, maisBtn, mais);
     sel.value = "";
     const inp = el("input"); inp.id = "r-valor"; inp.type = "text"; inp.autocomplete = "off";
     inp.setAttribute("inputmode", "decimal"); inp.setAttribute("enterkeyhint", "done"); inp.setAttribute("pattern", "[0-9]*[,.]?[0-9]*");
@@ -105,10 +118,10 @@
     const botoes190 = el("div", "r-aviso190-botoes"); botoes190.append(ligar190, relatarRisco);
     aviso190.append(el("p", "r-aviso190-titulo", Relatos.AVISO_190), botoes190,
       el("p", "r-aviso190-nota", "Este relato não leva texto nem descrição de pessoas ou veículos. Só avisa outros motoristas quando mais de uma pessoa relatar o mesmo trecho."));
-    const rotTipo = el("p", "r-pergunta", "O que você viu?");
     const idade = el("p", "r-idade"); idade.id = "r-idade"; idade.hidden = true;
     function ajustar() {
       const cfg = Relatos.TIPOS[sel.value];
+      if (cfg && !cfg.principal && mais.hidden) mostrarMais(true); // tipo escolhido por voz ou por outro caminho fica à vista
       for (const [id, b] of botoesTipo) { const v = id === sel.value; b.classList.toggle("escolhido", v); b.setAttribute("aria-checked", v ? "true" : "false"); }
       rotValor.hidden = !(cfg && cfg.valor);
       aviso190.hidden = !(cfg && cfg.aviso190);
@@ -182,15 +195,15 @@
     inp.addEventListener("input", pararContagem);
     botoes.append(cancelar, salvar);
     rodape.append(erro, contagem, botoes);
-    // SOS no TOPO da folha (fixo): a Emergência a um toque a partir do "!", com alvo de 64 px
+    // SOS no TOPO da folha (fixo): a Emergência a um toque a partir do "!", compacto (48 px, revisão UX 12/11)
     const sos = botao("SOS", "btn r-sos", () => {
       pararContagem(); clearInterval(relogio); C.folha.fechar();
       if (C.privacidade && C.privacidade.abrirEmergencia) C.privacidade.abrirEmergencia();
     });
     sos.id = "r-sos"; sos.setAttribute("aria-label", "SOS: abrir Emergência (191, 192, 193 e sua posição)");
     const topo = el("div", "folha-topo r-topo");
-    topo.append(el("h2", null, opcoes && opcoes.aqui ? "Relatar no ponto tocado" : "Reportar neste ponto"), sos);
-    const itens = [topo, rotTipo, grade, aviso190, sel, rotValor, idade];
+    topo.append(el("h2", null, opcoes && opcoes.aqui ? "Relatar no ponto tocado" : "O que você viu?"), sos);
+    const itens = [topo, grade, aviso190, sel, rotValor, idade];
     if (logado && envia) {
       itens.push(el("p", null, "Vai para outros motoristas. Vence sozinho e ganha força quando outros motoristas confirmarem."));
     } else if (logado) {

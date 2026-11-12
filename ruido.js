@@ -16,7 +16,7 @@
   const TETO_VOZ_100KM = 25, JANELA_M = 100000, TETO_VOZ_20KM = 6, JANELA_CURTA_M = 20000;
   const JUNTAR_KM_M = 1500, JUNTAR_ALTO_M = 3000;   // trechos perigosos críticos a até 1,5 km um do outro (alto: 3 km) viram um aviso só
   // ordem do corte da voz (maior fica): restrição > perigoso 3 > (balança, balsa, passagem de nível, área de escape, perigo, obra) > radar > curva > lombada
-  const RANK_VOZ = { restricao: 100, perigoso3: 90, balanca: 85, balsa: 85, passagem_nivel: 80, area_escape: 75, perigo: 75, obra: 70, radar: 60, curva: 50, lombada: 40, lombadas: 40, praca_pedagio: 35 };
+  const RANK_VOZ = { restricao: 100, perigoso3: 90, balanca: 85, balsa: 85, passagem_nivel: 80, area_escape: 75, perigo: 75, obra: 70, radar: 60, curva: 50, descida: 55, lombada: 40, lombadas: 40, praca_pedagio: 35 };
 
   const num = (v) => { const n = typeof v === "string" ? parseFloat(v) : v; return typeof n === "number" && isFinite(n) ? n : null; };
   const way = (f) => String(f && f.source_key || "").split("/")[0];

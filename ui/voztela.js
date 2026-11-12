@@ -9,8 +9,13 @@
 //  - o cartão de voz de sempre (#cartao-voz: Falar os alertas, jeito de falar, bipe de rádio, Testar voz) e o Limite de velocidade
 //    (#limite-cartao), com os mesmos ids; antes ficavam dentro da tela Conta;
 //  - link para o diagnóstico do microfone (#cmd-diag, que continua na tela Conta).
-// NÃO há controle de volume nem de velocidade da fala (o app não tem: o volume é o do aparelho) nem liga/desliga por categoria de alerta.
-// Expõe Copiloto.vozTela = { abrir(alvo?) }.
+// NÃO há controle de volume nem de velocidade da fala (o app não tem: o volume é o do aparelho).
+// Pacote F (item 17): "Alertas por categoria" (#voz-card-categorias): interruptores para Radar, Perigos na pista e Trânsito/obras/balança.
+// Não existia filtro por categoria em voz.js nem em avisos.js; aqui ele é simples: só os relatos de motoristas falados por
+// ui/alerta.js (Voz.textoAlerta, chamada sem opções) passam por ele. Restrição de altura/peso, manobra, curva, chegada e tudo o que é
+// "crítica" NUNCA são filtrados (nem o "Só alertas" nem estes interruptores os calam). Limite de velocidade e descanso seguem com o
+// interruptor próprio nos cartões respectivos. Escolha em localStorage "copiloto.voz.categorias.v1"; padrão: tudo ligado.
+// Expõe Copiloto.vozTela = { abrir(alvo?), categorias: { lista, ligada(id), definir(id, v), daFala(texto, opcoes) } }.
 (function (C) {
   "use strict";
   const { $, el, botao } = C.util;
@@ -20,6 +25,58 @@
   const ROTULO_BOTAO = { pronto: "Falar", abrindo: "Abrindo", ouvindo: "Ouvindo", ok: "Entendi", indisponivel: "Falar" };
 
   const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11.500a6.500 6.500 0 0013 0M12 18v3.500M8.500 21.500h7"/></svg>';
+
+  // ---- alertas por categoria
+  const CHAVE_CATEGORIAS = "copiloto.voz.categorias.v1";
+  const CATEGORIAS = [
+    { id: "radar", rotulo: "Radar e fiscalização", dica: "Radar móvel relatado à frente.", nomes: ["radar móvel"] },
+    { id: "perigos", rotulo: "Perigos na pista", dica: "Acidente, buraco, animal, objeto, veículo parado, alagamento, neblina, pista escorregadia e risco à segurança.",
+      nomes: ["acidente", "buraco na pista", "animal na pista", "objeto na pista", "veículo parado", "alagamento", "neblina", "pista escorregadia"] },
+    { id: "transito", rotulo: "Trânsito, obras e balança", dica: "Trânsito parado, obra e balança relatados à frente.", nomes: ["trânsito parado", "obra", "balança"] },
+  ];
+  function lerCategorias() {
+    const o = C.util.lerJSON(CHAVE_CATEGORIAS, {});
+    const r = {}; for (const c of CATEGORIAS) r[c.id] = !(o && o[c.id] === false);
+    return r;
+  }
+  function categoriaLigada(id) { return lerCategorias()[id] !== false; }
+  function definirCategoria(id, v) {
+    if (!CATEGORIAS.some((c) => c.id === id)) return false;
+    const o = lerCategorias(); o[id] = !!v; C.util.gravarJSON(CHAVE_CATEGORIAS, o); return true;
+  }
+  // Categoria de uma fala; null = nunca filtrar. Só relato falado sem opções ("Atenção: <nome> a <distância>.", de Voz.textoAlerta).
+  const RE_ALERTA = /^Atenção: (.+) a \d[\d,]* (?:metros?|quilômetros?)\.$/;
+  function categoriaDaFala(texto, opcoes) {
+    if (opcoes !== undefined && opcoes !== null) return null;
+    const t = String(texto == null ? "" : texto);
+    if (/^Atenção: relatos de risco à segurança/.test(t)) return "perigos";
+    const m = RE_ALERTA.exec(t); if (!m) return null;
+    const c = CATEGORIAS.find((x) => x.nomes.indexOf(m[1]) >= 0);
+    return c ? c.id : null;
+  }
+  function filtrarFala() {
+    const V = C.voz; if (!V || typeof V.falar !== "function" || V.falar.__categorias) return;
+    const orig = V.falar;
+    const f = function (texto, opcoes) {
+      const cat = categoriaDaFala(texto, opcoes);
+      if (cat && !categoriaLigada(cat)) return false;
+      return orig.apply(this, arguments);
+    };
+    f.__categorias = true;
+    V.falar = f;
+  }
+  function cartaoCategorias() {
+    const linhas = CATEGORIAS.map((c) => {
+      const r = el("label", "linha-check voz-cat"); r.htmlFor = "voz-cat-" + c.id;
+      const cx = document.createElement("input"); cx.type = "checkbox"; cx.id = "voz-cat-" + c.id; cx.checked = categoriaLigada(c.id);
+      cx.addEventListener("change", () => { definirCategoria(c.id, cx.checked); });
+      const tx = el("span", "voz-cat-txt"); tx.append(el("b", null, c.rotulo), el("small", null, c.dica));
+      r.append(cx, tx); return r;
+    });
+    return cartao("voz-card-categorias", "Alertas por categoria", [
+      el("p", "dica", "Escolha o que o Copiloto fala. O aviso continua na tela."), ...linhas,
+      el("p", "dica", "Altura e peso do seu caminhão, curvas, manobras e chegada sempre falam. Limite de velocidade e descanso têm o próprio interruptor, abaixo.")]);
+  }
 
   function cartao(id, titulo, filhos) {
     const c = el("section", "cartao voz-cartao " + id); c.id = id;
@@ -153,6 +210,8 @@
     if (ml) tela.append(ml);
     tela.append(cChips);
     if (voz) tela.append(voz);
+    tela.append(cartaoCategorias());
+    filtrarFala();
     const clipes = criarCartaoClipes();
     if (clipes) tela.append(clipes);
     if (lim) tela.append(lim);
@@ -171,7 +230,7 @@
     if (e && e.scrollIntoView) setTimeout(() => { try { e.scrollIntoView({ block: "start" }); } catch (x) { /* ignora */ } }, 0);
   }
 
-  C.vozTela = { abrir };
+  C.vozTela = { abrir, categorias: { lista: () => CATEGORIAS.map((c) => ({ id: c.id, rotulo: c.rotulo, ligada: categoriaLigada(c.id) })), ligada: categoriaLigada, definir: definirCategoria, daFala: categoriaDaFala } };
 
   C.aoIniciar(() => {
     C.abas.registrar({ id: "voz", rotulo: "Voz", tela: $("tela-voz"), botao: $("cfg-voz"), aoAbrir: () => { estadoFalar(); avisoSom(); } });
