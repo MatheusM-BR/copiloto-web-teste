@@ -29,7 +29,7 @@
 <body>
 <div id="app">
   <!-- Faixa de teste (revisão UX 12/11, item 9): 18 px, âmbar, só na tela inicial (ui/barra.js põe a classe "recolhida" nas outras telas) -->
-  <div class="aviso" id="aviso-teste" role="note">Dados de teste — não use para navegação real</div>
+  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">12/11 22:34</span></div>
 
   <main>
     <div id="mapa" aria-label="Mapa"></div>
@@ -116,7 +116,8 @@
       <!-- Orientação do mapa (equipe D): fora da navegação não há botão no mapa (tela enxuta); navegando, também #btn-orientacao -->
       <div class="cfg-grupo">
         <h2 class="cfg-titulo" id="cfg-orient-titulo">Orientação do mapa</h2>
-        <div class="cfg-seg cfg-seg-2" role="radiogroup" aria-labelledby="cfg-orient-titulo">
+        <div class="cfg-seg cfg-seg-3" role="radiogroup" aria-labelledby="cfg-orient-titulo">
+          <button type="button" role="radio" aria-checked="false" id="cfg-orient-auto" data-orient="auto">Automático (padrão)</button>
           <button type="button" role="radio" aria-checked="false" id="cfg-orient-rumo" data-orient="rumo">Rumo para cima</button>
           <button type="button" role="radio" aria-checked="false" id="cfg-orient-norte" data-orient="norte">Norte para cima</button>
         </div>
@@ -302,6 +303,7 @@
 <script src="proximidade.js"></script>
 <script src="rumo.js"></script>
 <script src="voz.js"></script>
+<script src="numeros.js"></script>
 <script src="vozclipes.js"></script>
 <script src="traducao.js"></script><script src="navegacao.js"></script>
 <script src="icones.js"></script><script src="placas.js"></script><script src="postos.js"></script><script src="autonomia.js"></script>

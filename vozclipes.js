@@ -28,6 +28,9 @@
   const PASTA = "voz/";
   const APARELHO = "aparelho";
   const MAX_PEDACOS = 8;
+  const MAX_IDS = 40; // clipes por fala (a montagem de números usa mais pedaços que as frases comuns)
+  // numeros.js (leitura de números em pt-BR): montagem por partes de falas com número livre. Ausente → só frases inteiras e pedaços fixos.
+  const N = raiz.CopilotoNumeros || (typeof module !== "undefined" && module.exports ? (function () { try { return require("./numeros.js"); } catch (e) { return null; } })() : null);
 
   // ------------------------------------------------------------ id (hash do texto normalizado)
   function normalizar(texto) {
@@ -58,6 +61,27 @@
   const DIST = "\\d+(?:,\\d+)?\\s(?:metros|quilômetros?)";
   const RE_CAUDA = new RegExp("^(.+?) (a " + DIST + "\\.)$");  // "Atenção: acidente a 150 metros."
   const RE_EM = new RegExp("^(Em " + DIST + ",) (.+)$");         // "Em 800 metros, vire à direita."
+  // Manobra com nome de rua ("Vire à esquerda na Rua 7.", "Entre na rotatória e pegue a 2ª saída para Praça X."): o nome não tem
+  // clipe. Em vez de cair na voz do aparelho, fala o miolo da manobra gravado ("Vire à esquerda.") e, se for rodovia com clipe
+  // ("na BR-060."), a rodovia; o nome da rua continua na tela. Só vale para verbos de manobra (nunca para alertas).
+  const RE_VERBO_MANOBRA = /^(?:vire|mantenha-se|siga|dirija|continue|faça|pegue|entre|saia|seu destino|você chegou|você chegará)\b/i;
+  const RE_CORTE = / (?:na|no|nas|nos|pela|pelo|pelas|pelos|para|em direção a|até|ao|à|a) /g;
+  const RE_RODOVIA = /^(na|pela|para a|à) ([A-Z]{2}-\d{2,3})\b/;
+  function reduzirManobra(f, tem) {
+    if (!RE_VERBO_MANOBRA.test(f) || !/[.!?]$/.test(f)) return null;
+    RE_CORTE.lastIndex = 0;
+    let m;
+    while ((m = RE_CORTE.exec(f))) {
+      const corte = m.index, cabeca = f.slice(0, corte) + ".";
+      const a = idDe(cabeca);
+      if (!tem(a)) continue;
+      const resto = f.slice(corte + 1);
+      const r = RE_RODOVIA.exec(resto);
+      if (r) { const b = idDe(r[1] + " " + r[2] + "."); if (tem(b)) return [a, b]; }
+      return [a];
+    }
+    return null;
+  }
   // frases: corta depois de . ! ? seguido de espaço ou fim (a vírgula decimal "4,3" não corta)
   function frases(texto) {
     const t = normalizar(texto);
@@ -78,7 +102,17 @@
       const a = idDe(m[1]), b = idDe(m[2]);
       if (tem(a) && tem(b)) return [a, b];
     }
-    return null;
+    return reduzirManobra(f, tem) || porNumeros(f, tem);
+  }
+  // Número livre ("Faltam 212 quilômetros, chegada às 15:40."): cada pedaço de texto fixo e cada palavra do número é um clipe gravado
+  // ("Faltam" + "duzentos e" + "doze" + "quilômetros, chegada às" + "quinze e" + "quarenta"). Se faltar um clipe, null (voz do aparelho).
+  function porNumeros(f, tem) {
+    if (!N || !/\d/.test(f)) return null;
+    let cs; try { cs = N.componentes(f); } catch (e) { return null; }
+    if (!cs) return null;
+    const ids = [];
+    for (const c of cs) { const id = idDe(c.texto); if (!tem(id)) return null; ids.push(id); }
+    return ids.length ? ids : null;
   }
   // Texto → ids dos clipes (na ordem de fala) ou null (sem clipe: voz do aparelho).
   function resolver(texto, tem) {
@@ -90,7 +124,7 @@
     if (partes.length < 1 || partes.length > MAX_PEDACOS) return null;
     const ids = [];
     for (const f of partes) { const r = resolverFrase(f, tem); if (!r) return null; for (const x of r) ids.push(x); }
-    return ids.length && ids.length <= MAX_PEDACOS * 2 ? ids : null;
+    return ids.length && ids.length <= MAX_IDS ? ids : null;
   }
 
   // ------------------------------------------------------------ manifest
@@ -160,10 +194,13 @@
     let pref = lerPref(storage);
     let iniciou = null;                 // promessa de iniciar()
     const urls = new Map();             // "voz/arquivo" → blob URL (memória, ordem de uso)
+    const blobs = new Map();            // "voz/arquivo" → Blob (para juntar os clipes de uma fala num arquivo só: sem pausa na troca de arquivo)
+    const B = o.Blob !== undefined ? o.Blob : (typeof Blob !== "undefined" ? Blob : null);
+    const juntar = o.juntar !== false;
     const falhou = new Map();           // "voz/arquivo" → até quando não tenta de novo (rede ruim: não atrasa cada fala)
     const ouvintes = [];
     const info = { clipesTocados: 0, falhas: 0, baixando: false };
-    let el = null, sessao = 0, atual = null;
+    let el = null, sessao = 0, atual = null, limpeza = null;
 
     function avisar() { for (const f of ouvintes.slice()) { try { f(); } catch (e) { /* ignora */ } } }
     function aoMudar(f) { if (typeof f === "function") ouvintes.push(f); }
@@ -230,7 +267,7 @@
       urls.delete(k); urls.set(k, u);
       while (urls.size > MAX_MEMORIA) {
         const velha = urls.keys().next().value;
-        const uv = urls.get(velha); urls.delete(velha);
+        const uv = urls.get(velha); urls.delete(velha); blobs.delete(velha);
         try { if (U && U.revokeObjectURL) U.revokeObjectURL(uv); } catch (e) { /* ignora */ }
       }
     }
@@ -245,6 +282,7 @@
         const blob = await r.blob();
         if (!blob || !(blob.size > 0)) throw new Error("vazio");
         lembrar(k, U.createObjectURL(blob));
+        if (B && blob instanceof B) blobs.set(k, blob);
         return true;
       } catch (e) { falhou.set(k, agora() + 60000); info.falhas++; return false; }
     }
@@ -283,6 +321,7 @@
       sessao++;
       const a = atual; atual = null;
       if (el) soltar(el);
+      if (limpeza) { const l = limpeza; limpeza = null; l(); }
       return !!a;
     }
     // Toca os clipes do plano em sequência (todos já carregados). op: { volume, taxa, aoIniciar, aoFim, aoErro(motivo, tocouAlgo) }.
@@ -290,18 +329,29 @@
     function tocar(plano, op) {
       const p = op || {};
       const e = elemento();
-      const lista = plano ? plano.arquivos.map((a) => urls.get(chave(plano.voz, a))) : [];
+      let lista = plano ? plano.arquivos.map((a) => urls.get(chave(plano.voz, a))) : [];
+      // Vários clipes: junta os mp3 num Blob só e toca uma vez. Trocar o src do <audio> entre um clipe e outro deixa uma pausa
+      // (de dezenas a centenas de ms, pior no iPhone); frames mp3 concatenados tocam em seguida. Sem Blob real, toca em sequência.
+      let urlJunta = null;
+      if (juntar && B && U && U.createObjectURL && plano && plano.arquivos.length > 1) {
+        try {
+          const bs = plano.arquivos.map((a) => blobs.get(chave(plano.voz, a)));
+          if (bs.every((b) => b instanceof B)) { urlJunta = U.createObjectURL(new B(bs, { type: "audio/mpeg" })); lista = [urlJunta]; }
+        } catch (x) { urlJunta = null; }
+      }
+      const soltarJunta = () => { if (urlJunta) { try { U.revokeObjectURL && U.revokeObjectURL(urlJunta); } catch (x) { /* ignora */ } urlJunta = null; } };
       const eu = ++sessao;
-      const h = { parar: () => { if (sessao === eu) parar(); } };
+      const h = { parar: () => { if (sessao === eu) { parar(); soltarJunta(); } } };
       if (!e || !lista.length || lista.some((u) => !u)) { if (agendar) agendar(() => { if (p.aoErro) p.aoErro("indisponivel", false); }, 0); else if (p.aoErro) p.aoErro("indisponivel", false); return h; }
-      atual = h;
+      if (limpeza) { const l = limpeza; limpeza = null; l(); }
+      atual = h; limpeza = soltarJunta;
       const volume = valor(p.volume, 1), taxa = valor(p.taxa, 1);
       let i = 0, comecou = false;
       const vivo = () => sessao === eu;
-      const erro = (motivo) => { if (!vivo()) return; parar(); info.falhas++; if (p.aoErro) p.aoErro(motivo, comecou); };
+      const erro = (motivo) => { if (!vivo()) return; parar(); soltarJunta(); info.falhas++; if (p.aoErro) p.aoErro(motivo, comecou); };
       const proximo = () => {
         if (!vivo()) return;
-        if (i >= lista.length) { parar(); if (p.aoFim) p.aoFim(); return; }
+        if (i >= lista.length) { parar(); soltarJunta(); if (p.aoFim) p.aoFim(); return; }
         try {
           soltar(e);
           e.onended = proximo;
@@ -408,7 +458,7 @@
   }
 
   const api = { CHAVE_PREF, CACHE_VOZES, PASTA, APARELHO, normalizar, hashTexto, idDe, frases, resolver, resolverFrase, validarManifest, validarIndice,
-    lerPref, gravarPref, criarTocador, formatarBytes, RE_CAUDA, RE_EM };
+    lerPref, gravarPref, criarTocador, formatarBytes, reduzirManobra, porNumeros, RE_CAUDA, RE_EM };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.CopilotoVozClipes = api;
 })(typeof window !== "undefined" ? window : globalThis);

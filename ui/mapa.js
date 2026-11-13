@@ -32,14 +32,18 @@
   const ESTILO_PADRAO = "https://tiles.openfreemap.org/styles/liberty"; // gratuito, sem chave
   let estiloUrl = C.tema && C.tema.estiloMapa ? C.tema.estiloMapa() : ESTILO_PADRAO;
   const CHAVE_MODO = "copiloto.mapa.modo.v1";
-  const CHAVE_ORIENTACAO = "copiloto.mapa.orientacao.v1";
+  const CHAVE_ORIENTACAO = "copiloto.mapa.orientacao.v2"; // v2: o padrão passou a ser automático (a escolha antiga não vale mais)
   let seguindo = false, avisouErro = false, avisouSemRede = 0;
   let modo = (C.util.lerJSON(CHAVE_MODO, null) || {}).modo === "simples" ? "simples" : "completo";
 
   // ------------------------------------------------------------ seguir, orientação e câmera
   const VOLTA_SEGUIR_MS = 10000, MANOBRA_PERTO_M = 300, PITCH_RUMO = 45;
   const linear = (t) => t;
-  let orientacao = (C.util.lerJSON(CHAVE_ORIENTACAO, null) || {}).modo === "norte" ? "norte" : "rumo"; // "norte" | "rumo"
+  let escolhaOrient = (function () { const m = (C.util.lerJSON(CHAVE_ORIENTACAO, null) || {}).modo; return m === "norte" || m === "rumo" ? m : "auto"; })(); // "auto" | "norte" | "rumo"
+  // automático (padrão): sem rota o mapa fica com o norte para cima; com rota traçada ou navegando, o rumo (a seta) fica para cima
+  function temRota() { try { return !!(C.rota && C.rota.destino && C.rota.destino()); } catch (e) { return false; } }
+  function efetiva() { return escolhaOrient === "auto" ? (navegando() || temRota() ? "rumo" : "norte") : escolhaOrient; }
+  let orientacao = "norte"; // efetiva atual (recalculada por atualizarOrientacaoAuto)
   let navAntes = false, manobraM = null;
   let zoomAlvo = null, deltaZoomUsuario = 0, zoomSeguir = null;
   // Zoom antes da manobra (rodada 6, rotapref.js): a < distM da manobra o fator sobe de 0 a 1 (curva suave) e a câmera aproxima
@@ -176,23 +180,35 @@
     atualizarBotoes();
   }
 
-  function guardarOrientacao() { C.util.gravarJSON(CHAVE_ORIENTACAO, { modo: orientacao }); }
+  function guardarOrientacao() { C.util.gravarJSON(CHAVE_ORIENTACAO, { modo: escolhaOrient }); }
   function alternarOrientacao() {
-    orientacao = orientacao === "rumo" ? "norte" : "rumo";
+    escolhaOrient = efetiva() === "rumo" ? "norte" : "rumo"; orientacao = escolhaOrient;
     guardarOrientacao();
     atualizarBotoes();
     if (seguindo) moverCamera(C.estado.ultimaPos, 600); else definirSeguir(true);
     C.mensagem(orientacao === "rumo" ? "Rumo para cima." : "Norte para cima.", 2500);
     C.emit("orientacao", { modo: orientacao });
   }
+  // rota colocada/removida ou navegação começando/acabando: no automático, o mapa troca sozinho entre norte e rumo
+  function atualizarOrientacaoAuto() {
+    const nova = efetiva();
+    if (nova === orientacao) return;
+    orientacao = nova; atualizarBotoes();
+    if (!C.mapa) return;
+    if (nova === "norte") C.mapa.easeTo({ bearing: 0, pitch: 0, duration: 600 });
+    else if (seguindo && C.estado.ultimaPos) moverCamera(C.estado.ultimaPos, 600);
+    C.emit("orientacao", { modo: nova, auto: escolhaOrient === "auto" });
+  }
   function orientacaoPublica(novo) {
-    if ((novo === "norte" || novo === "rumo") && novo !== orientacao) {
-      orientacao = novo; guardarOrientacao(); atualizarBotoes();
+    if (novo === "auto" && escolhaOrient !== "auto") {
+      escolhaOrient = "auto"; guardarOrientacao(); orientacao = "?"; atualizarOrientacaoAuto();
+    } else if ((novo === "norte" || novo === "rumo") && (novo !== escolhaOrient || novo !== orientacao)) {
+      escolhaOrient = novo; orientacao = novo; guardarOrientacao(); atualizarBotoes();
       if (seguindo && C.estado.ultimaPos) moverCamera(C.estado.ultimaPos, 600);
       else if (novo === "norte" && C.mapa) C.mapa.easeTo({ bearing: 0, pitch: 0, duration: 600 }); // escolhido nas Configurações
       C.emit("orientacao", { modo: novo });
     }
-    return orientacao;
+    return escolhaOrient; // a escolha: "auto" | "norte" | "rumo" (a que está valendo agora: C.orientacaoEfetiva())
   }
 
   function atualizarBotoes() {
@@ -656,6 +672,7 @@
     fator: () => fatorCam,
   };
   C.orientacao = orientacaoPublica;
+  C.orientacaoEfetiva = () => orientacao;
   C.mapaModo = mapaModo;
   C.seguindo = () => seguindo;
   C.mapaPronto = mapaPronto;
@@ -754,7 +771,10 @@
     $("btn-recentralizar").addEventListener("click", () => definirSeguir(true));
     C.on("posicao", aoPosicao);
     C.on("gps-sinal", atualizarBotoes);
+    for (const ev of ["destino", "rota", "rota-limpa"]) C.on(ev, atualizarOrientacaoAuto);
+    atualizarOrientacaoAuto();
     C.on("navegacao", (d) => {
+      atualizarOrientacaoAuto();
       manobraM = d && d.ativa && typeof d.manobra_m === "number" ? d.manobra_m : null;
       verificarNav();
       checarVoltaImediata();

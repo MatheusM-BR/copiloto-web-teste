@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Laboratório: espelhamento para multimídia</title>
+<style>
+body{font:16px system-ui,sans-serif;margin:0;padding:16px;background:#111;color:#eee}
+h1{font-size:20px}button{font:inherit;padding:12px 14px;margin:4px 4px 4px 0;border-radius:8px;border:0;background:#2a6;color:#fff;min-height:48px}
+.r{padding:8px;margin:6px 0;border-left:4px solid #888;background:#1b1b1b}.ok{border-color:#2c6}.no{border-color:#d44}.na{border-color:#ca3}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:8px;font-size:12px}
+</style></head><body>
+<h1>Espelhamento para multimídia — laboratório</h1>
+<p>Abra no celular <b>já conectado ao carro</b> (Bluetooth, Android Auto ou CarPlay), com o carro PARADO. Toque nos botões na ordem e olhe a tela da central.</p>
+<button id="b1">1. Checar recursos</button>
+<button id="b2">2. Cartão de manobra (Media Session)</button>
+<button id="b3">3. Bipe + voz pelo carro</button>
+<button id="b4">4. Wake Lock</button>
+<button id="b5">5. Tela cheia</button>
+<button id="b6">6. Cast / segunda tela</button>
+<button id="b7">Copiar relatório</button>
+<div id="out"></div>
+<p>Observe e anote: a central mostrou o título/artista? Os botões da central chegaram aqui (aparece "acao_recebida")? A voz saiu no alto-falante do carro?</p>
+<pre id="json"></pre>
+<script>
+const rel={ quando:new Date().toISOString(), ua:navigator.userAgent, resultados:{} };
+const out=document.getElementById("out"), jsonEl=document.getElementById("json");
+const $=(i)=>document.getElementById(i);
+const acoes=[];
+function reg(chave,estado,detalhe){ // estado: ok | no | na
+  rel.resultados[chave]={estado,detalhe:detalhe||""};
+  const d=document.createElement("div"); d.className="r "+estado; d.textContent=chave+": "+estado.toUpperCase()+(detalhe?" — "+detalhe:"");
+  out.appendChild(d); jsonEl.textContent=JSON.stringify(rel,null,2);
+}
+$("b1").onclick=()=>{
+  const sa=matchMedia("(display-mode: standalone)").matches;
+  reg("modo_instalado", (sa||navigator.standalone)?"ok":"na", "standalone="+sa);
+  reg("mediaSession","mediaSession" in navigator?"ok":"no");
+  reg("MediaMetadata","MediaMetadata" in window?"ok":"no");
+  reg("wakeLock","wakeLock" in navigator?"ok":"no");
+  reg("fullscreen",document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen?"ok":"no");
+  reg("presentationAPI","PresentationRequest" in window?"ok":"no");
+  reg("remotePlayback","remote" in HTMLMediaElement.prototype?"ok":"no");
+  reg("orientationLock",screen.orientation&&screen.orientation.lock?"ok":"no", screen.orientation?screen.orientation.type:"");
+  reg("webShare",navigator.share?"ok":"no");
+  reg("speechSynthesis","speechSynthesis" in window?"ok":"no");
+  reg("webBluetooth","bluetooth" in navigator?"ok":"no","não serve para a multimídia do carro; só informativo");
+  reg("tela","ok",screen.width+"x"+screen.height+" dpr "+devicePixelRatio);
+};
+let aud;
+function audioCtx(){ return new (window.AudioContext||window.webkitAudioContext)(); }
+function wavDe(d,sr){ const n=d.length,v=new DataView(new ArrayBuffer(44+n*2));
+  const s=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));};
+  s(0,"RIFF");v.setUint32(4,36+n*2,true);s(8,"WAVEfmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);s(36,"data");v.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++)v.setInt16(44+i*2,Math.max(-1,Math.min(1,d[i]))*32767,true);
+  return new Blob([v],{type:"audio/wav"}); }
+$("b2").onclick=async()=>{
+  if(!("mediaSession" in navigator)) return reg("cartao_manobra","no","sem Media Session");
+  // a central só mostra a Media Session se houver áudio tocando de verdade: laço de tom quase mudo
+  try{
+    if(!aud){ aud=new Audio(); aud.loop=true;
+      const sr=8000, d=new Float32Array(sr*2); for(let i=0;i<d.length;i++)d[i]=Math.sin(i/6)*0.004;
+      aud.src=URL.createObjectURL(wavDe(d,sr)); }
+    await aud.play();
+    navigator.mediaSession.metadata=new MediaMetadata({title:"Em 300 m, vire à esquerda",artist:"BR-116 · Copiloto",album:"Restam 42 km · chegada 15:40",
+      artwork:[{src:"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" fill="#0a5"/><path d="M300 400V240H190l90-110 90 110H300z" fill="#fff" transform="rotate(-90 256 256)"/></svg>'),sizes:"512x512",type:"image/svg+xml"}]});
+    navigator.mediaSession.playbackState="playing";
+    for(const a of ["play","pause","nexttrack","previoustrack","seekforward","seekbackward"]){
+      try{ navigator.mediaSession.setActionHandler(a,()=>{acoes.push(a+" "+new Date().toLocaleTimeString()); reg("acao_recebida_"+a,"ok","botão da central/volante chegou aqui");}); }catch(e){ reg("acao_"+a,"no",String(e)); }
+    }
+    reg("cartao_manobra","ok","tocando; veja se a central mostra 'Em 300 m, vire à esquerda'. Aperte next/pause na central.");
+  }catch(e){ reg("cartao_manobra","no",String(e)); }
+};
+$("b3").onclick=()=>{
+  try{ const c=audioCtx(), o=c.createOscillator(), g=c.createGain(); o.frequency.value=880; g.gain.value=0.2; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+0.4);
+    reg("bipe","ok","ouviu no alto-falante do carro? (anote)"); }catch(e){ reg("bipe","no",String(e)); }
+  if("speechSynthesis" in window){ const u=new SpeechSynthesisUtterance("Em trezentos metros, vire à esquerda."); u.lang="pt-BR"; speechSynthesis.speak(u); reg("voz_do_aparelho","ok","falou? saiu pelo carro? (anote)"); }
+};
+let wl;
+$("b4").onclick=async()=>{ try{ wl=await navigator.wakeLock.request("screen"); reg("wake_lock","ok","tela do celular fica acesa"); }catch(e){ reg("wake_lock","no",String(e)); } };
+$("b5").onclick=async()=>{ try{ const el=document.documentElement; await (el.requestFullscreen||el.webkitRequestFullscreen).call(el); reg("tela_cheia","ok"); }catch(e){ reg("tela_cheia","no",String(e)); } };
+$("b6").onclick=async()=>{
+  if("PresentationRequest" in window){ try{ const p=new PresentationRequest([location.href]); const av=await p.getAvailability(); reg("presentation_disponivel",av.value?"ok":"na","telas encontradas: "+av.value); }catch(e){ reg("presentation_disponivel","no",String(e)); } }
+  else reg("presentation_disponivel","no","sem Presentation API (iOS/Safari)");
+  const v=document.createElement("video");
+  if(v.remote){ try{ await v.remote.watchAvailability(a=>reg("remote_playback","ok","disponível="+a)); }catch(e){ reg("remote_playback","na",String(e)); } }
+  else reg("remote_playback","no","sem Remote Playback");
+};
+$("b7").onclick=async()=>{ rel.acoes_recebidas=acoes; const t=JSON.stringify(rel,null,2); try{ await navigator.clipboard.writeText(t); reg("copiado","ok"); }catch(e){ jsonEl.textContent=t; reg("copiado","na","copie o texto abaixo à mão"); } };
+</script></body></html>

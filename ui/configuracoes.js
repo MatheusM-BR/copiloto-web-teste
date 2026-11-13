@@ -18,7 +18,7 @@
       ? "Automático: claro das 6 h às 18 h, escuro à noite. Agora: " + ROTULO_TEMA[ef].toLowerCase() + "." : "";
     const tipo = T.tipoMapa();
     for (const b of document.querySelectorAll("#tela-config [data-tipo]")) b.setAttribute("aria-checked", String(b.dataset.tipo === tipo));
-    const orient = typeof C.orientacao === "function" ? C.orientacao() : "rumo";
+    const orient = typeof C.orientacao === "function" ? C.orientacao() : "auto";
     for (const b of document.querySelectorAll("#tela-config [data-orient]")) b.setAttribute("aria-checked", String(b.dataset.orient === orient));
     const fach = T.fachada();
     $("cfg-fachada").setAttribute("aria-checked", String(fach));
@@ -64,7 +64,7 @@
   const ICONES_MENU = { "nav-veiculo": "caminhao", "cfg-voz": "voz_tudo", "cfg-fachada": "predio", "btn-tela": "celular", "cfg-privacidade": "escudo",
     "cfg-diagnostico": "pulso", "nav-conta": "pessoa" };
   const ICONES_SEG = { "cfg-tema-claro": "sol", "cfg-tema-escuro": "lua", "cfg-tema-auto": "tema_auto", "cfg-mapa-ruas": "mapa", "cfg-mapa-predios": "predio",
-    "cfg-orient-rumo": "ir", "cfg-orient-norte": "bandeira" };
+    "cfg-orient-auto": "tema_auto", "cfg-orient-rumo": "ir", "cfg-orient-norte": "bandeira" };
   function simbolos() {
     const I = window.CopilotoIcones; if (!I) return;
     for (const [id, nome] of Object.entries(ICONES_MENU)) { const b = $(id), it = b && b.querySelector(".cfg-item"); if (it) I.prefixar(it, nome); }
