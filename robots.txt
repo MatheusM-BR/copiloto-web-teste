@@ -1,0 +1,4 @@
+# Site de teste: fora dos buscadores. (No GitHub Pages de projeto este arquivo fica num subcaminho e os buscadores
+# só leem o da raiz do domínio; quem vale de fato é a <meta name="robots"> de cada página.)
+User-agent: *
+Disallow: /

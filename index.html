@@ -1,8 +1,11 @@
 <!doctype html>
+<!-- Copiloto Caminhoneiro (c) 2026 Matheus. Todos os direitos reservados. Proibido copiar, modificar ou redistribuir sem autorizacao por escrito. -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.fbcdn.net https://*.mapillary.com; font-src 'self' data:; connect-src 'self' https://tiles.openfreemap.org https://wircixwonazhqmprwtqv.supabase.co https://valhalla1.openstreetmap.de https://photon.komoot.io https://nominatim.openstreetmap.org https://graph.mapillary.com; worker-src 'self' blob:; child-src blob:; manifest-src 'self'; media-src 'self' blob: data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.fbcdn.net https://*.mapillary.com; font-src 'self' data:; connect-src 'self' https://tiles.openfreemap.org https://tile.openstreetmap.org https://wircixwonazhqmprwtqv.supabase.co https://valhalla1.openstreetmap.de https://photon.komoot.io https://nominatim.openstreetmap.org https://graph.mapillary.com; worker-src 'self' blob:; child-src blob:; manifest-src 'self'; media-src 'self' blob: data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -12,7 +15,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Copiloto Caminhoneiro</title>
-<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<link rel="stylesheet" href="vendor/maplibre-gl.css" integrity="sha384-Nq6PQ+9vJPvw7U/VfDELyrWoGQMsy0gi6QShhaSrGzkpF5KkM40csg2leky+YMTd">
 <!-- Estilos: um arquivo por módulo (pacotes carregam o seu com Copiloto.carregarEstilo, ver ARQUITETURA.md) -->
 <link rel="stylesheet" href="estilos/base.css">
 <link rel="stylesheet" href="estilos/veiculos.css">
@@ -29,7 +32,7 @@
 <body>
 <div id="app">
   <!-- Faixa de teste (revisão UX 12/11, item 9): 18 px, âmbar, só na tela inicial (ui/barra.js põe a classe "recolhida" nas outras telas) -->
-  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">12/11 22:34</span></div>
+  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">13/11 13:56</span></div>
 
   <main>
     <div id="mapa" aria-label="Mapa"></div>
@@ -48,11 +51,9 @@
 
       <div class="acoes">
         <button class="btn-redondo btn-relatar" id="btn-reportar" aria-label="Reportar um problema ou restrição aqui" title="Reportar aqui"><b>!</b></button>
-        <button class="btn-redondo btn-orientacao" id="btn-orientacao" aria-pressed="false" aria-label="Norte para cima. Tocar para rumo para cima" title="Norte para cima / rumo para cima"><span class="orient-icone" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 1 L17.5 13 L12 10.5 L6.5 13 Z"/><text x="12" y="23" text-anchor="middle" font-size="9" font-weight="800" fill="currentColor">N</text></svg></span><span class="orient-rotulo">Norte</span></button>
+        <button class="btn-redondo btn-orientacao" id="btn-orientacao" aria-pressed="false" aria-label="Norte para cima. Tocar para rumo para cima" title="Bússola: tocar alterna norte/rumo para cima; segurar volta ao automático"><span class="orient-icone" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><circle class="b-aro" cx="24" cy="24" r="22"/><g class="b-ticks"><path d="M24 40v5M3 24h5M40 24h5"/><path class="b-ticks-fino" d="M38.8 9.2l-2.5 2.5M9.2 9.2l2.5 2.5M38.8 38.8l-2.5-2.5M9.2 38.8l2.5-2.5"/></g><text class="b-norte" x="24" y="14.5" text-anchor="middle">N</text></svg></span><span class="orient-centro" aria-hidden="true">N</span></button>
       </div>
 
-      <!-- SOS (revisão 5): canto inferior esquerdo, acima do velocímetro; abre a Emergência (ui/toque.js) -->
-      <button class="btn-sos" id="btn-sos" aria-label="SOS: abrir Emergência (191, 192, 193 e sua posição)" title="SOS · Emergência">SOS</button>
 
       <button class="btn-recentralizar" id="btn-recentralizar" hidden aria-label="Recentralizar no caminhão"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.8"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg><span>Recentralizar</span></button>
 
@@ -108,9 +109,10 @@
       </div>
       <div class="cfg-grupo">
         <h2 class="cfg-titulo" id="cfg-mapa-titulo">Tipo de mapa</h2>
-        <div class="cfg-seg cfg-seg-2" role="radiogroup" aria-labelledby="cfg-mapa-titulo">
+        <div class="cfg-seg cfg-seg-3" role="radiogroup" aria-labelledby="cfg-mapa-titulo">
           <button type="button" role="radio" aria-checked="false" id="cfg-mapa-ruas" data-tipo="ruas">Ruas</button>
           <button type="button" role="radio" aria-checked="false" id="cfg-mapa-predios" data-tipo="predios">Ruas + prédios</button>
+          <button type="button" role="radio" aria-checked="false" id="cfg-mapa-vivo" data-tipo="vivo">Vivo</button>
         </div>
       </div>
       <!-- Orientação do mapa (equipe D): fora da navegação não há botão no mapa (tela enxuta); navegando, também #btn-orientacao -->
@@ -147,11 +149,7 @@
       <ul class="lista-perfis" id="lista-perfis"></ul>
 
       <form id="form-perfil" novalidate>
-        <h2 style="margin:0;font-size:17px" id="titulo-form">Novo veículo</h2>
-        <label for="f-nome">Nome
-          <input id="f-nome" maxlength="80" autocomplete="off" placeholder="Ex.: Scania 113 carreta">
-          <span class="erro" id="e-nome"></span>
-        </label>
+        <h2 id="titulo-form">Novo veículo</h2>
         <fieldset class="v-carga" id="v-carga-grupo">
           <legend>Carga agora</legend>
           <div class="v-carga-opcoes" role="radiogroup" aria-label="Carga agora">
@@ -161,51 +159,94 @@
           <select id="f-carga" class="v-carga-select" tabindex="-1" aria-hidden="true"></select>
           <span class="campo-dica" id="d-carga">Carregado usa o PBTC; Vazio usa o peso vazio. A rota e o pedágio mudam com isso. Tocar de novo limpa a escolha.</span>
         </fieldset>
-        <div class="grade">
+
+        <fieldset class="v-bloco" id="v-bloco-ident">
+          <legend>Identificação</legend>
+          <label for="f-nome">Nome
+            <input id="f-nome" maxlength="80" autocomplete="off" placeholder="Ex.: Scania 113 carreta">
+            <span class="erro" id="e-nome"></span>
+          </label>
+          <label for="f-placa">Placa (opcional)
+            <input id="f-placa" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC1D23" aria-describedby="d-placa">
+            <span class="campo-dica" id="d-placa">Fica só neste aparelho. O app usa apenas o último número, para o rodízio por final de placa.</span>
+            <span class="erro" id="e-placa"></span>
+          </label>
           <label for="f-tipo">Tipo
             <select id="f-tipo" aria-describedby="d-tipo"></select>
             <span class="campo-dica" id="d-tipo">Escolha o que mais se parece com o seu conjunto.</span>
             <span class="erro" id="e-tipo"></span>
           </label>
-        </div>
-        <h3 class="v-sec">Medidas</h3>
-        <div class="grade">
-          <label for="f-altura">Altura (m)
-            <input id="f-altura" inputmode="decimal" autocomplete="off" placeholder="4,40" aria-describedby="d-altura">
-            <span class="campo-dica" id="d-altura">Do chão ao ponto mais alto, com a carga. Evita viaduto e túnel baixo.</span>
-            <span class="erro" id="e-altura"></span>
+        </fieldset>
+
+        <fieldset class="v-bloco" id="v-bloco-medidas">
+          <legend>Dimensões</legend>
+          <div class="v-grade">
+            <label for="f-altura">Altura (m)
+              <input id="f-altura" inputmode="decimal" autocomplete="off" placeholder="4,40" aria-describedby="d-altura">
+              <span class="campo-dica" id="d-altura">Do chão ao ponto mais alto, com a carga. Evita viaduto e túnel baixo.</span>
+              <span class="erro" id="e-altura"></span>
+            </label>
+            <label for="f-largura">Largura (m)
+              <input id="f-largura" inputmode="decimal" autocomplete="off" placeholder="2,60" aria-describedby="d-largura">
+              <span class="campo-dica" id="d-largura">Parte mais larga, com a carga.</span>
+              <span class="erro" id="e-largura"></span>
+            </label>
+            <label for="f-comprimento">Comprimento (m)
+              <input id="f-comprimento" inputmode="decimal" autocomplete="off" placeholder="18,60" aria-describedby="d-comprimento">
+              <span class="campo-dica" id="d-comprimento">Conjunto inteiro, da frente do cavalo ao fim da carreta.</span>
+              <span class="erro" id="e-comprimento"></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="v-bloco" id="v-bloco-pesos">
+          <legend>Peso e eixos</legend>
+          <div class="v-grade">
+            <label for="f-pbtc">PBTC (t)
+              <input id="f-pbtc" inputmode="decimal" autocomplete="off" placeholder="45" aria-describedby="d-pbtc">
+              <span class="campo-dica" id="d-pbtc">Peso bruto total combinado: conjunto carregado. Vale para pontes e balanças.</span>
+              <span class="erro" id="e-pbtc"></span>
+            </label>
+            <label for="f-tara">Peso vazio (t)
+              <input id="f-tara" inputmode="decimal" autocomplete="off" placeholder="15" aria-describedby="d-tara">
+              <span class="campo-dica" id="d-tara">Conjunto sem carga. Usado quando você escolhe Vazio.</span>
+              <span class="erro" id="e-tara"></span>
+            </label>
+            <label for="f-eixos">Eixos
+              <input id="f-eixos" inputmode="numeric" autocomplete="off" placeholder="6" aria-describedby="d-eixos">
+              <span class="campo-dica" id="d-eixos">Total do conjunto. Muda o pedágio e o limite por eixo.</span>
+              <span class="erro" id="e-eixos"></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="v-bloco" id="v-bloco-comb">
+          <legend>Combustível e consumo</legend>
+          <label for="f-combustivel">Combustível
+            <select id="f-combustivel" aria-describedby="d-combustivel"></select>
+            <span class="campo-dica" id="d-combustivel">Automático: diesel para caminhão, gasolina para carro. O preço do custo da rota e dos postos segue esta escolha.</span>
+            <span class="erro" id="e-combustivel"></span>
           </label>
-          <label for="f-largura">Largura (m)
-            <input id="f-largura" inputmode="decimal" autocomplete="off" placeholder="2,60" aria-describedby="d-largura">
-            <span class="campo-dica" id="d-largura">Parte mais larga, com a carga.</span>
-            <span class="erro" id="e-largura"></span>
-          </label>
-          <label for="f-comprimento">Comprimento (m)
-            <input id="f-comprimento" inputmode="decimal" autocomplete="off" placeholder="18,60" aria-describedby="d-comprimento">
-            <span class="campo-dica" id="d-comprimento">Conjunto inteiro, da frente do cavalo ao fim da carreta.</span>
-            <span class="erro" id="e-comprimento"></span>
-          </label>
-        </div>
-        <h3 class="v-sec">Pesos</h3>
-        <div class="grade">
-          <label for="f-pbtc">PBTC (t)
-            <input id="f-pbtc" inputmode="decimal" autocomplete="off" placeholder="45" aria-describedby="d-pbtc">
-            <span class="campo-dica" id="d-pbtc">Peso bruto total combinado: conjunto carregado. Vale para pontes e balanças.</span>
-            <span class="erro" id="e-pbtc"></span>
-          </label>
-          <label for="f-tara">Peso vazio (t)
-            <input id="f-tara" inputmode="decimal" autocomplete="off" placeholder="15" aria-describedby="d-tara">
-            <span class="campo-dica" id="d-tara">Conjunto sem carga. Usado quando você escolhe Vazio.</span>
-            <span class="erro" id="e-tara"></span>
-          </label>
-          <label for="f-eixos">Eixos
-            <input id="f-eixos" inputmode="numeric" autocomplete="off" placeholder="6" aria-describedby="d-eixos">
-            <span class="campo-dica" id="d-eixos">Total do conjunto. Muda o pedágio e o limite por eixo.</span>
-            <span class="erro" id="e-eixos"></span>
-          </label>
-        </div>
-        <h3 class="v-sec">Combustível</h3>
-        <div class="grade" id="grade-combustivel"></div>
+          <div class="v-grade">
+            <label for="f-tanque">Tanque (L)
+              <input id="f-tanque" inputmode="decimal" autocomplete="off" placeholder="600" aria-describedby="d-tanque">
+              <span class="campo-dica" id="d-tanque">Capacidade do tanque. Entra no alcance estimado.</span>
+              <span class="erro" id="e-tanque"></span>
+            </label>
+            <label for="f-consumoVazio">Consumo vazio (km/L)
+              <input id="f-consumoVazio" inputmode="decimal" autocomplete="off" placeholder="3,0" aria-describedby="d-consumoVazio">
+              <span class="campo-dica" id="d-consumoVazio">Média real do conjunto SEM carga. Usado no custo e no alcance quando você escolhe Vazio.</span>
+              <span class="erro" id="e-consumoVazio"></span>
+            </label>
+            <label for="f-consumo">Consumo carregado (km/L)
+              <input id="f-consumo" inputmode="decimal" autocomplete="off" placeholder="2,3" aria-describedby="d-consumo">
+              <span class="campo-dica" id="d-consumo">Média real do conjunto COM carga. Usado no custo e no alcance quando você escolhe Carregado.</span>
+              <span class="erro" id="e-consumo"></span>
+            </label>
+          </div>
+          <p class="v-tipico" id="v-tipico" hidden></p>
+        </fieldset>
+
         <label class="v-perigosa" for="f-perigosa">
           <input type="checkbox" id="f-perigosa" aria-describedby="d-perigosa">
           <span class="v-perigosa-txt"><b>Carga perigosa</b>
@@ -279,18 +320,12 @@
     </section>
   </main>
 
-  <!-- Barra de 4 abas (lote 2, ui/barra.js): fica EMBAIXO do mapa, fora do <main> (o mapa e tudo que é posicionado nele já respeitam a altura da barra) -->
-  <nav class="barra-abas" id="barra-abas" aria-label="Abas principais">
-    <button type="button" class="barra-aba" id="tab-mapa" data-aba="mapa"><span class="barra-aba-icone" aria-hidden="true"></span><span class="barra-aba-rotulo">Mapa</span></button>
-    <button type="button" class="barra-aba" id="tab-veiculo" data-aba="veiculo"><span class="barra-aba-icone" aria-hidden="true"></span><span class="barra-aba-rotulo">Veículo</span></button>
-    <button type="button" class="barra-aba" id="tab-voz" data-aba="voz"><span class="barra-aba-icone" aria-hidden="true"></span><span class="barra-aba-rotulo">Voz</span></button>
-    <button type="button" class="barra-aba" id="tab-conta" data-aba="conta"><span class="barra-aba-icone" aria-hidden="true"></span><span class="barra-aba-rotulo">Conta</span></button>
-  </nav>
+  <!-- Sem barra de abas (13/11): o mapa ocupa a tela toda; Veículo, Voz e Conta ficam no menu de Configurações (#btn-config) -->
 
 </div>
 
 <!-- Bibliotecas e lógica pura (sem DOM, testadas no Node) -->
-<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/maplibre-gl.js" integrity="sha384-GfxBM9x46BaAFxtCq39Fxir8fNZ4VDnwgfi6Kzi5/F1tAFsm0amuuV8kd+Pxzuf/"></script>
 <script src="validacao.js"></script>
 <script src="velocidade.js"></script>
 <script src="rota.js"></script>
@@ -318,6 +353,7 @@
 <script src="ui/nucleo.js"></script>
 <script src="ui/tema.js"></script>
 <script src="ui/mapa.js"></script>
+<script src="ui/contraste.js"></script>
 <script src="ui/gps.js"></script>
 <script src="ui/veiculos.js"></script>
 <script src="ui/rota.js"></script>

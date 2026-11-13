@@ -1,16 +1,2 @@
-/* Lote 4: cartões de estado (offline, erro, permissão negada). Alvos de 64 px; cor + ícone + texto (nunca só cor). */
-.estado-cartao { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: start; padding: 14px; border-radius: 14px;
-  background: var(--painel); border: 1px solid var(--linha); }
-.estado-ico { grid-row: 1; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--primaria-suave); color: var(--primaria); }
-.estado-ico svg { width: 24px; height: 24px; }
-.estado-txt h2 { margin: 0 0 2px; font-size: 18px; line-height: 1.25; }
-.estado-txt p { margin: 0; font-size: 15px; color: var(--suave); line-height: 1.35; }
-.estado-acao { grid-column: 1 / -1; width: 100%; min-height: 64px; margin-top: 8px; }
-.estado-atencao { background: var(--atencao-suave); border-color: var(--atencao); }
-.estado-atencao .estado-ico { background: var(--atencao-fundo); color: var(--atencao-fundo-texto); }
-.estado-atencao .estado-txt h2 { color: var(--atencao); }
-.estado-perigo { background: var(--perigo-suave); border-color: var(--perigo-txt); }
-.estado-perigo .estado-ico { background: var(--perigo); color: var(--perigo-texto); }
-.estado-perigo .estado-txt h2 { color: var(--perigo-txt); }
-:root[data-tema="claro"] .estado-atencao .estado-txt p, :root[data-tema="claro"] .estado-perigo .estado-txt p { color: var(--texto); }
-.folha .estado-cartao { margin-bottom: 12px; }
+/*! Copiloto Caminhoneiro (c) 2026 Matheus. Todos os direitos reservados. Proibido copiar, modificar ou redistribuir sem autorizacao por escrito. */
+.estado-cartao{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:start;padding:14px;border-radius:14px;background:var(--painel);border:1px solid var(--linha)}.estado-ico{grid-row:1;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--primaria-suave);color:var(--primaria)}.estado-ico svg{width:24px;height:24px}.estado-txt h2{margin:0 0 2px;font-size:18px;line-height:1.25}.estado-txt p{margin:0;font-size:15px;color:var(--suave);line-height:1.35}.estado-acao{grid-column:1 / -1;width:100%;min-height:64px;margin-top:8px}.estado-atencao{background:var(--atencao-suave);border-color:var(--atencao)}.estado-atencao .estado-ico{background:var(--atencao-fundo);color:var(--atencao-fundo-texto)}.estado-atencao .estado-txt h2{color:var(--atencao)}.estado-perigo{background:var(--perigo-suave);border-color:var(--perigo-txt)}.estado-perigo .estado-ico{background:var(--perigo);color:var(--perigo-texto)}.estado-perigo .estado-txt h2{color:var(--perigo-txt)}:root[data-tema=claro] .estado-atencao .estado-txt p,:root[data-tema=claro] .estado-perigo .estado-txt p{color:var(--texto)}.folha .estado-cartao{margin-bottom:12px}

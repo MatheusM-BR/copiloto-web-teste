@@ -1,12 +1,2 @@
-/* Parada no posto: uma pergunta por vez, botões grandes (resposta com o caminhão saindo do posto: voz primeiro, toque fácil) */
-.parada-pergunta h2 { font-size: 22px; line-height: 1.25; margin: 4px 0 12px; }
-.parada-posto { margin: 0; font-size: 14px; color: var(--suave); font-weight: 600; }
-.parada-opcoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 8px; }
-.parada-op { min-height: 64px; font-size: 19px; font-weight: 800; }
-.parada-preco { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
-.parada-preco input { min-height: 64px; font-size: 20px; padding: 0 12px; border-radius: 12px; border: 2px solid var(--borda, #888); background: var(--fundo-campo, transparent); color: inherit; min-width: 0; }
-.parada-rodape { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-.parada-rodape .btn { min-height: 64px; font-size: 17px; }
-.pc-estou { width: 100%; min-height: 64px; margin-top: 8px; }
-.parada-opcoes.parada-dois { grid-template-columns: 1fr 1fr; }
-.parada-preco { border: 0; padding: 0; background: none; }
+/*! Copiloto Caminhoneiro (c) 2026 Matheus. Todos os direitos reservados. Proibido copiar, modificar ou redistribuir sem autorizacao por escrito. */
+.parada-pergunta h2{font-size:22px;line-height:1.25;margin:4px 0 12px}.parada-posto{margin:0;font-size:14px;color:var(--suave);font-weight:600}.parada-opcoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px}.parada-op{min-height:64px;font-size:19px;font-weight:800}.parada-preco{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.parada-preco input{min-height:64px;font-size:20px;padding:0 12px;border-radius:12px;border:2px solid var(--borda, #888);background:var(--fundo-campo, transparent);color:inherit;min-width:0}.parada-rodape{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.parada-rodape .btn{min-height:64px;font-size:17px}.pc-estou{width:100%;min-height:64px;margin-top:8px}.parada-opcoes.parada-dois{grid-template-columns:1fr 1fr}.parada-preco{border:0;padding:0;background:none}

@@ -1,0 +1,20 @@
+Copiloto Caminhoneiro
+Copyright (c) 2026 Matheus. Todos os direitos reservados.
+
+Este repositório e todo o seu conteúdo próprio (código-fonte, textos, desenhos de placas e ícones, catálogo de falas,
+documentação, esquemas e migrações de banco de dados) são de propriedade do titular acima.
+
+Sem autorização prévia e por escrito do titular, é PROIBIDO copiar, modificar, publicar, distribuir, sublicenciar, vender
+ou usar este material, no todo ou em parte, inclusive para criar produto ou serviço derivado ou concorrente.
+
+O acesso ao site de teste ou ao código que o navegador baixa para funcionar não concede nenhuma licença.
+
+Componentes e dados de terceiros (MapLibre GL JS, dados do OpenStreetMap, OpenFreeMap, Valhalla, bases públicas como ANP,
+ANTT, ARTESP, PRF e DNIT, entre outros) NÃO são cobertos por este aviso: continuam sob as licenças e condições dos seus
+titulares. Ver docs/LICENCAS_DE_TERCEIROS.md e web-teste/vendor/MAPLIBRE-LICENSE.txt.
+
+O SOFTWARE É FORNECIDO "COMO ESTÁ", SEM GARANTIA DE QUALQUER TIPO. Os dados exibidos pelo aplicativo são de teste e não
+substituem a sinalização da via nem a legislação de trânsito.
+
+Este aviso não é parecer jurídico. Para registro de marca, de programa de computador (INPI) e termos de uso, consulte
+um advogado.
