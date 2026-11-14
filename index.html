@@ -28,11 +28,12 @@
 <link rel="stylesheet" href="estilos/simbolos.css">
 <link rel="stylesheet" href="estilos/barra.css">
 <link rel="stylesheet" href="estilos/voztela.css">
+<link rel="stylesheet" href="estilos/folha.css">
 </head>
 <body>
 <div id="app">
   <!-- Faixa de teste (revisão UX 12/11, item 9): 18 px, âmbar, só na tela inicial (ui/barra.js põe a classe "recolhida" nas outras telas) -->
-  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">14/11 13:11</span></div>
+  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">14/11 18:52</span></div>
 
   <main>
     <div id="mapa" aria-label="Mapa"></div>
@@ -51,8 +52,10 @@
 
       <div class="acoes">
         <button class="btn-redondo btn-relatar" id="btn-reportar" aria-label="Reportar um problema ou restrição aqui" title="Reportar aqui"><b>!</b></button>
-        <button class="btn-redondo btn-orientacao" id="btn-orientacao" aria-pressed="false" aria-label="Norte para cima. Tocar para rumo para cima" title="Bússola: tocar alterna norte/rumo para cima; segurar volta ao automático"><span class="orient-icone" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><circle class="b-aro" cx="24" cy="24" r="22"/><g class="b-ticks"><path d="M24 40v5M3 24h5M40 24h5"/><path class="b-ticks-fino" d="M38.8 9.2l-2.5 2.5M9.2 9.2l2.5 2.5M38.8 38.8l-2.5-2.5M9.2 38.8l2.5-2.5"/></g><text class="b-norte" x="24" y="14.5" text-anchor="middle">N</text></svg></span><span class="orient-centro" aria-hidden="true">N</span></button>
       </div>
+      <!-- Bússola (cromo do mapa, 14/11): lugar FIXO no canto superior direito, logo abaixo do ⚙ (navegando: abaixo do painel da manobra).
+           Fora da coluna .acoes: não "anda" com os outros botões (ui/mapa.js, posicionarBussola). -->
+      <button class="btn-redondo btn-orientacao" id="btn-orientacao" aria-pressed="false" aria-label="Norte para cima. Tocar para rumo para cima" title="Bússola: tocar alterna norte/rumo para cima; segurar volta ao automático"><span class="orient-icone" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><circle class="b-aro" cx="24" cy="24" r="22"/><g class="b-ticks"><path d="M24 40v5M3 24h5M40 24h5"/><path class="b-ticks-fino" d="M38.8 9.2l-2.5 2.5M9.2 9.2l2.5 2.5M38.8 38.8l-2.5-2.5M9.2 38.8l2.5-2.5"/></g><text class="b-norte" x="24" y="14.5" text-anchor="middle">N</text></svg></span><span class="orient-centro" aria-hidden="true">N</span></button>
 
 
       <button class="btn-recentralizar" id="btn-recentralizar" hidden aria-label="Recentralizar no caminhão"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.8"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg><span>Recentralizar</span></button>
@@ -354,6 +357,7 @@
 
 <!-- Interface: núcleo primeiro (window.Copiloto), depois os módulos. Ver ARQUITETURA.md -->
 <script src="ui/nucleo.js"></script>
+<script src="ui/folha.js"></script>
 <script src="ui/tema.js"></script>
 <script src="ui/mapa.js"></script>
 <script src="ui/contraste.js"></script>
