@@ -32,7 +32,7 @@
 <body>
 <div id="app">
   <!-- Faixa de teste (revisão UX 12/11, item 9): 18 px, âmbar, só na tela inicial (ui/barra.js põe a classe "recolhida" nas outras telas) -->
-  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">13/11 20:36</span></div>
+  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">13/11 21:56</span></div>
 
   <main>
     <div id="mapa" aria-label="Mapa"></div>
@@ -179,7 +179,7 @@
         </fieldset>
 
         <fieldset class="v-bloco" id="v-bloco-medidas">
-          <legend>Dimensões</legend>
+          <legend>Dimensões e peso</legend>
           <div class="v-grade">
             <label for="f-altura">Altura (m)
               <input id="f-altura" inputmode="decimal" autocomplete="off" placeholder="4,40" aria-describedby="d-altura">
@@ -200,7 +200,7 @@
         </fieldset>
 
         <fieldset class="v-bloco" id="v-bloco-pesos">
-          <legend>Peso e eixos</legend>
+          <legend class="v-legenda-cont">Peso e eixos</legend>
           <div class="v-grade">
             <label for="f-pbtc">PBTC (t)
               <input id="f-pbtc" inputmode="decimal" autocomplete="off" placeholder="45" aria-describedby="d-pbtc">
@@ -247,11 +247,14 @@
           <p class="v-tipico" id="v-tipico" hidden></p>
         </fieldset>
 
+        <fieldset class="v-bloco" id="v-bloco-carga">
+          <legend>Carga</legend>
         <label class="v-perigosa" for="f-perigosa">
           <input type="checkbox" id="f-perigosa" aria-describedby="d-perigosa">
           <span class="v-perigosa-txt"><b>Carga perigosa</b>
             <span class="campo-dica" id="d-perigosa">Só fica guardado no perfil por enquanto. Ainda não muda a rota nem o aviso de túneis.</span></span>
         </label>
+        </fieldset>
         <p class="dica">Deixe em branco o que você não sabe. O Copiloto não inventa medida: campo vazio fica como "não informado".</p>
         <div class="linha-botoes">
           <button type="submit" class="btn btn-principal" id="btn-salvar">Salvar veículo</button>
