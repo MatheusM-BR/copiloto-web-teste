@@ -38,7 +38,7 @@
 <body>
 <div id="app">
   <!-- Faixa de teste (revisão UX 12/11, item 9): 18 px, âmbar, só na tela inicial (ui/barra.js põe a classe "recolhida" nas outras telas) -->
-  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">15/11 12:51</span></div>
+  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">15/11 14:25</span></div>
 
   <main>
     <div id="mapa" aria-label="Mapa"></div>
@@ -99,6 +99,8 @@
         <button type="button" class="busca-atalho" id="busca-base"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg><span>Casa / base</span></button>
       </div>
       <div class="busca-resultados" id="busca-resultados" aria-live="polite"></div>
+      <h2 class="busca-secao" id="busca-salvas-titulo" hidden>Rotas salvas</h2>
+      <ul class="busca-lista" id="busca-salvas"></ul>
       <h2 class="busca-secao" id="busca-recentes-titulo">Recentes</h2>
       <ul class="busca-lista" id="busca-recentes"></ul>
       <p class="dica busca-dica" id="busca-dica">Ou toque no mapa e escolha "Ir para cá".</p>
@@ -289,6 +291,11 @@
             <button type="submit" class="btn btn-principal" id="btn-entrar">Entrar</button>
             <button type="button" class="btn" id="btn-criar-conta">Criar conta</button>
           </div>
+          <!-- 15/11: senha esquecida e reenvio da confirmação (usam o e-mail digitado acima) -->
+          <div class="conta-ajuda">
+            <button type="button" class="btn btn-link" id="btn-esqueci">Esqueci a senha</button>
+            <button type="button" class="btn btn-link" id="btn-reenviar" hidden>Reenviar e-mail de confirmação</button>
+          </div>
         </form>
         <!-- Lote 4: visitante. Sem conta o app funciona; os relatos novos ficam só neste aparelho. (Sem "Entrar com a Apple": ver docs/AVALIACAO_STITCH_20261105.md) -->
         <div class="conta-visitante">
@@ -303,12 +310,21 @@
           <h2>Conectado</h2>
           <div class="email-conta" id="c-usuario"></div>
         </div>
+        <!-- 15/11: depois do link "Esqueci a senha" (ou quando quiser trocar) -->
+        <form class="cartao" id="form-nova-senha" novalidate hidden>
+          <h2>Senha nova</h2>
+          <label for="c-nova-senha">Digite a senha nova
+            <input id="c-nova-senha" type="password" autocomplete="new-password" placeholder="Pelo menos 6 caracteres">
+          </label>
+          <button type="submit" class="btn btn-principal" id="btn-nova-senha">Salvar senha nova</button>
+        </form>
         <div class="cartao" id="c-reputacao" aria-live="polite">
           <h2>Sua reputação</h2>
           <div class="dica">Carregando…</div>
         </div>
         <p class="dica" id="c-fila" hidden></p>
         <div class="linha-botoes" style="margin:12px 0 14px">
+          <button type="button" class="btn" id="btn-trocar-senha">Trocar a senha</button>
           <button type="button" class="btn btn-perigo" id="btn-sair">Sair da conta</button>
         </div>
       </div>
