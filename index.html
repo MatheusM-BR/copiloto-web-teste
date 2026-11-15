@@ -38,7 +38,7 @@
 <body>
 <div id="app">
   <!-- Faixa de teste (revisão UX 12/11, item 9): 18 px, âmbar, só na tela inicial (ui/barra.js põe a classe "recolhida" nas outras telas) -->
-  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">15/11 16:25</span></div>
+  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">15/11 16:42</span></div>
 
   <main>
     <div id="mapa" aria-label="Mapa"></div>
@@ -278,25 +278,44 @@
       <p class="msg-conta" id="c-msg" role="status" hidden></p>
 
       <div id="conta-fora">
-        <form id="form-conta" novalidate>
-          <h2 class="conta-titulo">Entrar ou criar conta</h2>
-          <p class="dica">Com a conta, seus relatos aparecem para outros motoristas e você confirma os deles na estrada.</p>
+        <!-- 15/11 (Matheus: "login não funciona, está confuso"): UMA coisa por vez. Abas Entrar | Criar conta; cada uma com um botão só.
+             Depois de criar a conta (ou de "e-mail não confirmado"), o passo "Confirme seu e-mail" toma o lugar do formulário. -->
+        <div class="conta-modos" role="tablist" aria-label="Entrar ou criar conta">
+          <button type="button" role="tab" class="conta-modo" id="conta-modo-entrar" aria-selected="true">Já tenho conta</button>
+          <button type="button" role="tab" class="conta-modo" id="conta-modo-criar" aria-selected="false">Criar conta</button>
+        </div>
+        <form id="form-conta" novalidate data-modo="entrar">
+          <h2 class="conta-titulo" id="conta-titulo">Entrar</h2>
+          <p class="dica" id="conta-dica">Use o e-mail e a senha da sua conta.</p>
           <label for="c-email">E-mail
             <input id="c-email" type="email" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="voce@exemplo.com">
           </label>
           <label for="c-senha">Senha
-            <input id="c-senha" type="password" autocomplete="current-password" placeholder="Pelo menos 6 caracteres">
+            <span class="conta-senha">
+              <input id="c-senha" type="password" autocomplete="current-password" placeholder="Pelo menos 6 caracteres">
+              <button type="button" class="btn conta-ver-senha" id="btn-ver-senha" aria-pressed="false" aria-label="Mostrar a senha">Mostrar</button>
+            </span>
           </label>
           <div class="linha-botoes">
             <button type="submit" class="btn btn-principal" id="btn-entrar">Entrar</button>
-            <button type="button" class="btn" id="btn-criar-conta">Criar conta</button>
+            <button type="button" class="btn btn-principal" id="btn-criar-conta" hidden>Criar conta</button>
           </div>
-          <!-- 15/11: senha esquecida e reenvio da confirmação (usam o e-mail digitado acima) -->
           <div class="conta-ajuda">
             <button type="button" class="btn btn-link" id="btn-esqueci">Esqueci a senha</button>
-            <button type="button" class="btn btn-link" id="btn-reenviar" hidden>Reenviar e-mail de confirmação</button>
           </div>
         </form>
+        <!-- passo 2 do cadastro: confirmar o e-mail -->
+        <div class="cartao conta-confirmar" id="conta-confirmar" hidden>
+          <h2>Confirme seu e-mail</h2>
+          <p id="conta-confirmar-txt">Enviamos um e-mail com um link.</p>
+          <ol class="conta-passos">
+            <li>Abra o e-mail do Copiloto (veja também o spam).</li>
+            <li>Toque no link. Ele abre o Copiloto já com a sua conta.</li>
+          </ol>
+          <button type="button" class="btn btn-principal" id="btn-ja-confirmei">Já confirmei: entrar</button>
+          <button type="button" class="btn" id="btn-reenviar">Reenviar e-mail de confirmação</button>
+          <button type="button" class="btn btn-link" id="btn-outro-email">Usar outro e-mail</button>
+        </div>
         <!-- Lote 4: visitante. Sem conta o app funciona; os relatos novos ficam só neste aparelho. (Sem "Entrar com a Apple": ver docs/AVALIACAO_STITCH_20261105.md) -->
         <div class="conta-visitante">
           <p class="ou-separador">ou sem conta</p>
