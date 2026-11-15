@@ -29,11 +29,16 @@
 <link rel="stylesheet" href="estilos/barra.css">
 <link rel="stylesheet" href="estilos/voztela.css">
 <link rel="stylesheet" href="estilos/folha.css">
+<<<<<<< HEAD
+<link rel="stylesheet" href="estilos/telas.css">
+=======
+<link rel="stylesheet" href="estilos/diario.css">
+>>>>>>> main
 </head>
 <body>
 <div id="app">
   <!-- Faixa de teste (revisão UX 12/11, item 9): 18 px, âmbar, só na tela inicial (ui/barra.js põe a classe "recolhida" nas outras telas) -->
-  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">14/11 18:52</span></div>
+  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">15/11 11:37</span></div>
 
   <main>
     <div id="mapa" aria-label="Mapa"></div>
@@ -101,7 +106,7 @@
 
     <section id="tela-config" class="tela tela-config" hidden aria-label="Configurações">
       <h1>Configurações</h1>
-      <div class="cfg-grupo">
+      <div class="cfg-grupo" id="cfg-grupo-tema">
         <h2 class="cfg-titulo" id="cfg-tema-titulo">Tema</h2>
         <div class="cfg-seg cfg-seg-3" role="radiogroup" aria-labelledby="cfg-tema-titulo">
           <button type="button" role="radio" aria-checked="false" id="cfg-tema-claro" data-tema="claro">Claro</button>
@@ -110,7 +115,7 @@
         </div>
         <p class="dica" id="cfg-tema-dica"></p>
       </div>
-      <div class="cfg-grupo">
+      <div class="cfg-grupo" id="cfg-grupo-mapa">
         <h2 class="cfg-titulo" id="cfg-mapa-titulo">Tipo de mapa</h2>
         <div class="cfg-seg cfg-seg-3" role="radiogroup" aria-labelledby="cfg-mapa-titulo">
           <button type="button" role="radio" aria-checked="false" id="cfg-mapa-ruas" data-tipo="ruas">Ruas</button>
@@ -119,7 +124,7 @@
         </div>
       </div>
       <!-- Orientação do mapa (equipe D): fora da navegação não há botão no mapa (tela enxuta); navegando, também #btn-orientacao -->
-      <div class="cfg-grupo">
+      <div class="cfg-grupo" id="cfg-grupo-orient">
         <h2 class="cfg-titulo" id="cfg-orient-titulo">Orientação do mapa</h2>
         <div class="cfg-seg cfg-seg-3" role="radiogroup" aria-labelledby="cfg-orient-titulo">
           <button type="button" role="radio" aria-checked="false" id="cfg-orient-auto" data-orient="auto">Automático (padrão)</button>
@@ -128,7 +133,7 @@
         </div>
       </div>
       <!-- Rodada 6: a câmera aproxima e inclina quando falta pouco para a manobra (ui/mapa.js); fora do menu (a ordem do menu é fixa) -->
-      <div class="cfg-grupo">
+      <div class="cfg-grupo" id="cfg-grupo-camera">
         <h2 class="cfg-titulo" id="cfg-camera-titulo">Câmera na manobra</h2>
         <button type="button" id="cfg-camera" class="cfg-linha" role="switch" aria-checked="true" aria-labelledby="cfg-camera-titulo cfg-camera-valor"><span class="cfg-item">Zoom antes da manobra</span><small class="cfg-valor" id="cfg-camera-valor">Ligado</small></button>
       </div>
@@ -386,7 +391,7 @@
 <script src="custos.js"></script><script src="ui/custos.js"></script>
 <script src="rotalonga.js"></script><script src="viaqualidade.js"></script><script src="ui/rotalonga.js"></script><script src="ui/via.js"></script>
 <script src="desvio.js"></script><script src="dados.js"></script><script src="ruido.js"></script><script src="kmcache.js"></script><script src="ui/km.js"></script><script src="ui/avisos.js"></script><script src="ui/desvio.js"></script>
-<script src="descanso.js"></script><script src="ui/descanso.js"></script><script src="parada.js"></script><script src="ui/parada.js"></script>
+<script src="descanso.js"></script><script src="ui/descanso.js"></script><script src="parada.js"></script><script src="ui/parada.js"></script><script src="diario.js"></script><script src="ui/diario.js"></script><script src="copiloto.js"></script><script src="ui/copiloto.js"></script>
 <script src="ui/lista.js"></script>
 <!-- FIM DOS MÓDULOS DE PACOTE -->
 
