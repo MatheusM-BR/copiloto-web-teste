@@ -29,16 +29,15 @@
 <link rel="stylesheet" href="estilos/barra.css">
 <link rel="stylesheet" href="estilos/voztela.css">
 <link rel="stylesheet" href="estilos/folha.css">
-<<<<<<< HEAD
 <link rel="stylesheet" href="estilos/telas.css">
-=======
 <link rel="stylesheet" href="estilos/diario.css">
->>>>>>> main
+<!-- Frente C (15/11): telas de Configurar e conta — por último, para valer sobre as regras antigas das mesmas telas -->
+<link rel="stylesheet" href="estilos/configurar.css">
 </head>
 <body>
 <div id="app">
   <!-- Faixa de teste (revisão UX 12/11, item 9): 18 px, âmbar, só na tela inicial (ui/barra.js põe a classe "recolhida" nas outras telas) -->
-  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">15/11 22:10</span></div>
+  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">16/11 18:27</span></div>
 
   <main>
     <div id="mapa" aria-label="Mapa"></div>
@@ -113,7 +112,7 @@
         <div class="cfg-seg cfg-seg-3" role="radiogroup" aria-labelledby="cfg-tema-titulo">
           <button type="button" role="radio" aria-checked="false" id="cfg-tema-claro" data-tema="claro">Claro</button>
           <button type="button" role="radio" aria-checked="false" id="cfg-tema-escuro" data-tema="escuro">Escuro</button>
-          <button type="button" role="radio" aria-checked="false" id="cfg-tema-auto" data-tema="auto">Automático</button>
+          <button type="button" role="radio" aria-checked="false" id="cfg-tema-auto" data-tema="auto" aria-label="Automático">Auto</button>
         </div>
         <p class="dica" id="cfg-tema-dica"></p>
       </div>
@@ -129,37 +128,41 @@
       <div class="cfg-grupo" id="cfg-grupo-orient">
         <h2 class="cfg-titulo" id="cfg-orient-titulo">Orientação do mapa</h2>
         <div class="cfg-seg cfg-seg-3" role="radiogroup" aria-labelledby="cfg-orient-titulo">
-          <button type="button" role="radio" aria-checked="false" id="cfg-orient-auto" data-orient="auto">Automático (padrão)</button>
+          <button type="button" role="radio" aria-checked="false" id="cfg-orient-auto" data-orient="auto" aria-label="Automático (padrão)">Auto</button>
           <button type="button" role="radio" aria-checked="false" id="cfg-orient-rumo" data-orient="rumo">Rumo para cima</button>
           <button type="button" role="radio" aria-checked="false" id="cfg-orient-norte" data-orient="norte">Norte para cima</button>
         </div>
       </div>
       <!-- Rodada 6: a câmera aproxima e inclina quando falta pouco para a manobra (ui/mapa.js); fora do menu (a ordem do menu é fixa) -->
-      <div class="cfg-grupo" id="cfg-grupo-camera">
-        <h2 class="cfg-titulo" id="cfg-camera-titulo">Câmera na manobra</h2>
-        <button type="button" id="cfg-camera" class="cfg-linha" role="switch" aria-checked="true" aria-labelledby="cfg-camera-titulo cfg-camera-valor"><span class="cfg-item">Zoom antes da manobra</span><small class="cfg-valor" id="cfg-camera-valor">Ligado</small></button>
-      </div>
+      <button type="button" id="cfg-camera" role="switch" aria-checked="true"><span class="cfg-item">Zoom na manobra</span><small class="cfg-valor" id="cfg-camera-valor">Ligado</small></button>
       <!-- Menu: as telas (Veículo, Conta, Emergência e as dos pacotes) abrem daqui; os pacotes entram por Copiloto.abas.registrar -->
       <nav class="cfg-menu" aria-label="Menu">
         <h2 class="cfg-titulo cfg-menu-titulo">Veículo e voz</h2>
-        <button id="nav-veiculo"><span class="cfg-item">Veículo</span><small class="cfg-valor chip-veiculo" id="chip-veiculo">Nenhum veículo ativo</small></button>
+        <button id="nav-veiculo"><span class="cfg-item">Veículo</span><small class="cfg-valor chip-veiculo" id="chip-veiculo">Cadastrar</small></button>
         <button id="cfg-voz"><span class="cfg-item">Voz</span><small class="cfg-valor" id="cfg-voz-valor"></small></button>
         <h2 class="cfg-titulo cfg-menu-titulo">Tela e mapa</h2>
         <button id="cfg-fachada" role="switch" aria-checked="false"><span class="cfg-item">Fachada na chegada</span><small class="cfg-valor" id="cfg-fachada-valor">Desligada</small></button>
-        <button id="btn-tela" aria-pressed="false"><span class="cfg-item">Manter a tela ligada</span><small class="cfg-valor cfg-ligado">Ligada</small><small class="cfg-valor cfg-desligado">Desligada</small></button>
+        <button id="btn-tela" aria-pressed="false"><span class="cfg-item">Tela sempre ligada</span><small class="cfg-valor cfg-ligado">Ligada</small><small class="cfg-valor cfg-desligado">Desligada</small></button>
         <h2 class="cfg-titulo cfg-menu-titulo">Privacidade e conta</h2>
-        <button id="cfg-privacidade" data-ir="conta" data-alvo="e5-privacidade"><span class="cfg-item">Privacidade</span><small class="cfg-valor">Ver</small></button>
+        <button id="cfg-privacidade"><span class="cfg-item">Privacidade</span><small class="cfg-valor">Ver</small></button>
         <button id="cfg-diagnostico"><span class="cfg-item">Diagnóstico de voz</span><small class="cfg-valor">Ver</small></button>
         <button id="nav-conta"><span class="cfg-item">Conta</span><small class="cfg-valor" id="cfg-conta-valor"></small></button>
       </nav>
     </section>
 
-    <section id="tela-veiculo" class="tela" hidden aria-label="Veículos">
-      <h1>Veículos</h1>
-      <ul class="lista-perfis" id="lista-perfis"></ul>
+    <!-- 16/11 (pedido do Matheus): "Veículos" é só a lista (um toque escolhe o ativo) e os botões de adicionar; o formulário é uma
+         página secundária na mesma tela (data-pagina="form", ui/veiculos.js): Salvar ou "‹" voltam para a lista. -->
+    <section id="tela-veiculo" class="tela" hidden aria-label="Veículos" data-pagina="lista">
+      <h1 id="titulo-form">Veículos</h1>
+      <div class="v-pagina-lista" id="v-pagina-lista">
+        <ul class="lista-perfis" id="lista-perfis"></ul>
+        <div class="v-adicionar">
+          <button type="button" class="btn" id="v-add-veiculo">Adicionar veículo</button>
+          <button type="button" class="btn" id="v-add-carreta">Adicionar carreta</button>
+        </div>
+      </div>
 
-      <form id="form-perfil" novalidate>
-        <h2 id="titulo-form">Novo veículo</h2>
+      <form id="form-perfil" novalidate hidden>
         <fieldset class="v-carga" id="v-carga-grupo">
           <legend>Carga agora</legend>
           <div class="v-carga-opcoes" role="radiogroup" aria-label="Carga agora">
@@ -167,39 +170,36 @@
             <button type="button" class="v-carga-op" role="radio" data-carga="Vazio" aria-checked="false">Vazio</button>
           </div>
           <select id="f-carga" class="v-carga-select" tabindex="-1" aria-hidden="true"></select>
-          <span class="campo-dica" id="d-carga">Carregado usa o PBTC; Vazio usa o peso vazio. A rota e o pedágio mudam com isso. Tocar de novo limpa a escolha.</span>
+          <span class="campo-dica" id="d-carga">Muda o peso usado na rota e no pedágio. Tocar de novo limpa.</span>
         </fieldset>
 
+        <!-- Frente C (15/11): só o essencial primeiro (o que muda a rota: tipo, altura, peso, eixos, comprimento); o resto fica em "Mais dados" -->
         <fieldset class="v-bloco" id="v-bloco-ident">
-          <legend>Identificação</legend>
+          <legend>O essencial</legend>
           <label for="f-nome">Nome
             <input id="f-nome" maxlength="80" autocomplete="off" placeholder="Ex.: Scania 113 carreta">
             <span class="erro" id="e-nome"></span>
-          </label>
-          <label for="f-placa">Placa (opcional)
-            <input id="f-placa" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC1D23" aria-describedby="d-placa">
-            <span class="campo-dica" id="d-placa">Fica só neste aparelho. O app usa apenas o último número, para o rodízio por final de placa.</span>
-            <span class="erro" id="e-placa"></span>
           </label>
           <label for="f-tipo">Tipo
             <select id="f-tipo" aria-describedby="d-tipo"></select>
             <span class="campo-dica" id="d-tipo">Escolha o que mais se parece com o seu conjunto.</span>
             <span class="erro" id="e-tipo"></span>
           </label>
-        </fieldset>
-
-        <fieldset class="v-bloco" id="v-bloco-medidas">
-          <legend>Dimensões e peso</legend>
           <div class="v-grade">
             <label for="f-altura">Altura (m)
               <input id="f-altura" inputmode="decimal" autocomplete="off" placeholder="4,40" aria-describedby="d-altura">
               <span class="campo-dica" id="d-altura">Do chão ao ponto mais alto, com a carga. Evita viaduto e túnel baixo.</span>
               <span class="erro" id="e-altura"></span>
             </label>
-            <label for="f-largura">Largura (m)
-              <input id="f-largura" inputmode="decimal" autocomplete="off" placeholder="2,60" aria-describedby="d-largura">
-              <span class="campo-dica" id="d-largura">Parte mais larga, com a carga.</span>
-              <span class="erro" id="e-largura"></span>
+            <label for="f-pbtc">Peso total com carga (t)
+              <input id="f-pbtc" inputmode="decimal" autocomplete="off" placeholder="45" aria-describedby="d-pbtc">
+              <span class="campo-dica" id="d-pbtc">Caminhão mais a carga (o PBTC do documento). Vale para pontes e balanças.</span>
+              <span class="erro" id="e-pbtc"></span>
+            </label>
+            <label for="f-eixos">Eixos
+              <input id="f-eixos" inputmode="numeric" autocomplete="off" placeholder="6" aria-describedby="d-eixos">
+              <span class="campo-dica" id="d-eixos">Total do conjunto. Muda o pedágio e o limite por eixo.</span>
+              <span class="erro" id="e-eixos"></span>
             </label>
             <label for="f-comprimento">Comprimento (m)
               <input id="f-comprimento" inputmode="decimal" autocomplete="off" placeholder="18,60" aria-describedby="d-comprimento">
@@ -209,67 +209,72 @@
           </div>
         </fieldset>
 
-        <fieldset class="v-bloco" id="v-bloco-pesos">
-          <legend class="v-legenda-cont">Peso e eixos</legend>
-          <div class="v-grade">
-            <label for="f-pbtc">PBTC (t)
-              <input id="f-pbtc" inputmode="decimal" autocomplete="off" placeholder="45" aria-describedby="d-pbtc">
-              <span class="campo-dica" id="d-pbtc">Peso bruto total combinado: conjunto carregado. Vale para pontes e balanças.</span>
-              <span class="erro" id="e-pbtc"></span>
+        <!-- recolhido por padrão; o app lembra se o motorista deixou aberto (ui/veiculos.js) e abre sozinho ao editar veículo que já tem esses dados ou quando há erro num deles -->
+        <details class="v-mais" id="v-mais">
+          <summary id="v-mais-resumo"><span class="v-mais-tit">Mais dados</span><span class="v-mais-sub">Placa, largura, peso vazio, consumo</span></summary>
+          <fieldset class="v-bloco" id="v-bloco-medidas">
+            <legend>Placa e medidas</legend>
+            <label for="f-placa">Placa (opcional)
+              <input id="f-placa" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC1D23" aria-describedby="d-placa">
+              <span class="campo-dica" id="d-placa">Fica só neste aparelho. O app usa apenas o último número, para o rodízio por final de placa.</span>
+              <span class="erro" id="e-placa"></span>
             </label>
-            <label for="f-tara">Peso vazio (t)
-              <input id="f-tara" inputmode="decimal" autocomplete="off" placeholder="15" aria-describedby="d-tara">
-              <span class="campo-dica" id="d-tara">Conjunto sem carga. Usado quando você escolhe Vazio.</span>
-              <span class="erro" id="e-tara"></span>
-            </label>
-            <label for="f-eixos">Eixos
-              <input id="f-eixos" inputmode="numeric" autocomplete="off" placeholder="6" aria-describedby="d-eixos">
-              <span class="campo-dica" id="d-eixos">Total do conjunto. Muda o pedágio e o limite por eixo.</span>
-              <span class="erro" id="e-eixos"></span>
-            </label>
-          </div>
-        </fieldset>
+            <div class="v-grade">
+              <label for="f-largura">Largura (m)
+                <input id="f-largura" inputmode="decimal" autocomplete="off" placeholder="2,60" aria-describedby="d-largura">
+                <span class="campo-dica" id="d-largura">Parte mais larga, com a carga.</span>
+                <span class="erro" id="e-largura"></span>
+              </label>
+              <label for="f-tara">Peso vazio (t)
+                <input id="f-tara" inputmode="decimal" autocomplete="off" placeholder="15" aria-describedby="d-tara">
+                <span class="campo-dica" id="d-tara">Conjunto sem carga. Usado quando você escolhe Vazio.</span>
+                <span class="erro" id="e-tara"></span>
+              </label>
+            </div>
+          </fieldset>
 
-        <fieldset class="v-bloco" id="v-bloco-comb">
-          <legend>Combustível e consumo</legend>
-          <label for="f-combustivel">Combustível
-            <select id="f-combustivel" aria-describedby="d-combustivel"></select>
-            <span class="campo-dica" id="d-combustivel">Automático: diesel para caminhão, gasolina para carro. O preço do custo da rota e dos postos segue esta escolha.</span>
-            <span class="erro" id="e-combustivel"></span>
-          </label>
-          <div class="v-grade">
-            <label for="f-tanque">Tanque (L)
-              <input id="f-tanque" inputmode="decimal" autocomplete="off" placeholder="600" aria-describedby="d-tanque">
-              <span class="campo-dica" id="d-tanque">Capacidade do tanque. Entra no alcance estimado.</span>
-              <span class="erro" id="e-tanque"></span>
+          <fieldset class="v-bloco" id="v-bloco-comb">
+            <legend>Combustível e consumo</legend>
+            <label for="f-combustivel">Combustível
+              <select id="f-combustivel" aria-describedby="d-combustivel"></select>
+              <span class="campo-dica" id="d-combustivel">Automático: diesel para caminhão, gasolina para carro. O preço do custo da rota e dos postos segue esta escolha.</span>
+              <span class="erro" id="e-combustivel"></span>
             </label>
-            <label for="f-consumoVazio">Consumo vazio (km/L)
-              <input id="f-consumoVazio" inputmode="decimal" autocomplete="off" placeholder="3,0" aria-describedby="d-consumoVazio">
-              <span class="campo-dica" id="d-consumoVazio">Média real do conjunto SEM carga. Usado no custo e no alcance quando você escolhe Vazio.</span>
-              <span class="erro" id="e-consumoVazio"></span>
-            </label>
-            <label for="f-consumo">Consumo carregado (km/L)
-              <input id="f-consumo" inputmode="decimal" autocomplete="off" placeholder="2,3" aria-describedby="d-consumo">
-              <span class="campo-dica" id="d-consumo">Média real do conjunto COM carga. Usado no custo e no alcance quando você escolhe Carregado.</span>
-              <span class="erro" id="e-consumo"></span>
-            </label>
-          </div>
-          <p class="v-tipico" id="v-tipico" hidden></p>
-        </fieldset>
+            <div class="v-grade">
+              <label for="f-tanque">Tanque (L)
+                <input id="f-tanque" inputmode="decimal" autocomplete="off" placeholder="600" aria-describedby="d-tanque">
+                <span class="campo-dica" id="d-tanque">Capacidade do tanque. Entra no alcance estimado.</span>
+                <span class="erro" id="e-tanque"></span>
+              </label>
+              <label for="f-consumoVazio">Consumo vazio (km/L)
+                <input id="f-consumoVazio" inputmode="decimal" autocomplete="off" placeholder="3,0" aria-describedby="d-consumoVazio">
+                <span class="campo-dica" id="d-consumoVazio">Média real do conjunto SEM carga. Usado no custo e no alcance quando você escolhe Vazio.</span>
+                <span class="erro" id="e-consumoVazio"></span>
+              </label>
+              <label for="f-consumo">Consumo carregado (km/L)
+                <input id="f-consumo" inputmode="decimal" autocomplete="off" placeholder="2,3" aria-describedby="d-consumo">
+                <span class="campo-dica" id="d-consumo">Média real do conjunto COM carga. Usado no custo e no alcance quando você escolhe Carregado.</span>
+                <span class="erro" id="e-consumo"></span>
+              </label>
+            </div>
+            <p class="v-tipico" id="v-tipico" hidden></p>
+          </fieldset>
 
-        <fieldset class="v-bloco" id="v-bloco-carga">
-          <legend>Carga</legend>
-        <label class="v-perigosa" for="f-perigosa">
-          <input type="checkbox" id="f-perigosa" aria-describedby="d-perigosa">
-          <span class="v-perigosa-txt"><b>Carga perigosa</b>
-            <span class="campo-dica" id="d-perigosa">Só fica guardado no perfil por enquanto. Ainda não muda a rota nem o aviso de túneis.</span></span>
-        </label>
-        </fieldset>
+          <fieldset class="v-bloco" id="v-bloco-carga">
+            <legend>Carga</legend>
+            <label class="v-perigosa" for="f-perigosa">
+              <input type="checkbox" id="f-perigosa" aria-describedby="d-perigosa">
+              <span class="v-perigosa-txt"><b>Carga perigosa</b>
+                <span class="campo-dica" id="d-perigosa">Só fica guardado no perfil por enquanto. Ainda não muda a rota nem o aviso de túneis.</span></span>
+            </label>
+          </fieldset>
+        </details>
         <p class="dica">Deixe em branco o que você não sabe. O Copiloto não inventa medida: campo vazio fica como "não informado".</p>
         <div class="linha-botoes">
           <button type="submit" class="btn btn-principal" id="btn-salvar">Salvar veículo</button>
-          <button type="button" class="btn" id="btn-cancelar" hidden>Cancelar edição</button>
+          <button type="button" class="btn" id="btn-cancelar" hidden>Cancelar</button>
         </div>
+        <button type="button" class="btn btn-link btn-perigo v-excluir" id="btn-excluir" hidden>Excluir este veículo</button>
       </form>
     </section>
 
@@ -278,6 +283,8 @@
       <p class="msg-conta" id="c-msg" role="status" hidden></p>
 
       <div id="conta-fora">
+        <!-- Frente C: uma linha que responde "para que serve a conta?" antes de pedir e-mail e senha -->
+        <p class="conta-para-que" id="conta-para-que">Com conta, seus relatos vão para outros motoristas. Sem conta, o resto funciona igual.</p>
         <!-- 15/11 (Matheus: "login não funciona, está confuso"): UMA coisa por vez. Abas Entrar | Criar conta; cada uma com um botão só.
              Depois de criar a conta (ou de "e-mail não confirmado"), o passo "Confirme seu e-mail" toma o lugar do formulário. -->
         <div class="conta-modos" role="tablist" aria-label="Entrar ou criar conta">
@@ -285,14 +292,14 @@
           <button type="button" role="tab" class="conta-modo" id="conta-modo-criar" aria-selected="false">Criar conta</button>
         </div>
         <form id="form-conta" novalidate data-modo="entrar">
-          <h2 class="conta-titulo" id="conta-titulo">Entrar</h2>
-          <p class="dica" id="conta-dica">Use o e-mail e a senha da sua conta.</p>
+          <h2 class="conta-titulo so-leitor" id="conta-titulo">Entrar</h2>
+          <p class="dica" id="conta-dica" hidden></p>
           <label for="c-email">E-mail
             <input id="c-email" type="email" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="voce@exemplo.com">
           </label>
           <label for="c-senha">Senha
             <span class="conta-senha">
-              <input id="c-senha" type="password" autocomplete="current-password" placeholder="Pelo menos 6 caracteres">
+              <input id="c-senha" type="password" autocomplete="current-password">
               <button type="button" class="btn conta-ver-senha" id="btn-ver-senha" aria-pressed="false" aria-label="Mostrar a senha">Mostrar</button>
             </span>
           </label>
@@ -302,6 +309,7 @@
           </div>
           <div class="conta-ajuda">
             <button type="button" class="btn btn-link" id="btn-esqueci">Esqueci a senha</button>
+            <button type="button" class="btn btn-link" id="btn-visitante">Usar sem conta</button>
           </div>
         </form>
         <!-- passo 2 do cadastro: confirmar o e-mail -->
@@ -309,18 +317,17 @@
           <h2>Confirme seu e-mail</h2>
           <p id="conta-confirmar-txt">Enviamos um e-mail com um link.</p>
           <ol class="conta-passos">
-            <li>Abra o e-mail do Copiloto (veja também o spam).</li>
+            <li>Abra o e-mail do Copiloto. Não achou? Veja o spam.</li>
             <li>Toque no link. Ele abre o Copiloto já com a sua conta.</li>
           </ol>
           <button type="button" class="btn btn-principal" id="btn-ja-confirmei">Já confirmei: entrar</button>
-          <button type="button" class="btn" id="btn-reenviar">Reenviar e-mail de confirmação</button>
+          <button type="button" class="btn" id="btn-reenviar">Reenviar o e-mail</button>
           <button type="button" class="btn btn-link" id="btn-outro-email">Usar outro e-mail</button>
         </div>
         <!-- Lote 4: visitante. Sem conta o app funciona; os relatos novos ficam só neste aparelho. (Sem "Entrar com a Apple": ver docs/AVALIACAO_STITCH_20261105.md) -->
         <div class="conta-visitante">
-          <p class="ou-separador">ou sem conta</p>
-          <button type="button" class="btn" id="btn-visitante">Continuar como visitante</button>
-          <p class="dica">Como visitante, o mapa, a rota e os alertas funcionam. Seus relatos ficam só neste aparelho.</p>
+          <p class="ou-separador">ou</p>
+          <p class="dica">Sem conta, seus relatos ficam só neste aparelho.</p>
         </div>
       </div>
 
@@ -333,7 +340,7 @@
         <form class="cartao" id="form-nova-senha" novalidate hidden>
           <h2>Senha nova</h2>
           <label for="c-nova-senha">Digite a senha nova
-            <input id="c-nova-senha" type="password" autocomplete="new-password" placeholder="Pelo menos 6 caracteres">
+            <input id="c-nova-senha" type="password" autocomplete="new-password" placeholder="Mínimo 6">
           </label>
           <button type="submit" class="btn btn-principal" id="btn-nova-senha">Salvar senha nova</button>
         </form>
@@ -342,13 +349,18 @@
           <div class="dica">Carregando…</div>
         </div>
         <p class="dica" id="c-fila" hidden></p>
-        <div class="linha-botoes" style="margin:12px 0 14px">
+        <div class="conta-acoes">
           <button type="button" class="btn" id="btn-trocar-senha">Trocar a senha</button>
           <button type="button" class="btn btn-perigo" id="btn-sair">Sair da conta</button>
         </div>
       </div>
 
-      <div class="cartao" id="cartao-voz" style="margin-top:14px">
+    </section>
+
+    <!-- Aba Voz (lote 2): a central de voz. ui/voztela.js traz para cá os cartões de voz que ficavam na tela Conta (ids intactos) -->
+    <section id="tela-voz" class="tela tela-voz" hidden aria-label="Voz">
+      <h1>Voz</h1>
+      <div class="cartao" id="cartao-voz">
         <h2>Voz do Copiloto</h2>
         <label class="linha-check" for="voz-ligada"><input type="checkbox" id="voz-ligada"> Falar os alertas</label>
         <label for="voz-perfil">Jeito de falar
@@ -360,9 +372,16 @@
       </div>
     </section>
 
-    <!-- Aba Voz (lote 2): a central de voz. ui/voztela.js traz para cá os cartões de voz que ficavam na tela Conta (ids intactos) -->
-    <section id="tela-voz" class="tela tela-voz" hidden aria-label="Voz">
-      <h1>Voz</h1>
+    <!-- Frente C (15/11): uma tela, um assunto. Privacidade, Descanso e Diagnóstico saíram de baixo do login (tela Conta) e ganharam
+         tela própria; os cartões continuam sendo criados pelos módulos donos (ids intactos) e ui/configuracoes.js os traz para cá. -->
+    <section id="tela-privacidade" class="tela tela-privacidade" hidden aria-label="Privacidade">
+      <h1>Privacidade</h1>
+    </section>
+    <section id="tela-descanso" class="tela tela-descanso" hidden aria-label="Descanso">
+      <h1>Descanso</h1>
+    </section>
+    <section id="tela-diagnostico" class="tela tela-diagnostico" hidden aria-label="Diagnóstico de voz">
+      <h1>Diagnóstico de voz</h1>
     </section>
   </main>
 
