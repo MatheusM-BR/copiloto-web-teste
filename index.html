@@ -33,11 +33,12 @@
 <link rel="stylesheet" href="estilos/diario.css">
 <!-- Frente C (15/11): telas de Configurar e conta — por último, para valer sobre as regras antigas das mesmas telas -->
 <link rel="stylesheet" href="estilos/configurar.css">
+<link rel="stylesheet" href="estilos/contraste.css">
 </head>
 <body>
 <div id="app">
   <!-- Faixa de teste (revisão UX 12/11, item 9): 18 px, âmbar, só na tela inicial (ui/barra.js põe a classe "recolhida" nas outras telas) -->
-  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">16/11 18:27</span></div>
+  <div class="aviso" id="aviso-teste" role="note">Dados de teste — <span id="aviso-build">16/11 18:57</span></div>
 
   <main>
     <div id="mapa" aria-label="Mapa"></div>
@@ -107,6 +108,11 @@
 
     <section id="tela-config" class="tela tela-config" hidden aria-label="Configurações">
       <h1>Configurações</h1>
+      <!-- 16/11 (Matheus): logo ao entrar, um botão para ligar o Copiloto automático (ouve sem tocar: "Copiloto, …") -->
+      <button type="button" id="cfg-copiloto-auto" class="cfg-auto" role="switch" aria-checked="false">
+        <span class="cfg-auto-txt"><span class="cfg-auto-titulo">Copiloto automático</span><small class="cfg-auto-dica" id="cfg-copiloto-auto-dica">Desligado: toque em Falar para dar um comando</small></span>
+        <span class="cfg-auto-chave" aria-hidden="true"></span>
+      </button>
       <div class="cfg-grupo" id="cfg-grupo-tema">
         <h2 class="cfg-titulo" id="cfg-tema-titulo">Tema</h2>
         <div class="cfg-seg cfg-seg-3" role="radiogroup" aria-labelledby="cfg-tema-titulo">
