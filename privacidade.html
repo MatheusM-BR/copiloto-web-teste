@@ -33,7 +33,7 @@
 <div class="aviso" role="alert">Versão de teste — texto ainda sem revisão jurídica</div>
 <main>
   <h1>Política de privacidade</h1>
-  <p class="suave">Copiloto Caminhoneiro (app web de teste) · versão 2026-11-01.2 · vale para o app <a href="./">nesta página</a>.</p>
+  <p class="suave">Copiloto Caminhoneiro (app web de teste) · versão 2026-11-17.1 · vale para o app <a href="./">nesta página</a>.</p>
 
   <div class="caixa">
     <p><b>Em resumo:</b> o Copiloto usa a sua localização no aparelho para o mapa e os alertas. Para buscar postos e relatos
@@ -61,6 +61,7 @@
       grava essas posições, mas, repetidas enquanto você dirige, elas mostram por onde você passa. Desligada, o app não busca nem avisa.</li>
     <li><b>Enviar meus relatos e votos</b> — desligada, nada é enviado; um relato novo fica só no aparelho.</li>
     <li><b>Enviar dados de qualidade da posição</b> (precisão do GPS, rumo e velocidade no momento do relato ou voto) — serve para calibrar o sistema. Desligada, esses campos vão vazios.</li>
+    <li><b>Enviar as frases que o Copiloto não entendeu</b> — quando o Copiloto não entende o que você falou, o texto que o celular ouviu (sem áudio), o motivo e o dia vão ao nosso servidor, <b>sem a sua conta e sem a sua posição</b>, para ampliarmos o que ele entende. Apagado em 180 dias. Desligada, as frases ficam só no aparelho (Diagnóstico de voz).</li>
     <li><b>Mostrar foto de rua do destino (Mapillary)</b> — <b>desligada por padrão</b> e só existe quando o app tem o acesso ao Mapillary configurado. Ligada, ao chegar o app pede ao
       Mapillary (Meta) as fotos de rua numa caixa de cerca de 120 m em volta do destino e baixa uma delas: o Mapillary recebe esse ponto e o endereço de internet do aparelho
       (e a política dele vale para o que ele faz com isso). Desligada, a chegada mostra só o mapa em 3D (opção "Fachada na chegada"), sem foto e sem enviar nada ao Mapillary.</li>
@@ -95,6 +96,7 @@
     <tr><td>Posição exata e rumo no "Próximo posto"; na rota, o desenho da rota e o ponto de partida; nos postos do mapa, o centro da área vista</td><td>Trazer os postos à frente ou da área do mapa. <b>Não é gravada</b> no banco do Copiloto. Vale também com os alertas da comunidade desligados</td><td>Só na requisição</td></tr>
     <tr><td>Ao traçar uma rota (Padrão e Avançado): o desenho da rota e, com caminhão cadastrado, altura, peso, comprimento e largura do veículo; navegando, a posição exata a cada ~30 s ou 500 m; destino por km ("BR-153 km 140"): a rodovia, o km e o estado</td><td>Avisar na estrada curvas fortes, lombadas, balanças, passagens de nível, trechos com muitos acidentes (PRF), obras (ARTESP), pista e pavimento oficiais (DNIT — SNV) e as restrições que o caminhão não passa (OpenStreetMap); dizer em que km você está; achar o ponto do km. <b>Não é gravado</b> no banco do Copiloto</td><td>Só na requisição</td></tr>
     <tr><td>Rota em modo Avançado: o desenho da rota (e, para o pedágio, eixos, carregado/vazio, eixos suspensos e tipo do veículo)</td><td>Estimar o pedágio e o preço médio do combustível da rota. <b>Não é gravado</b> no banco do Copiloto. No modo Padrão nada disso é enviado</td><td>Só na requisição</td></tr>
+    <tr><td>Frase que o Copiloto não entendeu: o texto que o reconhecimento ouviu (até 4 variantes), o motivo, a escolha feita na pergunta de 2 opções, o dia, a versão do app e o tipo de aparelho (iPhone/Android). Sem conta, sem posição, sem áudio (só com essa escolha ligada)</td><td>Ampliar o que o Copiloto entende</td><td>Servidor, 180 dias</td></tr>
     <tr><td>Áudio do comando de voz (depois do toque em "Falar" ou, no modo mãos-livres, enquanto o app está na tela)</td><td>Transformar a fala em texto para entender o comando</td><td>No iPhone, enviado ao serviço de reconhecimento de fala da Apple; em outros aparelhos, ao serviço de fala do navegador. O Copiloto não grava nem recebe o áudio</td></tr>
     <tr><td>Origem e destino da rota (Valhalla); depois a forma da rota, para o limite de velocidade (<code>trace_attributes</code>) e, quando o custo usa o relevo, a altitude (<code>height</code>)</td><td>Traçar a rota, mostrar o limite de velocidade e estimar o custo</td><td>Enviado ao servidor público de rotas (FOSSGIS e.V.); o Copiloto não guarda</td></tr>
     <tr><td>Texto digitado na busca (e, com a localização ligada, a sua posição para ordenar por distância); ponto tocado no mapa e, com a localização ligada, a sua posição na Emergência</td><td>Achar o lugar e mostrar o endereço</td><td>Enviado ao Photon (Komoot) e ao Nominatim (OpenStreetMap); o Copiloto não guarda</td></tr>
@@ -107,6 +109,7 @@
   <ul>
     <li><b>Relatos e os votos neles:</b> cada tipo tem validade (de 1 hora a 180 dias). Depois de vencer, ficam guardados mais <b>30 dias</b> e são apagados automaticamente, todos os dias.</li>
     <li><b>Relato que você retira:</b> some do mapa na hora; o registro fica até 30 dias depois do vencimento original, para auditoria contra abuso, e então é apagado.</li>
+    <li><b>Frases não entendidas</b> (anônimas): <b>180 dias</b>, depois apagadas automaticamente.</li>
     <li><b>Reputação:</b> enquanto a conta existir.</li>
     <li><b>Conta:</b> até você pedir a exclusão e ela ser feita.</li>
     <li><b>Dados no aparelho:</b> até você apagá-los (excluir relato ou veículo, ou limpar os dados do site no navegador).</li>
